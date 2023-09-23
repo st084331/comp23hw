@@ -1,0 +1,8 @@
+(library
+ (name KREML_lib)
+ (public_name KREML.Lib)
+ (modules Ast)
+ (libraries base angstrom)
+ (preprocess
+  (pps ppx_expect ppx_deriving.show))
+ (inline_tests))
