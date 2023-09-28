@@ -30,7 +30,8 @@ type expr =
   | EUnaryOp of unary_op * expr (* ~10 *)
   | EBinaryOp of binary_op * expr * expr (* 7 + 8 *)
   | EApp of expr * expr (* f x *)
-  | EAbs of identifier list * expr (* fn x y => x - y *)
+  | EAbs of identifier * expr (* fn x y => x - y *)
+  | EIfThenElse of expr * expr * expr (* if true then 1 else 2 *)
   | ELet of identifier * decl list * expr (* let fun f x = x, val y = 1 in f 1 * y *)
 
 and decl =
