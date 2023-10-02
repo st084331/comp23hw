@@ -53,9 +53,10 @@ jobs:
       #    sh -x ./detect_latest_pr.sh -repo comp23hw "pull/${{ steps.branch-name.outputs.ref_branch }}" >> $GITHUB_ENV
       #    echo "${{ env.latest }}"
 
-      - run: |
-          PAGER= git branch -vvv
-          PAGER= git remote -vvv
+      - run: PAGER= git branch -vvv
+      - run: PAGER= git remote -vvv
+
+      - run: PAGER= git log --graph --decorate --pretty=oneline --abbrev-commit --all
 
       - run: |
           opam exec -- ocaml ./detect_latest_pr.ml -repo comp23hw "pull/${{ steps.branch-name.outputs.ref_branch }}" -v >> $GITHUB_ENV
