@@ -58,8 +58,9 @@ jobs:
 
       - run: PAGER= git log --graph --decorate --pretty=oneline --abbrev-commit --all
 
+      - run: opam exec -- ocaml ./detect_latest_pr.ml -repo comp23hw "pull/${{ steps.branch-name.outputs.ref_branch }}" -v
       - run: |
-          opam exec -- ocaml ./detect_latest_pr.ml -repo comp23hw "pull/${{ steps.branch-name.outputs.ref_branch }}" -v >> $GITHUB_ENV
+          opam exec -- ocaml ./detect_latest_pr.ml -repo comp23hw "pull/${{ steps.branch-name.outputs.ref_branch }}" >> $GITHUB_ENV
           echo "${{ env.latest }}"
         #if: ${{ github.event.pull_request.user.login == 'fp2022-helper' }}
 
