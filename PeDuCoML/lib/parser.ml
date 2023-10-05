@@ -1317,3 +1317,151 @@ let%test _ =
                  ] ) )
        ]
 ;;
+
+let%test _ =
+  parse "let f 2 = 1"
+  = Result.ok @@ [ EDeclaration ("f", [ PLiteral (LInt 2) ], ELiteral (LInt 1)) ]
+;;
+
+let%test _ =
+  parse "let f _ = 1" = Result.ok @@ [ EDeclaration ("f", [ PWild ], ELiteral (LInt 1)) ]
+;;
+
+let%test _ =
+  parse "let f (x, \"abacaba\") = 1"
+  = Result.ok
+    @@ [ EDeclaration
+           ( "f"
+           , [ PTuple [ PIdentifier "x"; PLiteral (LString "abacaba") ] ]
+           , ELiteral (LInt 1) )
+       ]
+;;
+
+let%test _ =
+  parse "let f [(x, y); ((), _)] = 1"
+  = Result.ok
+    @@ [ EDeclaration
+           ( "f"
+           , [ PList
+                 [ PTuple [ PIdentifier "x"; PIdentifier "y" ]
+                 ; PTuple [ PLiteral LUnit; PWild ]
+                 ]
+             ]
+           , ELiteral (LInt 1) )
+       ]
+;;
+
+let%test _ =
+  parse "let f ((true, '\n') :: [x, y]) = 1"
+  = Result.ok
+    @@ [ EDeclaration
+           ( "f"
+           , [ PConstructList
+                 ( PTuple [ PLiteral (LBool true); PLiteral (LChar '\n') ]
+                 , PList [ PTuple [ PIdentifier "x"; PIdentifier "y" ] ] )
+             ]
+           , ELiteral (LInt 1) )
+       ]
+;;
+
+let%test _ =
+  parse "let f = fun x -> x"
+  = Result.ok @@ [ EDeclaration ("f", [], EFun ([ PIdentifier "x" ], EIdentifier "x")) ]
+;;
+
+let%test _ =
+  parse "let f = fun _ -> 2"
+  = Result.ok @@ [ EDeclaration ("f", [], EFun ([ PWild ], ELiteral (LInt 2))) ]
+;;
+
+let%test _ =
+  parse "let f = fun x, (true, \"42\") -> true"
+  = Result.ok
+    @@ [ EDeclaration
+           ( "f"
+           , []
+           , EFun
+               ( [ PTuple
+                     [ PIdentifier "x"
+                     ; PTuple [ PLiteral (LBool true); PLiteral (LString "42") ]
+                     ]
+                 ]
+               , ELiteral (LBool true) ) )
+       ]
+;;
+
+let%test _ =
+  parse "let f = fun [1, x, true; _, _, y] -> true"
+  = Result.ok
+    @@ [ EDeclaration
+           ( "f"
+           , []
+           , EFun
+               ( [ PList
+                     [ PTuple
+                         [ PLiteral (LInt 1); PIdentifier "x"; PLiteral (LBool true) ]
+                     ; PTuple [ PWild; PWild; PIdentifier "y" ]
+                     ]
+                 ]
+               , ELiteral (LBool true) ) )
+       ]
+;;
+
+let%test _ =
+  parse "let f = fun ([x] :: [y; [(), ([], [])]]) -> true"
+  = Result.ok
+    @@ [ EDeclaration
+           ( "f"
+           , []
+           , EFun
+               ( [ PConstructList
+                     ( PList [ PIdentifier "x" ]
+                     , PList
+                         [ PIdentifier "y"
+                         ; PList
+                             [ PTuple [ PLiteral LUnit; PTuple [ PList []; PList [] ] ] ]
+                         ] )
+                 ]
+               , ELiteral (LBool true) ) )
+       ]
+;;
+
+let%test _ =
+  parse
+    " let f x y z = match x, y, z with\n\
+    \  | true, _, x -> true\n\
+    \  | [a; b], c :: [d; e], _ -> true\n\
+    \  | (), [a, 1; (), _], (c, [d; _] :: _, []) -> true\n\
+    \  | _ -> false"
+  = Result.ok
+    @@ [ EDeclaration
+           ( "f"
+           , [ PIdentifier "x"; PIdentifier "y"; PIdentifier "z" ]
+           , EMatchWith
+               ( ETuple [ EIdentifier "x"; EIdentifier "y"; EIdentifier "z" ]
+               , [ ( PTuple [ PLiteral (LBool true); PWild; PIdentifier "x" ]
+                   , ELiteral (LBool true) )
+                 ; ( PTuple
+                       [ PList [ PIdentifier "a"; PIdentifier "b" ]
+                       ; PConstructList
+                           (PIdentifier "c", PList [ PIdentifier "d"; PIdentifier "e" ])
+                       ; PWild
+                       ]
+                   , ELiteral (LBool true) )
+                 ; ( PTuple
+                       [ PLiteral LUnit
+                       ; PList
+                           [ PTuple [ PIdentifier "a"; PLiteral (LInt 1) ]
+                           ; PTuple [ PLiteral LUnit; PWild ]
+                           ]
+                       ; PTuple
+                           [ PIdentifier "c"
+                           ; PConstructList (PList [ PIdentifier "d"; PWild ], PWild)
+                           ; PList []
+                           ]
+                       ]
+                   , ELiteral (LBool true) )
+                 ; PWild, ELiteral (LBool false)
+                 ] ) )
+       ]
+;;
