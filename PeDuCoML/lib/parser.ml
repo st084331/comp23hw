@@ -20,6 +20,15 @@ type dispatch =
   ; parse_expression : dispatch -> expression Angstrom.t
   }
 
+type patterns_dispatch =
+  { parse_wild : pattern Angstrom.t
+  ; parse_ptuple : patterns_dispatch -> pattern Angstrom.t
+  ; parse_plist : patterns_dispatch -> pattern Angstrom.t
+  ; parse_pconstruct_list : patterns_dispatch -> pattern Angstrom.t
+  ; parse_pliteral : pattern Angstrom.t
+  ; parse_pidentifier : pattern Angstrom.t
+  }
+
 (* Smart constructors for expressions *)
 let eliteral x = ELiteral x
 let eidentifier x = EIdentifier x
@@ -70,6 +79,15 @@ let uminus _ = Minus
 let unot _ = Not
 (* -------------------------------------- *)
 
+(* Smart constructors for patterns *)
+let pliteral literal = PLiteral literal
+let pwild _ = PWild
+let ptuple head tail = PTuple (head :: tail)
+let plist pattern_list = PList pattern_list
+let pconstruct_list head tail = PConstructList (head, tail)
+let pidentifier id = PIdentifier id
+(* ------------------------------- *)
+
 (* Helpers *)
 let space_predicate x = x == ' ' || x == '\n' || x == '\t' || x == '\r'
 let remove_spaces = take_while space_predicate
@@ -100,27 +118,105 @@ let parse_capitalized_entity =
   else fail "Parsing error: not a capitalized entity."
 ;;
 
-let data_constructors = [ "Ok"; "Error"; "Some"; "None" ]
-
 let keywords =
-  [ "let"
-  ; "rec"
-  ; "match"
-  ; "with"
-  ; "if"
-  ; "then"
-  ; "else"
-  ; "in"
-  ; "fun"
-  ; "and"
-  ; "effect"
-  ; "type"
-  ; "perform"
-  ; "continue"
-  ]
+  [ "let"; "rec"; "match"; "with"; "if"; "then"; "else"; "in"; "fun"; "and"; "type" ]
 ;;
 
 (* ------- *)
+
+(* Patterns parsers *)
+
+let parse_pattern d =
+  choice
+    [ d.parse_wild
+    ; d.parse_ptuple d
+    ; d.parse_plist d
+    ; d.parse_pconstruct_list d
+    ; d.parse_pidentifier
+    ; d.parse_pliteral
+    ]
+;;
+
+let parse_pliteral =
+  fix
+  @@ fun self ->
+  remove_spaces
+  *> (parens self
+      <|>
+      let is_digit = function
+        | '0' .. '9' -> true
+        | _ -> false
+      in
+      let parse_int_literal =
+        take_while1 is_digit >>| int_of_string >>| fun x -> LInt x
+      in
+      let parse_string_literal =
+        char '"' *> take_while (( != ) '"') <* char '"' >>| fun x -> LString x
+      in
+      let parse_char_literal = char '\'' *> any_char <* char '\'' >>| fun x -> LChar x in
+      let parse_bool_literal =
+        string "true" <|> string "false" >>| bool_of_string >>| fun x -> LBool x
+      in
+      let parse_unit_literal = string "()" >>| fun _ -> LUnit in
+      let parse_literal =
+        choice
+          [ parse_int_literal
+          ; parse_string_literal
+          ; parse_char_literal
+          ; parse_bool_literal
+          ; parse_unit_literal
+          ]
+      in
+      pliteral <$> parse_literal)
+;;
+
+let parse_pidentifier =
+  fix
+  @@ fun _ ->
+  remove_spaces
+  *>
+  let parse_identifier =
+    parse_uncapitalized_entity
+    >>= fun entity ->
+    if List.exists (( = ) entity) keywords
+    then fail "Parsing error: keyword used."
+    else return @@ pidentifier entity
+  in
+  parse_identifier
+;;
+
+let parse_wild = remove_spaces *> (pwild <$> char '_')
+
+let parse_ptuple d =
+  (remove_spaces
+   *>
+   let separator = remove_spaces *> char ',' *> remove_spaces in
+   lift2
+     ptuple
+     (parse_pattern d <* separator)
+     (sep_by1 separator (parse_pattern d) <* remove_spaces))
+  <|> parens (d.parse_ptuple d)
+;;
+
+let parse_plist d =
+  remove_spaces
+  *>
+  let brackets parser = char '[' *> parser <* char ']'
+  and separator = remove_spaces *> char ';' *> remove_spaces <|> remove_spaces in
+  parens (d.parse_plist d)
+  <|> lift plist @@ brackets @@ (remove_spaces *> many (parse_pattern d <* separator))
+;;
+
+let parse_pconstruct_list d =
+  remove_spaces
+  *> (parens (d.parse_pconstruct_list d)
+      <|>
+      let separator = remove_spaces *> string "::" *> remove_spaces in
+      lift2
+        pconstruct_list
+        (parse_pattern d <* separator)
+        (d.parse_pconstruct_list d <|> parse_pattern d))
+;;
 
 (* Parsers *)
 let parse_literal =
