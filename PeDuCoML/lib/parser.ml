@@ -127,10 +127,10 @@ let parse_pattern d =
   choice
     [ d.parse_ptuple d
     ; d.parse_pconstruct_list d
-    ; d.parse_wild
     ; d.parse_plist d
     ; d.parse_pliteral
     ; d.parse_pidentifier
+    ; d.parse_wild
     ]
 ;;
 
@@ -177,12 +177,14 @@ let parse_pidentifier =
     >>= fun entity ->
     if List.exists (( = ) entity) keywords
     then fail "Parsing error: keyword used."
+    else if String.for_all (fun c -> c = '_') entity
+    then fail "Parsing error: this is a wildcard."
     else return @@ pidentifier entity
   in
   parse_identifier
 ;;
 
-let parse_wild = remove_spaces *> (pwild <$> char '_')
+let parse_wild = remove_spaces *> (pwild <$> take_while1 (fun c -> c = '_'))
 
 let parse_ptuple d =
   fix
@@ -1463,5 +1465,22 @@ let%test _ =
                    , ELiteral (LBool true) )
                  ; PWild, ELiteral (LBool false)
                  ] ) )
+       ]
+;;
+
+let%test _ =
+  parse "let f ___ = fun [1, x, true; _, _, y] -> true"
+  = Result.ok
+    @@ [ EDeclaration
+           ( "f"
+           , [ PWild ]
+           , EFun
+               ( [ PList
+                     [ PTuple
+                         [ PLiteral (LInt 1); PIdentifier "x"; PLiteral (LBool true) ]
+                     ; PTuple [ PWild; PWild; PIdentifier "y" ]
+                     ]
+                 ]
+               , ELiteral (LBool true) ) )
        ]
 ;;
