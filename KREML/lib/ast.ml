@@ -52,8 +52,8 @@ let e_binary_op op left right = EBinaryOp (op, left, right)
 let e_let x declaration body = ELet (x, declaration, body)
 
 (* declarations *)
-let e_val_dec value_id expression = ValDec (value_id, expression)
-let e_fun_dec fun_id args body = FunDec (fun_id, args, body)
+let d_val_dec value_id expression = ValDec (value_id, expression)
+let d_fun_dec fun_id args body = FunDec (fun_id, args, body)
 
 (* binary operations *)
 let badd _ = Add
