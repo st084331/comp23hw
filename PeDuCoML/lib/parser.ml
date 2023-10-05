@@ -18,13 +18,10 @@ type dispatch =
   ; parse_matching : dispatch -> expression Angstrom.t
   ; parse_let_in : dispatch -> expression Angstrom.t
   ; parse_expression : dispatch -> expression Angstrom.t
-  }
-
-type patterns_dispatch =
-  { parse_wild : pattern Angstrom.t
-  ; parse_ptuple : patterns_dispatch -> pattern Angstrom.t
-  ; parse_plist : patterns_dispatch -> pattern Angstrom.t
-  ; parse_pconstruct_list : patterns_dispatch -> pattern Angstrom.t
+  ; parse_wild : pattern Angstrom.t
+  ; parse_ptuple : dispatch -> pattern Angstrom.t
+  ; parse_plist : dispatch -> pattern Angstrom.t
+  ; parse_pconstruct_list : dispatch -> pattern Angstrom.t
   ; parse_pliteral : pattern Angstrom.t
   ; parse_pidentifier : pattern Angstrom.t
   }
@@ -691,6 +688,12 @@ let default =
   ; parse_matching
   ; parse_let_in
   ; parse_expression
+  ; parse_wild
+  ; parse_ptuple
+  ; parse_plist
+  ; parse_pconstruct_list
+  ; parse_pliteral
+  ; parse_pidentifier
   }
 ;;
 
@@ -706,6 +709,9 @@ let parse_application = parse_application default
 let parse_unary_operation = parse_unary_operation default
 let parse_list_constructing = parse_list_constructing default
 let parse_expression = parse_expression default
+let parse_ptuple = parse_ptuple default
+let parse_plist = parse_plist default
+let parse_pconstruct_list = parse_pconstruct_list default
 
 (* Main parsing function *)
 let parse : input -> (expression list, error_message) result =
