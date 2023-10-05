@@ -9,7 +9,8 @@ homepage: "https://github.com/airh4ck/comp23hw"
 bug-reports: "https://github.com/airh4ck/comp23hw/issues"
 depends: [
   "ocaml"
-  "dune" {>= "3.10"}
+  "dune" {>= "3.4"}
+  "angstrom"
   "odoc" {with-doc}
 ]
 build: [
