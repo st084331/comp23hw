@@ -1,3 +1,6 @@
 (library
  (modules_without_implementation ast)
+ (libraries angstrom)
+ (preprocess
+  (pps ppx_expect))
  (name PeDuCoML))
