@@ -125,12 +125,12 @@ let keywords =
 
 let parse_pattern d =
   choice
-    [ d.parse_wild
-    ; d.parse_ptuple d
-    ; d.parse_plist d
+    [ d.parse_ptuple d
     ; d.parse_pconstruct_list d
-    ; d.parse_pidentifier
+    ; d.parse_wild
+    ; d.parse_plist d
     ; d.parse_pliteral
+    ; d.parse_pidentifier
     ]
 ;;
 
@@ -185,34 +185,57 @@ let parse_pidentifier =
 let parse_wild = remove_spaces *> (pwild <$> char '_')
 
 let parse_ptuple d =
+  fix
+  @@ fun self ->
   (remove_spaces
    *>
    let separator = remove_spaces *> char ',' *> remove_spaces in
+   let parse_pattern =
+     choice
+       [ parens self
+       ; d.parse_pconstruct_list d
+       ; d.parse_wild
+       ; d.parse_plist d
+       ; d.parse_pliteral
+       ; d.parse_pidentifier
+       ]
+   in
    lift2
      ptuple
-     (parse_pattern d <* separator)
-     (sep_by1 separator (parse_pattern d) <* remove_spaces))
-  <|> parens (d.parse_ptuple d)
+     (parse_pattern <* separator)
+     (sep_by1 separator parse_pattern <* remove_spaces))
+  <|> parens self
 ;;
 
 let parse_plist d =
+  fix
+  @@ fun self ->
   remove_spaces
   *>
   let brackets parser = char '[' *> parser <* char ']'
   and separator = remove_spaces *> char ';' *> remove_spaces <|> remove_spaces in
-  parens (d.parse_plist d)
-  <|> lift plist @@ brackets @@ (remove_spaces *> many (parse_pattern d <* separator))
+  parens self
+  <|> (plist <$> brackets @@ (remove_spaces *> many (parse_pattern d <* separator)))
 ;;
 
 let parse_pconstruct_list d =
+  fix
+  @@ fun self ->
   remove_spaces
-  *> (parens (d.parse_pconstruct_list d)
+  *> (parens self
       <|>
+      let parse_pattern =
+        choice
+          [ parens @@ d.parse_ptuple d
+          ; parens self
+          ; d.parse_wild
+          ; d.parse_plist d
+          ; d.parse_pliteral
+          ; d.parse_pidentifier
+          ]
+      in
       let separator = remove_spaces *> string "::" *> remove_spaces in
-      lift2
-        pconstruct_list
-        (parse_pattern d <* separator)
-        (d.parse_pconstruct_list d <|> parse_pattern d))
+      lift2 pconstruct_list (parse_pattern <* separator) (self <|> parse_pattern))
 ;;
 
 (* Parsers *)
@@ -343,10 +366,7 @@ let parse_fun d =
   <|> string "fun"
       *> lift2
            efun
-           (many1 parse_uncapitalized_entity
-            <* remove_spaces
-            <* string "->"
-            <* remove_spaces)
+           (many1 (parse_pattern d) <* remove_spaces <* string "->" <* remove_spaces)
            (parse_content <* remove_spaces)
 ;;
 
@@ -373,7 +393,7 @@ let declaration_helper constructing_function d =
     (parse_uncapitalized_entity
      >>= fun name ->
      if name = "_" then fail "Parsing error: wildcard not expected." else return name)
-    (many parse_uncapitalized_entity)
+    (many (parse_pattern d))
     (remove_spaces *> string "=" *> parse_content)
 ;;
 
@@ -459,16 +479,6 @@ let parse_matching d =
   @@ fun self ->
   remove_spaces
   *>
-  let parse_content_left =
-    choice
-      [ d.parse_tuple d
-      ; d.parse_list_constructing d
-      ; d.parse_unary_operation d
-      ; d.parse_list d
-      ; parse_literal
-      ; parse_identifier
-      ]
-  in
   let parse_content_right =
     choice
       [ d.parse_tuple d
@@ -493,7 +503,7 @@ let parse_matching d =
            (let parse_case =
               lift2
                 (fun case action -> case, action)
-                parse_content_left
+                (parse_pattern d)
                 (remove_spaces *> string "->" *> parse_content_right)
             and separator = remove_spaces *> string "|" in
             remove_spaces
@@ -729,7 +739,7 @@ let%test _ =
   = Result.ok
     @@ [ ERecursiveDeclaration
            ( "factorial"
-           , [ "n"; "acc" ]
+           , [ PIdentifier "n"; PIdentifier "acc" ]
            , EIf
                ( EBinaryOperation (LTE, EIdentifier "n", ELiteral (LInt 1))
                , EIdentifier "acc"
@@ -797,8 +807,8 @@ let%test _ =
            ( "main"
            , []
            , EConstructList
-               ( EFun ([ "x" ], ELiteral (LChar 'a'))
-               , EList [ EFun ([ "_" ], ELiteral (LChar 'b')) ] ) )
+               ( EFun ([ PIdentifier "x" ], ELiteral (LChar 'a'))
+               , EList [ EFun ([ PWild ], ELiteral (LChar 'b')) ] ) )
        ]
 ;;
 
@@ -879,7 +889,7 @@ let%test _ =
                    , EBinaryOperation (Add, EIdentifier "x", EIdentifier "y") )
                ; EApplication
                    ( EFun
-                       ( [ "t" ]
+                       ( [ PIdentifier "t" ]
                        , EBinaryOperation (Sub, EIdentifier "t", ELiteral (LInt 1)) )
                    , ELiteral (LInt 10) )
                ; EIf
@@ -929,7 +939,7 @@ let%test _ =
            ( "main"
            , []
            , EFun
-               ( [ "x"; "y"; "z" ]
+               ( [ PIdentifier "x"; PIdentifier "y"; PIdentifier "z" ]
                , EBinaryOperation
                    ( Add
                    , EIdentifier "x"
@@ -940,7 +950,7 @@ let%test _ =
 (* 14 *)
 let%test _ =
   parse " let main = fun _ -> 42 "
-  = Result.ok @@ [ EDeclaration ("main", [], EFun ([ "_" ], ELiteral (LInt 42))) ]
+  = Result.ok @@ [ EDeclaration ("main", [], EFun ([ PWild ], ELiteral (LInt 42))) ]
 ;;
 
 (* 15 *)
@@ -948,7 +958,7 @@ let%test _ =
   parse " let main = fun _ -> fun _ -> \"Hello\" "
   = Result.ok
     @@ [ EDeclaration
-           ("main", [], EFun ([ "_" ], EFun ([ "_" ], ELiteral (LString "Hello"))))
+           ("main", [], EFun ([ PWild ], EFun ([ PWild ], ELiteral (LString "Hello"))))
        ]
 ;;
 
@@ -960,7 +970,7 @@ let%test _ =
            ( "main"
            , []
            , EFun
-               ( [ "x"; "y" ]
+               ( [ PIdentifier "x"; PIdentifier "y" ]
                , EIf
                    ( EBinaryOperation (LT, EIdentifier "x", ELiteral (LInt 0))
                    , EList [ EIdentifier "x"; EIdentifier "y" ]
@@ -983,26 +993,26 @@ let%test _ =
   = Result.ok
     @@ [ ERecursiveDeclaration
            ( "matrix_mult_number"
-           , [ "matrix"; "number" ]
+           , [ PIdentifier "matrix"; PIdentifier "number" ]
            , ELetIn
                ( [ ERecursiveDeclaration
                      ( "line_mult_number"
-                     , [ "line" ]
+                     , [ PIdentifier "line" ]
                      , EMatchWith
                          ( EIdentifier "line"
-                         , [ ( EConstructList (EIdentifier "head", EIdentifier "tail")
+                         , [ ( PConstructList (PIdentifier "head", PIdentifier "tail")
                              , EConstructList
                                  ( EBinaryOperation
                                      (Mul, EIdentifier "head", EIdentifier "number")
                                  , EApplication
                                      (EIdentifier "line_mult_number", EIdentifier "tail")
                                  ) )
-                           ; EIdentifier "_", EList []
+                           ; PWild, EList []
                            ] ) )
                  ]
                , EMatchWith
                    ( EIdentifier "matrix"
-                   , [ ( EConstructList (EIdentifier "head", EIdentifier "tail")
+                   , [ ( PConstructList (PIdentifier "head", PIdentifier "tail")
                        , EConstructList
                            ( EApplication
                                (EIdentifier "line_mult_number", EIdentifier "head")
@@ -1010,7 +1020,7 @@ let%test _ =
                                ( EApplication
                                    (EIdentifier "matrix_mult_number", EIdentifier "tail")
                                , EIdentifier "number" ) ) )
-                     ; EIdentifier "_", EList []
+                     ; PWild, EList []
                      ] ) ) )
        ]
 ;;
@@ -1049,8 +1059,8 @@ let%test _ =
            ( "main"
            , []
            , EFun
-               ([ "_" ], ETuple [ ELiteral (LInt 1); EFun ([ "_" ], ELiteral (LInt 2)) ])
-           )
+               ( [ PWild ]
+               , ETuple [ ELiteral (LInt 1); EFun ([ PWild ], ELiteral (LInt 2)) ] ) )
        ]
 ;;
 
@@ -1062,7 +1072,9 @@ let%test _ =
            ( "main"
            , []
            , EList
-               [ EFun ([ "_" ], ELiteral (LInt 1)); EFun ([ "_" ], ELiteral (LInt 2)) ] )
+               [ EFun ([ PWild ], ELiteral (LInt 1))
+               ; EFun ([ PWild ], ELiteral (LInt 2))
+               ] )
        ]
 ;;
 
@@ -1116,7 +1128,7 @@ let%test _ =
                    , ELetIn
                        ( [ EDeclaration
                              ( "f"
-                             , [ "t" ]
+                             , [ PIdentifier "t" ]
                              , EBinaryOperation
                                  ( Mul
                                  , EBinaryOperation (Mul, EIdentifier "t", EIdentifier "t")
@@ -1160,7 +1172,7 @@ let%test _ =
                        ( GTE
                        , EApplication
                            ( EFun
-                               ( [ "x" ]
+                               ( [ PIdentifier "x" ]
                                , EBinaryOperation (Mul, EIdentifier "x", EIdentifier "x")
                                )
                            , EIdentifier "r" )
@@ -1200,11 +1212,11 @@ let%test _ =
   = Result.ok
     @@ [ EDeclaration
            ( "phi"
-           , [ "n" ]
+           , [ PIdentifier "n" ]
            , ELetIn
                ( [ ERecursiveDeclaration
                      ( "helper"
-                     , [ "last1"; "last2"; "n" ]
+                     , [ PIdentifier "last1"; PIdentifier "last2"; PIdentifier "n" ]
                      , EIf
                          ( EBinaryOperation (GT, EIdentifier "n", ELiteral (LInt 0))
                          , EApplication
@@ -1234,7 +1246,7 @@ let%test _ =
            , ELetIn
                ( [ EDeclaration
                      ( "sq"
-                     , [ "x" ]
+                     , [ PIdentifier "x" ]
                      , EBinaryOperation (Mul, EIdentifier "x", EIdentifier "x") )
                  ]
                , EBinaryOperation
@@ -1253,7 +1265,7 @@ let%test _ =
   = Result.ok
     @@ [ EDeclaration
            ( "mult"
-           , [ "x"; "y"; "z" ]
+           , [ PIdentifier "x"; PIdentifier "y"; PIdentifier "z" ]
            , EBinaryOperation
                ( Mul
                , EBinaryOperation (Mul, EIdentifier "x", EIdentifier "y")
@@ -1280,28 +1292,28 @@ let%test _ =
   = Result.ok
     @@ [ EDeclaration
            ( "f"
-           , [ "x"; "y"; "z" ]
+           , [ PIdentifier "x"; PIdentifier "y"; PIdentifier "z" ]
            , EMatchWith
                ( ETuple [ EIdentifier "x"; EIdentifier "y"; EIdentifier "z" ]
-               , [ ( ETuple
-                       [ ELiteral (LBool true)
-                       ; ELiteral (LBool true)
-                       ; ELiteral (LBool false)
+               , [ ( PTuple
+                       [ PLiteral (LBool true)
+                       ; PLiteral (LBool true)
+                       ; PLiteral (LBool false)
                        ]
                    , ELiteral (LBool true) )
-                 ; ( ETuple
-                       [ ELiteral (LBool true)
-                       ; ELiteral (LBool false)
-                       ; ELiteral (LBool true)
+                 ; ( PTuple
+                       [ PLiteral (LBool true)
+                       ; PLiteral (LBool false)
+                       ; PLiteral (LBool true)
                        ]
                    , ELiteral (LBool true) )
-                 ; ( ETuple
-                       [ ELiteral (LBool false)
-                       ; ELiteral (LBool true)
-                       ; ELiteral (LBool true)
+                 ; ( PTuple
+                       [ PLiteral (LBool false)
+                       ; PLiteral (LBool true)
+                       ; PLiteral (LBool true)
                        ]
                    , ELiteral (LBool true) )
-                 ; EIdentifier "_", ELiteral (LBool false)
+                 ; PWild, ELiteral (LBool false)
                  ] ) )
        ]
 ;;

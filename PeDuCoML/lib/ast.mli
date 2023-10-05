@@ -42,7 +42,7 @@ type expression =
   | EDeclaration of id * pattern list * expression (** let add x y = x + y *)
   | ERecursiveDeclaration of id * pattern list * expression
   (** let rec factorial n = n * factorial (n - 1) *)
-  | ELetIn of pattern list * expression (** let x = 1 and y = 2 in x + y *)
+  | ELetIn of expression list * expression (** let x = 1 and y = 2 in x + y *)
   | EIf of expression * expression * expression (** if true then 1 else 0 *)
   | EMatchWith of expression * (pattern * expression) list (** match x with _ -> x *)
 
