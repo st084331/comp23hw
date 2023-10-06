@@ -32,28 +32,28 @@ type expr =
   | EApp of expr * expr (* f x *)
   | EAbs of identifier * expr (* fn x => x + 1 *)
   | EIfThenElse of expr * expr * expr (* if true then 1 else 2 *)
-  | ELet of identifier * decl list * expr (* let fun f x = x, val y = 1 in f 1 * y *)
+  | ELetIn of decl list * expr (* let fun f x = x, val y = 1 in f 1 * y *)
 
 and decl =
-  | ValDec of identifier * expr (* val x = 88 *)
-  | FunDec of identifier * identifier list * expr (* fun sqr x = x * x *)
+  | DVal of identifier * expr (* val x = 88 *)
+  | DFun of identifier * identifier list * expr (* fun sqr x = x * x *)
 [@@deriving show { with_path = false }]
 
 (* smart constructors *)
 
 (* expressions *)
 let e_literal x = ELiteral x
-let e_var x = EIdentifier x
+let e_identifier x = EIdentifier x
 let e_unary_op op x = EUnaryOp (op, x)
 let e_app x1 x2 = EApp (x1, x2)
 let e_abs arg body = EAbs (arg, body)
 let e_if_then_else cond if_true if_false = EIfThenElse (cond, if_true, if_false)
 let e_binary_op op left right = EBinaryOp (op, left, right)
-let e_let x declaration body = ELet (x, declaration, body)
+let e_let_in declarations body = ELetIn (declarations, body)
 
 (* declarations *)
-let d_val_dec value_id expression = ValDec (value_id, expression)
-let d_fun_dec fun_id args body = FunDec (fun_id, args, body)
+let d_val value_id expression = DVal (value_id, expression)
+let d_fun fun_id args body = DFun (fun_id, args, body)
 
 (* binary operations *)
 let badd _ = Add
