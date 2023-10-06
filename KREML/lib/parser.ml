@@ -52,8 +52,25 @@ type dispatch =
   ; declaration_p : dispatch -> decl t
   }
 
-(* expression parsers *)
-let literal_p = fail "TODO"
+let literal_p =
+  let parens p = spaces *> char '(' *> spaces *> p <* spaces <* char ')' in
+  let integer =
+    take_while1 (function
+      | '0' .. '9' -> true
+      | _ -> false)
+    >>| int_of_string
+  in
+  fix
+  @@ fun self ->
+  spaces
+  *>
+  let int_literal_p = integer >>| fun x -> LInt x in
+  let bool_literal_p =
+    string "true" <|> string "false" >>| bool_of_string >>| fun x -> LBool x
+  in
+  let parse_literal = choice [ int_literal_p; bool_literal_p ] in
+  parens self <|> (parse_literal >>| e_literal)
+;;
 
 let identifier_p =
   let is_wildcard c = c == "_" in
@@ -63,11 +80,64 @@ let identifier_p =
   | _ -> fail "Invalid variable name"
 ;;
 
-let unary_op_p d = fail "TODO"
-let binary_op_p d = fail "TODO"
-let app_p d = fail "TODO"
-let abs_p d = fail "TODO"
-let if_then_else_p d = fail "TODO"
+let unary_op_p d =
+  spaces *> lift2 e_unary_op (char '~' >>| uneg) (d.expression_p d)
+  <|> lift2 e_unary_op (string "not" >>| unot) (d.expression_p d)
+;;
+
+let binary_op_p d =
+  spaces
+  *>
+  let multiplicative = spaces *> choice [ char '*' >>| bmul; char '/' >>| bdiv ] in
+  let additive = spaces *> choice [ char '+' >>| badd; char '-' >>| bsub ] in
+  let relational =
+    spaces
+    *> choice
+         [ string ">=" >>| bgte
+         ; string "<=" >>| blte
+         ; char '>' >>| bgt
+         ; char '<' >>| blt
+         ]
+  in
+  let equality = spaces *> string "=" >>| beq in
+  let logical_and = spaces *> string "andalso" >>| band in
+  let logical_or = spaces *> string "orelse" >>| bor in
+  let rec parse_bin_op expr_parser op_parsers =
+    let chainl1 expr_p op_p =
+      let rec go acc =
+        lift2 (fun f x -> e_binary_op f acc x) op_p expr_p >>= go <|> return acc
+      in
+      expr_p >>= fun init -> go init
+    in
+    match op_parsers with
+    | [ op ] -> chainl1 expr_parser op
+    | h :: t -> chainl1 (parse_bin_op expr_parser t) h
+    | _ -> fail "Unreachable"
+  in
+  parse_bin_op
+    (d.expression_p d)
+    [ logical_or; logical_and; equality; relational; additive; multiplicative ]
+;;
+
+let app_p d =
+  let expr1 = spaces *> d.expression_p d <* spaces in
+  let expr2 = spaces *> d.expression_p d <* spaces in
+  lift2 e_app expr1 expr2
+;;
+
+let abs_p d =
+  let keyword = skip *> string "fn" *> spaces in
+  let arg = varname in
+  let body = spaces *> string "=>" *> d.expression_p d <* spaces in
+  keyword *> lift2 e_abs arg body
+;;
+
+let if_then_else_p d =
+  let cond = spaces *> string "if" *> d.expression_p d <* spaces in
+  let if_true = spaces *> string "then" *> d.expression_p d <* spaces in
+  let if_false = spaces *> string "else" *> d.expression_p d <* spaces in
+  lift3 e_if_then_else cond if_true if_false
+;;
 
 let let_in_p d =
   let keyword = skip *> string "let" *> spaces in
