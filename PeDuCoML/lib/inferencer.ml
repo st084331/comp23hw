@@ -140,9 +140,9 @@ end = struct
   let apply s =
     let rec helper = function
       | TVar n ->
-        (match find_exn n s with
-         | exception Base.Not_found_s _ -> tvar n
-         | x -> x)
+        (match find n s with
+         | None -> tvar n
+         | Some x -> x)
       | TArr (left, right) -> tarrow (helper left) (helper right)
       | TTuple typ_list -> ttuple @@ Base.List.map typ_list ~f:helper
       | TList typ -> tlist @@ helper typ
@@ -270,13 +270,55 @@ let lookup_env e map =
     return (Subst.empty, ans)
 ;;
 
-let lookup_effect effect map =
-  match Base.Map.find map effect with
-  | None -> fail (`NoVariable effect)
-  | Some (_, typ) -> return (Subst.empty, typ)
-;;
-
 let infer =
+  let rec pattern_helper : TypeEnv.t -> pattern -> (Subst.t * typ) R.t =
+    fun env -> function
+    | PLiteral literal ->
+      (match literal with
+       | LInt _ -> return (Subst.empty, int_typ)
+       | LString _ -> return (Subst.empty, string_typ)
+       | LChar _ -> return (Subst.empty, char_typ)
+       | LBool _ -> return (Subst.empty, bool_typ)
+       | LUnit -> return (Subst.empty, unit_typ))
+    | PIdentifier identifier -> lookup_env identifier env
+    | PWild ->
+      let* fresh = fresh_var in
+      return (Subst.empty, fresh)
+    | PTuple pattern_list ->
+      let rec subst_tuple subst = function
+        | [] -> return (subst, [])
+        | head :: tail ->
+          let* head_subst, head_typ = pattern_helper env head in
+          let* subst' = Subst.compose subst head_subst in
+          let* final_subst, tail_typ = subst_tuple subst' tail in
+          return (final_subst, head_typ :: tail_typ)
+      in
+      let* final_subst, typ_list = subst_tuple Subst.empty pattern_list in
+      return (final_subst, ttuple @@ List.map (Subst.apply final_subst) typ_list)
+    | PList pattern_list ->
+      (match pattern_list with
+       | [] ->
+         let* fresh_var = fresh_var in
+         return (Subst.empty, TList fresh_var)
+       | head :: tail ->
+         let* head_subst, head_typ = pattern_helper env head in
+         let rec substlist subst = function
+           | [] -> return subst
+           | elem :: tail ->
+             let* elem_subst, elem_typ = pattern_helper env elem in
+             let* subst' = unify elem_typ head_typ in
+             let* subst'' = Subst.compose_all [ subst; elem_subst; subst' ] in
+             substlist subst'' tail
+         in
+         let* final_subst = substlist head_subst tail in
+         return (final_subst, tlist @@ Subst.apply final_subst head_typ))
+    | PConstructList (operand, list) ->
+      let* operand_subst, operand_typ = pattern_helper env operand in
+      let* list_subst, list_typ = pattern_helper env list in
+      let* subst' = unify (tlist operand_typ) list_typ in
+      let* final_subst = Subst.compose_all [ operand_subst; list_subst; subst' ] in
+      return (final_subst, Subst.apply subst' list_typ)
+  in
   let rec helper : TypeEnv.t -> expression -> (Subst.t * typ) R.t =
     fun env -> function
     | ELiteral literal ->
@@ -286,23 +328,25 @@ let infer =
        | LChar _ -> return (Subst.empty, char_typ)
        | LBool _ -> return (Subst.empty, bool_typ)
        | LUnit -> return (Subst.empty, unit_typ))
-    | EIdentifier identifier ->
-      (match identifier with
-       | "_" ->
-         let* fresh_var = fresh_var in
-         return (Subst.empty, fresh_var)
-       | _ -> lookup_env identifier env)
+    | EIdentifier identifier -> lookup_env identifier env
     | EFun (arguments, body) ->
       (match arguments with
        | [] -> helper env body
        | head :: tail ->
          let* type_variable = fresh_var in
-         let env' =
-           TypeEnv.extend env head (Base.Set.empty (module Base.Int), type_variable)
+         let* env =
+           match head with
+           | PIdentifier id ->
+             return
+             @@ TypeEnv.extend env id (Base.Set.empty (module Base.Int), type_variable)
+           | _ -> return env
          in
+         let* head_subst, _ = pattern_helper env head in
+         let env' = TypeEnv.apply head_subst env in
          let* subst, typ = helper env' (EFun (tail, body)) in
          let result_type = tarrow (Subst.apply subst type_variable) typ in
-         return (subst, result_type))
+         let* result_subst = Subst.compose head_subst subst in
+         return (result_subst, result_type))
     | EUnaryOperation (unary_operator, expression) ->
       (match unary_operator with
        | Minus ->
@@ -418,19 +462,26 @@ let infer =
     | EMatchWith (matched_expression, case_list) ->
       let* matched_subst, matched_type = helper env matched_expression in
       let head = Base.List.hd_exn case_list in
-      let bootstrap_env env case =
+      (* let bootstrap_env env case =
         let identifiers = Util.find_identifiers case in
         Base.List.fold_right identifiers ~init:(return env) ~f:(fun id acc ->
           let* fresh_var = fresh_var in
           let* acc = acc in
           return @@ TypeEnv.extend acc id (Base.Set.empty (module Base.Int), fresh_var))
+      in *)
+      let bootstrap_pattern env case =
+        let identifiers = Util.find_identifiers_pattern case in
+        Base.List.fold_right identifiers ~init:(return env) ~f:(fun id acc ->
+          let* fresh_var = fresh_var in
+          let* acc = acc in
+          return @@ TypeEnv.extend acc id (Base.Set.empty (module Base.Int), fresh_var))
       in
-      let* env' = bootstrap_env env (fst head) in
+      let* env' = bootstrap_pattern env (fst head) in
       let* _, head_expression_type = helper env' (snd head) in
       let* subst' =
         Base.List.fold_right case_list ~init:(return Subst.empty) ~f:(fun case subst ->
-          let* env'' = bootstrap_env env (fst case) in
-          let* case_subst, case_type = helper env'' (fst case) in
+          let* env'' = bootstrap_pattern env (fst case) in
+          let* case_subst, case_type = pattern_helper env'' (fst case) in
           let* subst'' = unify case_type matched_type in
           let* computation_subst, computation_type = helper env'' (snd case) in
           let* subst''' = unify computation_type head_expression_type in
@@ -485,7 +536,7 @@ let print_result expression =
 let%expect_test _ =
   print_result
     (EFun
-       ( [ "x" ]
+       ( [ PIdentifier "x" ]
        , ETuple
            [ ELiteral (LString "amount")
            ; EIdentifier "x"
@@ -499,7 +550,7 @@ let%expect_test _ =
 let%expect_test _ =
   print_result
     (EFun
-       ( [ "x" ]
+       ( [ PIdentifier "x" ]
        , EList
            [ EIdentifier "x"
            ; ELiteral (LInt 5)
@@ -513,7 +564,7 @@ let%expect_test _ =
 let%expect_test _ =
   print_result
     (EFun
-       ( [ "x" ]
+       ( [ PIdentifier "x" ]
        , EList
            [ EBinaryOperation (Add, EIdentifier "x", EIdentifier "x")
            ; EBinaryOperation (Mul, EIdentifier "x", ELiteral (LInt 3))
@@ -525,14 +576,17 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (EFun ([ "x"; "y"; "z" ], EList [ EIdentifier "x"; EIdentifier "y"; EIdentifier "z" ]));
+    (EFun
+       ( [ PIdentifier "x"; PIdentifier "y"; PIdentifier "z" ]
+       , EList [ EIdentifier "x"; EIdentifier "y"; EIdentifier "z" ] ));
   [%expect {|
     'a -> 'a -> 'a -> 'a list
   |}]
 ;;
 
 let%expect_test _ =
-  print_result (EFun ([ "x" ], EIf (EIdentifier "x", EIdentifier "x", EIdentifier "x")));
+  print_result
+    (EFun ([ PIdentifier "x" ], EIf (EIdentifier "x", EIdentifier "x", EIdentifier "x")));
   [%expect {|
     bool -> bool
   |}]
@@ -550,14 +604,14 @@ let%expect_test _ =
 ;;
 
 let%expect_test _ =
-  print_result (EFun ([ "x" ], EUnaryOperation (Not, EIdentifier "x")));
+  print_result (EFun ([ PIdentifier "x" ], EUnaryOperation (Not, EIdentifier "x")));
   [%expect {|
     bool -> bool
   |}]
 ;;
 
 let%expect_test _ =
-  print_result (EFun ([ "_" ], EUnaryOperation (Not, ELiteral (LInt 1))));
+  print_result (EFun ([ PWild ], EUnaryOperation (Not, ELiteral (LInt 1))));
   [%expect
     {|
   Unification failed: type of the expression is int but expected type was bool
@@ -566,7 +620,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (EFun ([ "x" ], EBinaryOperation (Add, ELiteral (LInt 2), EIdentifier "x")));
+    (EFun ([ PIdentifier "x" ], EBinaryOperation (Add, ELiteral (LInt 2), EIdentifier "x")));
   [%expect {|
   int -> int
   |}]
@@ -574,7 +628,9 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (EFun ([ "x"; "y" ], EBinaryOperation (Div, EIdentifier "y", EIdentifier "x")));
+    (EFun
+       ( [ PIdentifier "x"; PIdentifier "y" ]
+       , EBinaryOperation (Div, EIdentifier "y", EIdentifier "x") ));
   [%expect {|
   int -> int -> int
   |}]
@@ -582,7 +638,9 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (EFun ([ "x"; "y" ], EBinaryOperation (LT, EIdentifier "y", EIdentifier "x")));
+    (EFun
+       ( [ PIdentifier "x"; PIdentifier "y" ]
+       , EBinaryOperation (LT, EIdentifier "y", EIdentifier "x") ));
   [%expect {|
   'a -> 'a -> bool
   |}]
@@ -590,7 +648,9 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (EFun ([ "x" ], EBinaryOperation (LT, ELiteral (LString "asdf"), EIdentifier "x")));
+    (EFun
+       ( [ PIdentifier "x" ]
+       , EBinaryOperation (LT, ELiteral (LString "asdf"), EIdentifier "x") ));
   [%expect {|
   string -> bool
   |}]
@@ -599,7 +659,9 @@ let%expect_test _ =
 let%expect_test _ =
   print_result
   @@ EApplication
-       ( EFun ([ "x" ], EBinaryOperation (LT, ELiteral (LString "asdf"), EIdentifier "x"))
+       ( EFun
+           ( [ PIdentifier "x" ]
+           , EBinaryOperation (LT, ELiteral (LString "asdf"), EIdentifier "x") )
        , ELiteral (LString "asdfg") );
   [%expect {|
   bool
@@ -609,7 +671,9 @@ let%expect_test _ =
 let%expect_test _ =
   print_result
   @@ EApplication
-       ( EFun ([ "x" ], EBinaryOperation (LT, ELiteral (LString "asdf"), EIdentifier "x"))
+       ( EFun
+           ( [ PIdentifier "x" ]
+           , EBinaryOperation (LT, ELiteral (LString "asdf"), EIdentifier "x") )
        , ELiteral LUnit );
   [%expect
     {|
@@ -620,14 +684,14 @@ let%expect_test _ =
 let%expect_test _ =
   print_result
   @@ EFun
-       ( [ "line"; "number"; "line_mult_number" ]
+       ( [ PIdentifier "line"; PIdentifier "number"; PIdentifier "line_mult_number" ]
        , EMatchWith
            ( EIdentifier "line"
-           , [ ( EConstructList (EIdentifier "head", EIdentifier "tail")
+           , [ ( PConstructList (PIdentifier "head", PIdentifier "tail")
                , EConstructList
                    ( EBinaryOperation (Mul, EIdentifier "head", EIdentifier "number")
                    , EApplication (EIdentifier "line_mult_number", EIdentifier "tail") ) )
-             ; EIdentifier "_", EList []
+             ; PWild, EList []
              ] ) );
   [%expect {|
   int list -> int -> (int list -> int list) -> int list
@@ -637,28 +701,28 @@ let%expect_test _ =
 let%expect_test _ =
   print_result
   @@ EFun
-       ( [ "x"; "y"; "z" ]
+       ( [ PIdentifier "x"; PIdentifier "y"; PIdentifier "z" ]
        , EMatchWith
            ( ETuple [ EIdentifier "x"; EIdentifier "y"; EIdentifier "z" ]
-           , [ ( ETuple
-                   [ ELiteral (LBool true)
-                   ; ELiteral (LBool true)
-                   ; ELiteral (LBool false)
+           , [ ( PTuple
+                   [ PLiteral (LBool true)
+                   ; PLiteral (LBool true)
+                   ; PLiteral (LBool false)
                    ]
                , ELiteral (LBool true) )
-             ; ( ETuple
-                   [ ELiteral (LBool true)
-                   ; ELiteral (LBool false)
-                   ; ELiteral (LBool true)
+             ; ( PTuple
+                   [ PLiteral (LBool true)
+                   ; PLiteral (LBool false)
+                   ; PLiteral (LBool true)
                    ]
                , ELiteral (LBool true) )
-             ; ( ETuple
-                   [ ELiteral (LBool false)
-                   ; ELiteral (LBool true)
-                   ; ELiteral (LBool true)
+             ; ( PTuple
+                   [ PLiteral (LBool false)
+                   ; PLiteral (LBool true)
+                   ; PLiteral (LBool true)
                    ]
                , ELiteral (LBool true) )
-             ; EIdentifier "_", ELiteral (LBool false)
+             ; PWild, ELiteral (LBool false)
              ] ) );
   [%expect {|
   bool -> bool -> bool -> bool
