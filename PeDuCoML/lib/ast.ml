@@ -53,3 +53,61 @@ and pattern =
   | PList of pattern list (** [a; b; c] *)
   | PConstructList of pattern * pattern (** a :: [b; c] *)
   | PIdentifier of id (** cool_variable *)
+
+(* Smart constructors for expressions *)
+let eliteral x = ELiteral x
+let eidentifier x = EIdentifier x
+let etuple head tail = ETuple (head :: tail)
+let elist x = EList x
+let efun variable_list expression = EFun (variable_list, expression)
+
+let ebinary_operation operator left_operand right_operand =
+  EBinaryOperation (operator, left_operand, right_operand)
+;;
+
+let edeclaration function_name variable_list expression =
+  EDeclaration (function_name, variable_list, expression)
+;;
+
+let erecursivedeclaration function_name variable_list expression =
+  ERecursiveDeclaration (function_name, variable_list, expression)
+;;
+
+let eif condition true_branch false_branch = EIf (condition, true_branch, false_branch)
+let ematchwith expression cases = EMatchWith (expression, cases)
+let eletin declaration_list body = ELetIn (declaration_list, body)
+
+let eapplication function_expression operand_expression =
+  EApplication (function_expression, operand_expression)
+;;
+
+let eunary_operation operation expression = EUnaryOperation (operation, expression)
+let econstruct_list head tail = EConstructList (head, tail)
+
+(* Smart constructors for binary operators *)
+let badd _ = Add
+let bsub _ = Sub
+let bmul _ = Mul
+let bdiv _ = Div
+let beq _ = Eq
+let bneq _ = NEq
+let bgt _ = GT
+let bgte _ = GTE
+let blt _ = LT
+let blte _ = LTE
+let band _ = AND
+let bor _ = OR
+(* --------------------------------------- *)
+
+(* Smart constructors for unary operators *)
+let uminus _ = Minus
+let unot _ = Not
+(* -------------------------------------- *)
+
+(* Smart constructors for patterns *)
+let pliteral literal = PLiteral literal
+let pwild _ = PWild
+let ptuple head tail = PTuple (head :: tail)
+let plist pattern_list = PList pattern_list
+let pconstruct_list head tail = PConstructList (head, tail)
+let pidentifier id = PIdentifier id
