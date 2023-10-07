@@ -1,5 +1,5 @@
 (library
- (modules Ast Parser)
+ (modules Ast Parser Pprintast)
  (libraries angstrom)
  (preprocess
   (pps ppx_expect ppx_deriving.show ppx_deriving.eq))
