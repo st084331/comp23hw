@@ -721,3 +721,24 @@ let%expect_test _ =
   bool -> bool -> bool -> bool
   |}]
 ;;
+
+let%expect_test _ =
+  print_result
+  @@ ELetIn
+       ( [ ERecursiveDeclaration
+             ( "factorial"
+             , [ PIdentifier "n"; PIdentifier "acc" ]
+             , EIf
+                 ( EBinaryOperation (LTE, EIdentifier "n", ELiteral (LInt 1))
+                 , EIdentifier "acc"
+                 , EApplication
+                     ( EApplication
+                         ( EIdentifier "factorial"
+                         , EBinaryOperation (Sub, EIdentifier "n", ELiteral (LInt 1)) )
+                     , EBinaryOperation (Mul, EIdentifier "acc", EIdentifier "n") ) ) )
+         ]
+       , EIdentifier "factorial" );
+  [%expect {|
+  int -> int -> int
+  |}]
+;;
