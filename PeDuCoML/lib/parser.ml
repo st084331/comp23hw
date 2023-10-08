@@ -128,7 +128,11 @@ let parse_pidentifier =
   parse_identifier
 ;;
 
-let parse_wildcard = remove_spaces *> (pwildcard <$> take_while1 (fun c -> c = '_'))
+let parse_wildcard =
+  fix
+  @@ fun self ->
+  parens self <|> remove_spaces *> (pwildcard <$> take_while1 (fun c -> c = '_'))
+;;
 
 let parse_ptuple d =
   fix
@@ -1391,6 +1395,40 @@ let%test _ =
     @@ [ EDeclaration
            ( "f"
            , [ PWildcard ]
+           , EFun
+               ( [ PList
+                     [ PTuple
+                         [ PLiteral (LInt 1); PIdentifier "x"; PLiteral (LBool true) ]
+                     ; PTuple [ PWildcard; PWildcard; PIdentifier "y" ]
+                     ]
+                 ]
+               , ELiteral (LBool true) ) )
+       ]
+;;
+
+let%test _ =
+  parse "let f (__) = fun [1, x, true; _, _, y] -> true"
+  = Result.ok
+    @@ [ EDeclaration
+           ( "f"
+           , [ PWildcard ]
+           , EFun
+               ( [ PList
+                     [ PTuple
+                         [ PLiteral (LInt 1); PIdentifier "x"; PLiteral (LBool true) ]
+                     ; PTuple [ PWildcard; PWildcard; PIdentifier "y" ]
+                     ]
+                 ]
+               , ELiteral (LBool true) ) )
+       ]
+;;
+
+let%test _ =
+  parse "let f _x = fun [1, x, true; _, _, y] -> true"
+  = Result.ok
+    @@ [ EDeclaration
+           ( "f"
+           , [ PIdentifier "_x" ]
            , EFun
                ( [ PList
                      [ PTuple
