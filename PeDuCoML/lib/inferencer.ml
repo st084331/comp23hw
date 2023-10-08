@@ -281,7 +281,7 @@ let infer =
        | LBool _ -> return (Subst.empty, bool_typ)
        | LUnit -> return (Subst.empty, unit_typ))
     | PIdentifier identifier -> lookup_env identifier env
-    | PWild ->
+    | PWildcard ->
       let* fresh = fresh_var in
       return (Subst.empty, fresh)
     | PTuple pattern_list ->
@@ -462,13 +462,6 @@ let infer =
     | EMatchWith (matched_expression, case_list) ->
       let* matched_subst, matched_type = helper env matched_expression in
       let head = Base.List.hd_exn case_list in
-      (* let bootstrap_env env case =
-        let identifiers = Util.find_identifiers case in
-        Base.List.fold_right identifiers ~init:(return env) ~f:(fun id acc ->
-          let* fresh_var = fresh_var in
-          let* acc = acc in
-          return @@ TypeEnv.extend acc id (Base.Set.empty (module Base.Int), fresh_var))
-      in *)
       let bootstrap_pattern env case =
         let identifiers = Util.find_identifiers_pattern case in
         Base.List.fold_right identifiers ~init:(return env) ~f:(fun id acc ->
@@ -611,7 +604,7 @@ let%expect_test _ =
 ;;
 
 let%expect_test _ =
-  print_result (EFun ([ PWild ], EUnaryOperation (Not, ELiteral (LInt 1))));
+  print_result (EFun ([ PWildcard ], EUnaryOperation (Not, ELiteral (LInt 1))));
   [%expect
     {|
   Unification failed: type of the expression is int but expected type was bool
@@ -691,7 +684,7 @@ let%expect_test _ =
                , EConstructList
                    ( EBinaryOperation (Mul, EIdentifier "head", EIdentifier "number")
                    , EApplication (EIdentifier "line_mult_number", EIdentifier "tail") ) )
-             ; PWild, EList []
+             ; PWildcard, EList []
              ] ) );
   [%expect {|
   int list -> int -> (int list -> int list) -> int list
@@ -722,7 +715,7 @@ let%expect_test _ =
                    ; PLiteral (LBool true)
                    ]
                , ELiteral (LBool true) )
-             ; PWild, ELiteral (LBool false)
+             ; PWildcard, ELiteral (LBool false)
              ] ) );
   [%expect {|
   bool -> bool -> bool -> bool

@@ -1,6 +1,5 @@
 (library
- (modules_without_implementation ast)
- (modules Ast Parser PPrintast Inferencer Typing Util)
+ (modules Ast Parser Pprintast Inferencer Typing Util)
  (libraries angstrom)
  (preprocess
   (pps ppx_expect ppx_deriving.show ppx_deriving.eq))
