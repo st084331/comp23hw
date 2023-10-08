@@ -1,7 +1,6 @@
 open Angstrom
 open Ast
 open List
-open String
 
 type error_message = string
 type input = string
@@ -38,25 +37,25 @@ let parse_entity =
   @@ fun self ->
   remove_spaces
   *> (parens self
-     <|> take_while1 (fun x ->
-           contains "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'_" x)
-     )
+     <|> take_while1 (function
+           | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '\'' -> true
+           | _ -> false))
 ;;
 
 let parse_uncapitalized_entity =
   parse_entity
   >>= fun entity ->
-  if String.contains "abcdefghijklmnopqrstuvwxyz_" entity.[0]
-  then return entity
-  else fail "Parsing error: not an uncapitalized entity."
+  match entity.[0] with
+  | 'a' .. 'z' | '_' -> return entity
+  | _ -> fail "Parsing error: not an uncapitalized entity."
 ;;
 
 let parse_capitalized_entity =
   parse_entity
   >>= fun entity ->
-  if String.contains "ABCDEFGHIJKLMNOPQRSTUVWXYZ" entity.[0]
-  then return entity
-  else fail "Parsing error: not a capitalized entity."
+  match entity.[0] with
+  | 'A' .. 'Z' -> return entity
+  | _ -> fail "Parsing error: not a capitalized entity."
 ;;
 
 let keywords =
