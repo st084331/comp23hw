@@ -86,8 +86,6 @@ let pp_error fmt (err : error) =
     fprintf fmt " but expected type was ";
     pp_type fmt t2
   | `NotReachable -> fprintf fmt "Not reachable."
-  | `NoHandlerProvided ->
-    fprintf fmt "Effect appears in pattern-matching but handler was not provided."
 ;;
 
 let print_type_error error =
