@@ -87,17 +87,15 @@ let parse_pliteral =
         | '0' .. '9' -> true
         | _ -> false
       in
-      let parse_int_literal =
-        take_while1 is_digit >>| int_of_string >>| fun x -> LInt x
-      in
+      let parse_int_literal = take_while1 is_digit >>| int_of_string >>| lint in
       let parse_string_literal =
-        char '"' *> take_while (( != ) '"') <* char '"' >>| fun x -> LString x
+        char '"' *> take_while (( != ) '"') <* char '"' >>| lstring
       in
-      let parse_char_literal = char '\'' *> any_char <* char '\'' >>| fun x -> LChar x in
+      let parse_char_literal = char '\'' *> any_char <* char '\'' >>| lchar in
       let parse_bool_literal =
-        string "true" <|> string "false" >>| bool_of_string >>| fun x -> LBool x
+        string "true" <|> string "false" >>| bool_of_string >>| lbool
       in
-      let parse_unit_literal = string "()" >>| fun _ -> LUnit in
+      let parse_unit_literal = string "()" >>| lunit in
       let parse_literal =
         choice
           [ parse_int_literal
@@ -194,17 +192,15 @@ let parse_literal =
         | '0' .. '9' -> true
         | _ -> false
       in
-      let parse_int_literal =
-        take_while1 is_digit >>| int_of_string >>| fun x -> LInt x
-      in
+      let parse_int_literal = take_while1 is_digit >>| int_of_string >>| lint in
       let parse_string_literal =
-        char '"' *> take_while (( != ) '"') <* char '"' >>| fun x -> LString x
+        char '"' *> take_while (( != ) '"') <* char '"' >>| lstring
       in
-      let parse_char_literal = char '\'' *> any_char <* char '\'' >>| fun x -> LChar x in
+      let parse_char_literal = char '\'' *> any_char <* char '\'' >>| lchar in
       let parse_bool_literal =
-        string "true" <|> string "false" >>| bool_of_string >>| fun x -> LBool x
+        string "true" <|> string "false" >>| bool_of_string >>| lbool
       in
-      let parse_unit_literal = string "()" >>| fun _ -> LUnit in
+      let parse_unit_literal = string "()" >>| lunit in
       let parse_literal =
         choice
           [ parse_int_literal

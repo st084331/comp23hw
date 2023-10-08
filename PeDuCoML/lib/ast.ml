@@ -54,6 +54,13 @@ and pattern =
   | PConstructList of pattern * pattern (** a :: [b; c] *)
   | PIdentifier of id (** cool_variable *)
 
+(* Smart constructors for literals *)
+let lint x = LInt x
+let lstring x = LString x
+let lchar x = LChar x
+let lbool x = LBool x
+let lunit _ = LUnit
+
 (* Smart constructors for expressions *)
 let eliteral x = ELiteral x
 let eidentifier x = EIdentifier x
