@@ -38,8 +38,9 @@ let parse_entity =
   @@ fun self ->
   remove_spaces
   *> (parens self
-      <|> take_while1 (fun x ->
-        contains "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'_" x))
+     <|> take_while1 (fun x ->
+           contains "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'_" x)
+     )
 ;;
 
 let parse_uncapitalized_entity =
@@ -82,30 +83,30 @@ let parse_literal constructor =
   @@ fun self ->
   remove_spaces
   *> (parens self
-      <|>
-      let is_digit = function
-        | '0' .. '9' -> true
-        | _ -> false
-      in
-      let parse_int_literal = take_while1 is_digit >>| int_of_string >>| lint in
-      let parse_string_literal =
-        char '"' *> take_while (( != ) '"') <* char '"' >>| lstring
-      in
-      let parse_char_literal = char '\'' *> any_char <* char '\'' >>| lchar in
-      let parse_bool_literal =
-        string "true" <|> string "false" >>| bool_of_string >>| lbool
-      in
-      let parse_unit_literal = string "()" >>| lunit in
-      let parse_literal =
-        choice
-          [ parse_int_literal
-          ; parse_string_literal
-          ; parse_char_literal
-          ; parse_bool_literal
-          ; parse_unit_literal
-          ]
-      in
-      constructor <$> parse_literal)
+     <|>
+     let is_digit = function
+       | '0' .. '9' -> true
+       | _ -> false
+     in
+     let parse_int_literal = take_while1 is_digit >>| int_of_string >>| lint in
+     let parse_string_literal =
+       char '"' *> take_while (( != ) '"') <* char '"' >>| lstring
+     in
+     let parse_char_literal = char '\'' *> any_char <* char '\'' >>| lchar in
+     let parse_bool_literal =
+       string "true" <|> string "false" >>| bool_of_string >>| lbool
+     in
+     let parse_unit_literal = string "()" >>| lunit in
+     let parse_literal =
+       choice
+         [ parse_int_literal
+         ; parse_string_literal
+         ; parse_char_literal
+         ; parse_bool_literal
+         ; parse_unit_literal
+         ]
+     in
+     constructor <$> parse_literal)
 ;;
 
 let parse_pliteral = parse_literal pliteral
@@ -138,22 +139,22 @@ let parse_ptuple d =
   fix
   @@ fun self ->
   (remove_spaces
-   *>
-   let separator = remove_spaces *> char ',' *> remove_spaces in
-   let parse_pattern =
-     choice
-       [ parens self
-       ; d.parse_pconstruct_list d
-       ; d.parse_wildcard
-       ; d.parse_plist d
-       ; d.parse_pliteral
-       ; d.parse_pidentifier
-       ]
-   in
-   lift2
-     ptuple
-     (parse_pattern <* separator)
-     (sep_by1 separator parse_pattern <* remove_spaces))
+  *>
+  let separator = remove_spaces *> char ',' *> remove_spaces in
+  let parse_pattern =
+    choice
+      [ parens self
+      ; d.parse_pconstruct_list d
+      ; d.parse_wildcard
+      ; d.parse_plist d
+      ; d.parse_pliteral
+      ; d.parse_pidentifier
+      ]
+  in
+  lift2
+    ptuple
+    (parse_pattern <* separator)
+    (sep_by1 separator parse_pattern <* remove_spaces))
   <|> parens self
 ;;
 
@@ -173,19 +174,19 @@ let parse_pconstruct_list d =
   @@ fun self ->
   remove_spaces
   *> (parens self
-      <|>
-      let parse_pattern =
-        choice
-          [ parens @@ d.parse_ptuple d
-          ; parens self
-          ; d.parse_wildcard
-          ; d.parse_plist d
-          ; d.parse_pliteral
-          ; d.parse_pidentifier
-          ]
-      in
-      let separator = remove_spaces *> string "::" *> remove_spaces in
-      lift2 pconstruct_list (parse_pattern <* separator) (self <|> parse_pattern))
+     <|>
+     let parse_pattern =
+       choice
+         [ parens @@ d.parse_ptuple d
+         ; parens self
+         ; d.parse_wildcard
+         ; d.parse_plist d
+         ; d.parse_pliteral
+         ; d.parse_pidentifier
+         ]
+     in
+     let separator = remove_spaces *> string "::" *> remove_spaces in
+     lift2 pconstruct_list (parse_pattern <* separator) (self <|> parse_pattern))
 ;;
 
 (* Parsers *)
@@ -229,7 +230,7 @@ let parse_tuple d =
          etuple
          (parse_content <* separator)
          (sep_by1 separator parse_content <* remove_spaces))
-      <|> parens self)
+     <|> parens self)
 ;;
 
 let parse_list d =
@@ -309,8 +310,8 @@ let declaration_helper constructing_function d =
   lift3
     constructing_function
     (parse_uncapitalized_entity
-     >>= fun name ->
-     if name = "_" then fail "Parsing error: wildcard not expected." else return name)
+    >>= fun name ->
+    if name = "_" then fail "Parsing error: wildcard not expected." else return name)
     (many (parse_pattern d))
     (remove_spaces *> string "=" *> parse_content)
 ;;
@@ -352,14 +353,14 @@ let parse_let_in d =
   <|> (string "let"
        *> take_while1 space_predicate
        *> option "" (string "rec" <* take_while1 space_predicate)
-       >>= fun parsed_rec ->
-       lift2
-         eletin
-         (let separator = remove_spaces *> string "and" *> take_while1 space_predicate in
-          match parsed_rec with
-          | "rec" -> sep_by1 separator @@ declaration_helper erecursivedeclaration d
-          | _ -> sep_by1 separator @@ declaration_helper edeclaration d)
-         (remove_spaces *> string "in" *> parse_content))
+      >>= fun parsed_rec ->
+      lift2
+        eletin
+        (let separator = remove_spaces *> string "and" *> take_while1 space_predicate in
+         match parsed_rec with
+         | "rec" -> sep_by1 separator @@ declaration_helper erecursivedeclaration d
+         | _ -> sep_by1 separator @@ declaration_helper edeclaration d)
+        (remove_spaces *> string "in" *> parse_content))
 ;;
 
 let parse_conditional d =
@@ -495,34 +496,34 @@ let parse_application d =
   @@ fun self ->
   remove_spaces
   *> (parens self
-      <|>
-      let function_parser =
-        choice
-          [ parens @@ d.parse_fun d
-          ; parens @@ d.parse_conditional d
-          ; parens @@ d.parse_matching d
-          ; parens @@ d.parse_let_in d
-          ; parse_identifier
-          ]
-      and operand_parser =
-        choice
-          [ parens @@ d.parse_tuple d
-          ; parens @@ d.parse_list_constructing d
-          ; parens @@ d.parse_binary_operation d
-          ; parens @@ d.parse_unary_operation d
-          ; d.parse_list d
-          ; parens self
-          ; parens @@ d.parse_fun d
-          ; parens @@ d.parse_conditional d
-          ; parens @@ d.parse_matching d
-          ; parens @@ d.parse_let_in d
-          ; parse_literal
-          ; parse_identifier
-          ]
-      in
-      let apply_lift acc = lift (eapplication acc) operand_parser in
-      let rec go acc = apply_lift acc >>= go <|> return acc in
-      function_parser >>= fun init -> apply_lift init >>= fun init -> go init)
+     <|>
+     let function_parser =
+       choice
+         [ parens @@ d.parse_fun d
+         ; parens @@ d.parse_conditional d
+         ; parens @@ d.parse_matching d
+         ; parens @@ d.parse_let_in d
+         ; parse_identifier
+         ]
+     and operand_parser =
+       choice
+         [ parens @@ d.parse_tuple d
+         ; parens @@ d.parse_list_constructing d
+         ; parens @@ d.parse_binary_operation d
+         ; parens @@ d.parse_unary_operation d
+         ; d.parse_list d
+         ; parens self
+         ; parens @@ d.parse_fun d
+         ; parens @@ d.parse_conditional d
+         ; parens @@ d.parse_matching d
+         ; parens @@ d.parse_let_in d
+         ; parse_literal
+         ; parse_identifier
+         ]
+     in
+     let apply_lift acc = lift (eapplication acc) operand_parser in
+     let rec go acc = apply_lift acc >>= go <|> return acc in
+     function_parser >>= fun init -> apply_lift init >>= fun init -> go init)
 ;;
 
 let parse_unary_operation d =
@@ -564,25 +565,25 @@ let parse_list_constructing d =
   @@ fun self ->
   remove_spaces
   *> (parens self
-      <|>
-      let separator = remove_spaces *> string "::" *> remove_spaces
-      and parse_content =
-        choice
-          [ parens @@ d.parse_tuple d
-          ; parens self
-          ; parens @@ d.parse_binary_operation d
-          ; d.parse_unary_operation d
-          ; d.parse_list d
-          ; d.parse_application d
-          ; parens @@ d.parse_fun d
-          ; parens @@ d.parse_conditional d
-          ; parens @@ d.parse_matching d
-          ; d.parse_let_in d
-          ; parse_literal
-          ; parse_identifier
-          ]
-      in
-      lift2 econstruct_list (parse_content <* separator) (self <|> parse_content))
+     <|>
+     let separator = remove_spaces *> string "::" *> remove_spaces
+     and parse_content =
+       choice
+         [ parens @@ d.parse_tuple d
+         ; parens self
+         ; parens @@ d.parse_binary_operation d
+         ; d.parse_unary_operation d
+         ; d.parse_list d
+         ; d.parse_application d
+         ; parens @@ d.parse_fun d
+         ; parens @@ d.parse_conditional d
+         ; parens @@ d.parse_matching d
+         ; d.parse_let_in d
+         ; parse_literal
+         ; parse_identifier
+         ]
+     in
+     lift2 econstruct_list (parse_content <* separator) (self <|> parse_content))
 ;;
 
 (* --------------------------- *)
@@ -643,7 +644,7 @@ let parse_pconstruct_list = parse_pconstruct_list default
 
 (* Main parsing function *)
 let parse : input -> (expression list, error_message) result =
-  fun program ->
+ fun program ->
   parse_string ~consume:All (many parse_declaration <* remove_spaces) program
 ;;
 

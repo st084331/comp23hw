@@ -32,23 +32,23 @@ end = struct
   type 'a t = int -> int * ('a, error) Result.t
 
   let ( >>= ) : 'a 'b. 'a t -> ('a -> 'b t) -> 'b t =
-    fun monad f state ->
+   fun monad f state ->
     let last, result = monad state in
     match result with
     | Error e -> last, Error e
     | Ok value -> f value last
-  ;;
+ ;;
 
   let fail error state = state, Base.Result.fail error
   let return value last = last, Base.Result.return value
   let bind x ~f = x >>= f
 
   let ( >>| ) : 'a 'b. 'a t -> ('a -> 'b) -> 'b t =
-    fun x f state ->
+   fun x f state ->
     match x state with
     | state, Ok x -> state, Ok (f x)
     | state, Error e -> state, Error e
-  ;;
+ ;;
 
   module Syntax = struct
     let ( let* ) x f = bind x ~f
@@ -246,7 +246,7 @@ let unify = Subst.unify
 let fresh_var = fresh >>| fun n -> tvar n
 
 let instantiate : scheme -> typ R.t =
-  fun (set, t) ->
+ fun (set, t) ->
   VarSet.fold_right
     (fun typ name ->
       let* f1 = fresh_var in
@@ -257,7 +257,7 @@ let instantiate : scheme -> typ R.t =
 ;;
 
 let generalize : TypeEnv.t -> Type.t -> Scheme.t =
-  fun env typ ->
+ fun env typ ->
   let free = Base.Set.diff (Type.free_vars typ) (TypeEnv.free_vars env) in
   free, typ
 ;;
@@ -272,7 +272,7 @@ let lookup_env e map =
 
 let infer =
   let rec pattern_helper : TypeEnv.t -> pattern -> (Subst.t * typ) R.t =
-    fun env -> function
+   fun env -> function
     | PLiteral literal ->
       (match literal with
        | LInt _ -> return (Subst.empty, int_typ)
@@ -320,7 +320,7 @@ let infer =
       return (final_subst, Subst.apply subst' list_typ)
   in
   let rec helper : TypeEnv.t -> expression -> (Subst.t * typ) R.t =
-    fun env -> function
+   fun env -> function
     | ELiteral literal ->
       (match literal with
        | LInt _ -> return (Subst.empty, int_typ)
