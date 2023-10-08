@@ -1,3 +1,7 @@
 (library
- (modules_without_implementation ast)
+ (modules Ast Parser Pprintast)
+ (libraries angstrom)
+ (preprocess
+  (pps ppx_expect ppx_deriving.show ppx_deriving.eq))
+ (inline_tests)
  (name PeDuCoML))
