@@ -18,7 +18,7 @@ type dispatch =
   ; parse_matching : dispatch -> expression Angstrom.t
   ; parse_let_in : dispatch -> expression Angstrom.t
   ; parse_expression : dispatch -> expression Angstrom.t
-  ; parse_wild : pattern Angstrom.t
+  ; parse_wildcard : pattern Angstrom.t
   ; parse_ptuple : dispatch -> pattern Angstrom.t
   ; parse_plist : dispatch -> pattern Angstrom.t
   ; parse_pconstruct_list : dispatch -> pattern Angstrom.t
@@ -73,7 +73,7 @@ let parse_pattern d =
     ; d.parse_plist d
     ; d.parse_pliteral
     ; d.parse_pidentifier
-    ; d.parse_wild
+    ; d.parse_wildcard
     ]
 ;;
 
@@ -127,7 +127,7 @@ let parse_pidentifier =
   parse_identifier
 ;;
 
-let parse_wild = remove_spaces *> (pwild <$> take_while1 (fun c -> c = '_'))
+let parse_wildcard = remove_spaces *> (pwildcard <$> take_while1 (fun c -> c = '_'))
 
 let parse_ptuple d =
   fix
@@ -139,7 +139,7 @@ let parse_ptuple d =
      choice
        [ parens self
        ; d.parse_pconstruct_list d
-       ; d.parse_wild
+       ; d.parse_wildcard
        ; d.parse_plist d
        ; d.parse_pliteral
        ; d.parse_pidentifier
@@ -173,7 +173,7 @@ let parse_pconstruct_list d =
         choice
           [ parens @@ d.parse_ptuple d
           ; parens self
-          ; d.parse_wild
+          ; d.parse_wildcard
           ; d.parse_plist d
           ; d.parse_pliteral
           ; d.parse_pidentifier
@@ -643,7 +643,7 @@ let default =
   ; parse_matching
   ; parse_let_in
   ; parse_expression
-  ; parse_wild
+  ; parse_wildcard
   ; parse_ptuple
   ; parse_plist
   ; parse_pconstruct_list
@@ -753,7 +753,7 @@ let%test _ =
            , []
            , EConstructList
                ( EFun ([ PIdentifier "x" ], ELiteral (LChar 'a'))
-               , EList [ EFun ([ PWild ], ELiteral (LChar 'b')) ] ) )
+               , EList [ EFun ([ PWildcard ], ELiteral (LChar 'b')) ] ) )
        ]
 ;;
 
@@ -895,7 +895,7 @@ let%test _ =
 (* 14 *)
 let%test _ =
   parse " let main = fun _ -> 42 "
-  = Result.ok @@ [ EDeclaration ("main", [], EFun ([ PWild ], ELiteral (LInt 42))) ]
+  = Result.ok @@ [ EDeclaration ("main", [], EFun ([ PWildcard ], ELiteral (LInt 42))) ]
 ;;
 
 (* 15 *)
@@ -903,7 +903,9 @@ let%test _ =
   parse " let main = fun _ -> fun _ -> \"Hello\" "
   = Result.ok
     @@ [ EDeclaration
-           ("main", [], EFun ([ PWild ], EFun ([ PWild ], ELiteral (LString "Hello"))))
+           ( "main"
+           , []
+           , EFun ([ PWildcard ], EFun ([ PWildcard ], ELiteral (LString "Hello"))) )
        ]
 ;;
 
@@ -952,7 +954,7 @@ let%test _ =
                                  , EApplication
                                      (EIdentifier "line_mult_number", EIdentifier "tail")
                                  ) )
-                           ; PWild, EList []
+                           ; PWildcard, EList []
                            ] ) )
                  ]
                , EMatchWith
@@ -965,7 +967,7 @@ let%test _ =
                                ( EApplication
                                    (EIdentifier "matrix_mult_number", EIdentifier "tail")
                                , EIdentifier "number" ) ) )
-                     ; PWild, EList []
+                     ; PWildcard, EList []
                      ] ) ) )
        ]
 ;;
@@ -1004,8 +1006,9 @@ let%test _ =
            ( "main"
            , []
            , EFun
-               ( [ PWild ]
-               , ETuple [ ELiteral (LInt 1); EFun ([ PWild ], ELiteral (LInt 2)) ] ) )
+               ( [ PWildcard ]
+               , ETuple [ ELiteral (LInt 1); EFun ([ PWildcard ], ELiteral (LInt 2)) ] )
+           )
        ]
 ;;
 
@@ -1017,8 +1020,8 @@ let%test _ =
            ( "main"
            , []
            , EList
-               [ EFun ([ PWild ], ELiteral (LInt 1))
-               ; EFun ([ PWild ], ELiteral (LInt 2))
+               [ EFun ([ PWildcard ], ELiteral (LInt 1))
+               ; EFun ([ PWildcard ], ELiteral (LInt 2))
                ] )
        ]
 ;;
@@ -1258,7 +1261,7 @@ let%test _ =
                        ; PLiteral (LBool true)
                        ]
                    , ELiteral (LBool true) )
-                 ; PWild, ELiteral (LBool false)
+                 ; PWildcard, ELiteral (LBool false)
                  ] ) )
        ]
 ;;
@@ -1269,7 +1272,8 @@ let%test _ =
 ;;
 
 let%test _ =
-  parse "let f _ = 1" = Result.ok @@ [ EDeclaration ("f", [ PWild ], ELiteral (LInt 1)) ]
+  parse "let f _ = 1"
+  = Result.ok @@ [ EDeclaration ("f", [ PWildcard ], ELiteral (LInt 1)) ]
 ;;
 
 let%test _ =
@@ -1289,7 +1293,7 @@ let%test _ =
            ( "f"
            , [ PList
                  [ PTuple [ PIdentifier "x"; PIdentifier "y" ]
-                 ; PTuple [ PLiteral LUnit; PWild ]
+                 ; PTuple [ PLiteral LUnit; PWildcard ]
                  ]
              ]
            , ELiteral (LInt 1) )
@@ -1316,7 +1320,7 @@ let%test _ =
 
 let%test _ =
   parse "let f = fun _ -> 2"
-  = Result.ok @@ [ EDeclaration ("f", [], EFun ([ PWild ], ELiteral (LInt 2))) ]
+  = Result.ok @@ [ EDeclaration ("f", [], EFun ([ PWildcard ], ELiteral (LInt 2))) ]
 ;;
 
 let%test _ =
@@ -1345,7 +1349,7 @@ let%test _ =
                ( [ PList
                      [ PTuple
                          [ PLiteral (LInt 1); PIdentifier "x"; PLiteral (LBool true) ]
-                     ; PTuple [ PWild; PWild; PIdentifier "y" ]
+                     ; PTuple [ PWildcard; PWildcard; PIdentifier "y" ]
                      ]
                  ]
                , ELiteral (LBool true) ) )
@@ -1384,29 +1388,30 @@ let%test _ =
            , [ PIdentifier "x"; PIdentifier "y"; PIdentifier "z" ]
            , EMatchWith
                ( ETuple [ EIdentifier "x"; EIdentifier "y"; EIdentifier "z" ]
-               , [ ( PTuple [ PLiteral (LBool true); PWild; PIdentifier "x" ]
+               , [ ( PTuple [ PLiteral (LBool true); PWildcard; PIdentifier "x" ]
                    , ELiteral (LBool true) )
                  ; ( PTuple
                        [ PList [ PIdentifier "a"; PIdentifier "b" ]
                        ; PConstructList
                            (PIdentifier "c", PList [ PIdentifier "d"; PIdentifier "e" ])
-                       ; PWild
+                       ; PWildcard
                        ]
                    , ELiteral (LBool true) )
                  ; ( PTuple
                        [ PLiteral LUnit
                        ; PList
                            [ PTuple [ PIdentifier "a"; PLiteral (LInt 1) ]
-                           ; PTuple [ PLiteral LUnit; PWild ]
+                           ; PTuple [ PLiteral LUnit; PWildcard ]
                            ]
                        ; PTuple
                            [ PIdentifier "c"
-                           ; PConstructList (PList [ PIdentifier "d"; PWild ], PWild)
+                           ; PConstructList
+                               (PList [ PIdentifier "d"; PWildcard ], PWildcard)
                            ; PList []
                            ]
                        ]
                    , ELiteral (LBool true) )
-                 ; PWild, ELiteral (LBool false)
+                 ; PWildcard, ELiteral (LBool false)
                  ] ) )
        ]
 ;;
@@ -1416,12 +1421,12 @@ let%test _ =
   = Result.ok
     @@ [ EDeclaration
            ( "f"
-           , [ PWild ]
+           , [ PWildcard ]
            , EFun
                ( [ PList
                      [ PTuple
                          [ PLiteral (LInt 1); PIdentifier "x"; PLiteral (LBool true) ]
-                     ; PTuple [ PWild; PWild; PIdentifier "y" ]
+                     ; PTuple [ PWildcard; PWildcard; PIdentifier "y" ]
                      ]
                  ]
                , ELiteral (LBool true) ) )

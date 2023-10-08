@@ -44,7 +44,7 @@ let rec pp_pattern fmt =
   in
   function
   | PLiteral literal -> pp_literal fmt literal
-  | PWild -> fprintf fmt "_"
+  | PWildcard -> fprintf fmt "_"
   | PTuple list -> pp_list fmt ", " list
   | PList list -> fprintf fmt "[%a]" (fun fmt -> pp_list fmt "; ") list
   | PConstructList (operand, list) ->
@@ -202,7 +202,7 @@ let%expect_test _ =
                    ; PLiteral (LBool true)
                    ]
                , ELiteral (LBool true) )
-             ; PWild, ELiteral (LBool false)
+             ; PWildcard, ELiteral (LBool false)
              ] ) );
   [%expect
     {|
@@ -220,7 +220,7 @@ let%expect_test _ =
                , EConstructList
                    ( EBinaryOperation (Mul, EIdentifier "head", EIdentifier "number")
                    , EApplication (EIdentifier "line_mult_number", EIdentifier "tail") ) )
-             ; PWild, EList []
+             ; PWildcard, EList []
              ] ) );
   [%expect
     {|

@@ -48,7 +48,7 @@ type expression =
 
 and pattern =
   | PLiteral of literal (** true *)
-  | PWild (** _ *)
+  | PWildcard (** _ *)
   | PTuple of pattern list (** (1, 2) *)
   | PList of pattern list (** [a; b; c] *)
   | PConstructList of pattern * pattern (** a :: [b; c] *)
@@ -106,7 +106,7 @@ let unot _ = Not
 
 (* Smart constructors for patterns *)
 let pliteral literal = PLiteral literal
-let pwild _ = PWild
+let pwildcard _ = PWildcard
 let ptuple head tail = PTuple (head :: tail)
 let plist pattern_list = PList pattern_list
 let pconstruct_list head tail = PConstructList (head, tail)
