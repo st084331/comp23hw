@@ -1349,12 +1349,7 @@ let%test _ =
 ;;
 
 let%test _ =
-  parse
-    " let f x y z = match x, y, z with\n\
-    \  | true, _, x -> true\n\
-    \  | [a; b], c :: [d; e], _ -> true\n\
-    \  | (), [a, 1; (), _], (c, [d; _] :: _, []) -> true\n\
-    \  | _ -> false"
+  parse " let f x y z = match x, y, z with\n  | true, _, x -> true\n  | _ -> false"
   = Result.ok
     @@ [ EDeclaration
            ( "f"
@@ -1363,14 +1358,46 @@ let%test _ =
                ( ETuple [ EIdentifier "x"; EIdentifier "y"; EIdentifier "z" ]
                , [ ( PTuple [ PLiteral (LBool true); PWildcard; PIdentifier "x" ]
                    , ELiteral (LBool true) )
-                 ; ( PTuple
+                 ; PWildcard, ELiteral (LBool false)
+                 ] ) )
+       ]
+;;
+
+let%test _ =
+  parse
+    " let f x y z = match x, y, z with\n\
+    \  | [a; b], c :: [d; e], _ -> true\n\
+    \  | _ -> false"
+  = Result.ok
+    @@ [ EDeclaration
+           ( "f"
+           , [ PIdentifier "x"; PIdentifier "y"; PIdentifier "z" ]
+           , EMatchWith
+               ( ETuple [ EIdentifier "x"; EIdentifier "y"; EIdentifier "z" ]
+               , [ ( PTuple
                        [ PList [ PIdentifier "a"; PIdentifier "b" ]
                        ; PConstructList
                            (PIdentifier "c", PList [ PIdentifier "d"; PIdentifier "e" ])
                        ; PWildcard
                        ]
                    , ELiteral (LBool true) )
-                 ; ( PTuple
+                 ; PWildcard, ELiteral (LBool false)
+                 ] ) )
+       ]
+;;
+
+let%test _ =
+  parse
+    " let f x y z = match x, y, z with\n\
+    \  | (), [a, 1; (), _], (c, [d; _] :: _, []) -> true\n\
+    \  | _ -> false"
+  = Result.ok
+    @@ [ EDeclaration
+           ( "f"
+           , [ PIdentifier "x"; PIdentifier "y"; PIdentifier "z" ]
+           , EMatchWith
+               ( ETuple [ EIdentifier "x"; EIdentifier "y"; EIdentifier "z" ]
+               , [ ( PTuple
                        [ PLiteral LUnit
                        ; PList
                            [ PTuple [ PIdentifier "a"; PLiteral (LInt 1) ]
