@@ -126,24 +126,6 @@ let rec pp_expression fmt =
       pp_expression
       list
   | ETuple list -> pp_list fmt ", " list
-  | EDeclaration (name, pattern_list, expression) ->
-    fprintf
-      fmt
-      "let %s %a = %a"
-      name
-      pp_pattern_list
-      pattern_list
-      pp_expression
-      expression
-  | ERecursiveDeclaration (name, pattern_list, expression) ->
-    fprintf
-      fmt
-      "let rec %s %a = %a"
-      name
-      pp_pattern_list
-      pattern_list
-      pp_expression
-      expression
   | EIf (predicate, true_branch, false_branch) ->
     fprintf
       fmt
@@ -154,28 +136,44 @@ let rec pp_expression fmt =
       true_branch
       pp_expression
       false_branch
-  | ELetIn (expression_list, expression) ->
-    (match expression_list with
+  | ELetIn (declaration_list, expression) ->
+    (match declaration_list with
      | [] -> fprintf fmt "Parsing error."
      | head :: tail ->
-       fprintf fmt "%a" pp_expression head;
-       List.iter tail ~f:(function
-         | EDeclaration (name, pattern_list, expression)
-         | ERecursiveDeclaration (name, pattern_list, expression) ->
-           fprintf
-             fmt
-             "and %s %a = %a"
-             name
-             pp_pattern_list
-             pattern_list
-             pp_expression
-             expression
-         | _ -> fprintf fmt "Unreacheable");
+       fprintf fmt "%a" pp_declaration head;
+       List.iter tail ~f:(fun declaration -> pp_declaration fmt declaration);
        fprintf fmt "in %a" pp_expression expression)
   | EMatchWith (matched_expression, case_list) ->
     fprintf fmt "match %a with" pp_expression matched_expression;
     List.iter case_list ~f:(fun (case, action) ->
       fprintf fmt " | %a -> %a" pp_pattern case pp_expression action)
+
+and pp_declaration fmt =
+  let pp_pattern_list fmt =
+    pp_print_list
+      ~pp_sep:(fun fmt _ -> fprintf fmt " ")
+      (fun fmt pattern -> fprintf fmt "%a" pp_pattern pattern)
+      fmt
+  in
+  function
+  | DDeclaration (name, pattern_list, expression) ->
+    fprintf
+      fmt
+      "let %s %a = %a"
+      name
+      pp_pattern_list
+      pattern_list
+      pp_expression
+      expression
+  | DRecursiveDeclaration (name, pattern_list, expression) ->
+    fprintf
+      fmt
+      "let rec %s %a = %a"
+      name
+      pp_pattern_list
+      pattern_list
+      pp_expression
+      expression
 ;;
 
 let%expect_test _ =

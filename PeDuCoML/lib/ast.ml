@@ -39,10 +39,7 @@ type expression =
   | EList of expression list (** [ 1; 2; 3 ] *)
   | EConstructList of expression * expression (** 1 :: [2; 3] *)
   | ETuple of expression list (** (1, "Vasya Pupkin", '\n') *)
-  | EDeclaration of id * pattern list * expression (** let add x y = x + y *)
-  | ERecursiveDeclaration of id * pattern list * expression
-      (** let rec factorial n = n * factorial (n - 1) *)
-  | ELetIn of expression list * expression (** let x = 1 and y = 2 in x + y *)
+  | ELetIn of declaration list * expression (** let x = 1 and y = 2 in x + y *)
   | EIf of expression * expression * expression (** if true then 1 else 0 *)
   | EMatchWith of expression * (pattern * expression) list (** match x with _ -> x *)
 
@@ -53,6 +50,11 @@ and pattern =
   | PList of pattern list (** [a; b; c] *)
   | PConstructList of pattern * pattern (** a :: [b; c] *)
   | PIdentifier of id (** cool_variable *)
+
+and declaration =
+  | DDeclaration of id * pattern list * expression (** let add x y = x + y *)
+  | DRecursiveDeclaration of id * pattern list * expression
+      (** let rec factorial n = n * factorial (n - 1) *)
 
 (* Smart constructors for literals *)
 let lint x = LInt x
@@ -72,12 +74,12 @@ let ebinary_operation operator left_operand right_operand =
   EBinaryOperation (operator, left_operand, right_operand)
 ;;
 
-let edeclaration function_name variable_list expression =
-  EDeclaration (function_name, variable_list, expression)
+let ddeclaration function_name variable_list expression =
+  DDeclaration (function_name, variable_list, expression)
 ;;
 
-let erecursivedeclaration function_name variable_list expression =
-  ERecursiveDeclaration (function_name, variable_list, expression)
+let drecursivedeclaration function_name variable_list expression =
+  DRecursiveDeclaration (function_name, variable_list, expression)
 ;;
 
 let eif condition true_branch false_branch = EIf (condition, true_branch, false_branch)

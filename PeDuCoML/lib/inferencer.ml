@@ -318,8 +318,12 @@ let infer =
       let* subst' = unify (tlist operand_typ) list_typ in
       let* final_subst = Subst.compose_all [ operand_subst; list_subst; subst' ] in
       return (final_subst, Subst.apply subst' list_typ)
-  in
-  let rec helper : TypeEnv.t -> expression -> (Subst.t * typ) R.t =
+  and declaration_helper : TypeEnv.t -> declaration -> (Subst.t * typ) R.t =
+   fun env -> function
+    | DDeclaration (_, arguments_list, function_body)
+    | DRecursiveDeclaration (_, arguments_list, function_body) ->
+      helper env (EFun (arguments_list, function_body))
+  and helper : TypeEnv.t -> expression -> (Subst.t * typ) R.t =
    fun env -> function
     | ELiteral literal ->
       (match literal with
@@ -442,14 +446,13 @@ let infer =
         | elem :: tail ->
           let* identifier =
             match elem with
-            | EDeclaration (id, _, _) | ERecursiveDeclaration (id, _, _) -> return id
-            | _ -> fail `NotReachable
+            | DDeclaration (id, _, _) | DRecursiveDeclaration (id, _, _) -> return id
           in
           let* fresh_var = fresh_var in
           let env' =
             TypeEnv.extend env identifier (Base.Set.empty (module Base.Int), fresh_var)
           in
-          let* elem_subst, elem_typ = helper env' elem in
+          let* elem_subst, elem_typ = declaration_helper env' elem in
           let env'' = TypeEnv.apply elem_subst env' in
           let generalized_type = generalize env'' elem_typ in
           let* subst'' = Subst.compose subst elem_subst in
@@ -483,22 +486,19 @@ let infer =
       in
       let* final_subst = Subst.compose subst' matched_subst in
       return (subst', Subst.apply final_subst head_expression_type)
-    | EDeclaration (_, arguments_list, function_body)
-    | ERecursiveDeclaration (_, arguments_list, function_body) ->
-      helper env (EFun (arguments_list, function_body))
   in
-  helper
+  declaration_helper
 ;;
 
-let check_types (program : expression list) =
+let check_types (program : declaration list) =
   let rec helper environment = function
     | head :: tail ->
       (match head with
-       | EDeclaration (name, _, _) ->
+       | DDeclaration (name, _, _) ->
          let* _, function_type = infer environment head in
          let generalized_type = generalize environment function_type in
          helper (TypeEnv.extend environment name generalized_type) tail
-       | ERecursiveDeclaration (name, _, _) ->
+       | DRecursiveDeclaration (name, _, _) ->
          let* type_variable = fresh_var in
          let env =
            TypeEnv.extend
@@ -511,8 +511,7 @@ let check_types (program : expression list) =
          let* final_subst = Subst.compose subst' subst in
          let env = TypeEnv.apply final_subst env in
          let generalized_type = generalize env (Subst.apply final_subst type_variable) in
-         helper (TypeEnv.extend environment name generalized_type) tail
-       | _ -> fail `NotReachable)
+         helper (TypeEnv.extend environment name generalized_type) tail)
     | _ -> return ()
   in
   helper TypeEnv.empty program
@@ -528,13 +527,16 @@ let print_result expression =
 
 let%expect_test _ =
   print_result
-    (EFun
-       ( [ PIdentifier "x" ]
-       , ETuple
-           [ ELiteral (LString "amount")
-           ; EIdentifier "x"
-           ; EBinaryOperation (Mul, EIdentifier "x", ELiteral (LInt 3))
-           ] ));
+    (DDeclaration
+       ( "main"
+       , []
+       , EFun
+           ( [ PIdentifier "x" ]
+           , ETuple
+               [ ELiteral (LString "amount")
+               ; EIdentifier "x"
+               ; EBinaryOperation (Mul, EIdentifier "x", ELiteral (LInt 3))
+               ] ) ));
   [%expect {|
     int -> string * int * int
   |}]
@@ -542,13 +544,16 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (EFun
-       ( [ PIdentifier "x" ]
-       , EList
-           [ EIdentifier "x"
-           ; ELiteral (LInt 5)
-           ; EBinaryOperation (Mul, EIdentifier "x", ELiteral (LInt 3))
-           ] ));
+    (DDeclaration
+       ( "main"
+       , []
+       , EFun
+           ( [ PIdentifier "x" ]
+           , EList
+               [ EIdentifier "x"
+               ; ELiteral (LInt 5)
+               ; EBinaryOperation (Mul, EIdentifier "x", ELiteral (LInt 3))
+               ] ) ));
   [%expect {|
     int -> int list
   |}]
@@ -556,12 +561,15 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (EFun
-       ( [ PIdentifier "x" ]
-       , EList
-           [ EBinaryOperation (Add, EIdentifier "x", EIdentifier "x")
-           ; EBinaryOperation (Mul, EIdentifier "x", ELiteral (LInt 3))
-           ] ));
+    (DDeclaration
+       ( "main"
+       , []
+       , EFun
+           ( [ PIdentifier "x" ]
+           , EList
+               [ EBinaryOperation (Add, EIdentifier "x", EIdentifier "x")
+               ; EBinaryOperation (Mul, EIdentifier "x", ELiteral (LInt 3))
+               ] ) ));
   [%expect {|
     int -> int list 
   |}]
@@ -569,9 +577,12 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (EFun
-       ( [ PIdentifier "x"; PIdentifier "y"; PIdentifier "z" ]
-       , EList [ EIdentifier "x"; EIdentifier "y"; EIdentifier "z" ] ));
+    (DDeclaration
+       ( "main"
+       , []
+       , EFun
+           ( [ PIdentifier "x"; PIdentifier "y"; PIdentifier "z" ]
+           , EList [ EIdentifier "x"; EIdentifier "y"; EIdentifier "z" ] ) ));
   [%expect {|
     'a -> 'a -> 'a -> 'a list
   |}]
@@ -579,7 +590,12 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (EFun ([ PIdentifier "x" ], EIf (EIdentifier "x", EIdentifier "x", EIdentifier "x")));
+    (DDeclaration
+       ( "main"
+       , []
+       , EFun
+           ([ PIdentifier "x" ], EIf (EIdentifier "x", EIdentifier "x", EIdentifier "x"))
+       ));
   [%expect {|
     bool -> bool
   |}]
@@ -587,24 +603,31 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (ETuple
-       [ EBinaryOperation (Add, ELiteral (LInt 3), ELiteral (LInt 2))
-       ; EUnaryOperation (Minus, ELiteral (LInt 7))
-       ]);
+    (DDeclaration
+       ( "main"
+       , []
+       , ETuple
+           [ EBinaryOperation (Add, ELiteral (LInt 3), ELiteral (LInt 2))
+           ; EUnaryOperation (Minus, ELiteral (LInt 7))
+           ] ));
   [%expect {|
     int * int
   |}]
 ;;
 
 let%expect_test _ =
-  print_result (EFun ([ PIdentifier "x" ], EUnaryOperation (Not, EIdentifier "x")));
+  print_result
+    (DDeclaration
+       ("main", [], EFun ([ PIdentifier "x" ], EUnaryOperation (Not, EIdentifier "x"))));
   [%expect {|
     bool -> bool
   |}]
 ;;
 
 let%expect_test _ =
-  print_result (EFun ([ PWildcard ], EUnaryOperation (Not, ELiteral (LInt 1))));
+  print_result
+    (DDeclaration
+       ("main", [], EFun ([ PWildcard ], EUnaryOperation (Not, ELiteral (LInt 1)))));
   [%expect
     {|
   Unification failed: type of the expression is int but expected type was bool
@@ -613,7 +636,12 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (EFun ([ PIdentifier "x" ], EBinaryOperation (Add, ELiteral (LInt 2), EIdentifier "x")));
+    (DDeclaration
+       ( "main"
+       , []
+       , EFun
+           ( [ PIdentifier "x" ]
+           , EBinaryOperation (Add, ELiteral (LInt 2), EIdentifier "x") ) ));
   [%expect {|
   int -> int
   |}]
@@ -621,9 +649,12 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (EFun
-       ( [ PIdentifier "x"; PIdentifier "y" ]
-       , EBinaryOperation (Div, EIdentifier "y", EIdentifier "x") ));
+    (DDeclaration
+       ( "main"
+       , []
+       , EFun
+           ( [ PIdentifier "x"; PIdentifier "y" ]
+           , EBinaryOperation (Div, EIdentifier "y", EIdentifier "x") ) ));
   [%expect {|
   int -> int -> int
   |}]
@@ -631,9 +662,12 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (EFun
-       ( [ PIdentifier "x"; PIdentifier "y" ]
-       , EBinaryOperation (LT, EIdentifier "y", EIdentifier "x") ));
+    (DDeclaration
+       ( "main"
+       , []
+       , EFun
+           ( [ PIdentifier "x"; PIdentifier "y" ]
+           , EBinaryOperation (LT, EIdentifier "y", EIdentifier "x") ) ));
   [%expect {|
   'a -> 'a -> bool
   |}]
@@ -641,9 +675,12 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-    (EFun
-       ( [ PIdentifier "x" ]
-       , EBinaryOperation (LT, ELiteral (LString "asdf"), EIdentifier "x") ));
+    (DDeclaration
+       ( "main"
+       , []
+       , EFun
+           ( [ PIdentifier "x" ]
+           , EBinaryOperation (LT, ELiteral (LString "asdf"), EIdentifier "x") ) ));
   [%expect {|
   string -> bool
   |}]
@@ -651,11 +688,14 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-  @@ EApplication
-       ( EFun
-           ( [ PIdentifier "x" ]
-           , EBinaryOperation (LT, ELiteral (LString "asdf"), EIdentifier "x") )
-       , ELiteral (LString "asdfg") );
+  @@ DDeclaration
+       ( "main"
+       , []
+       , EApplication
+           ( EFun
+               ( [ PIdentifier "x" ]
+               , EBinaryOperation (LT, ELiteral (LString "asdf"), EIdentifier "x") )
+           , ELiteral (LString "asdfg") ) );
   [%expect {|
   bool
   |}]
@@ -663,11 +703,14 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-  @@ EApplication
-       ( EFun
-           ( [ PIdentifier "x" ]
-           , EBinaryOperation (LT, ELiteral (LString "asdf"), EIdentifier "x") )
-       , ELiteral LUnit );
+  @@ DDeclaration
+       ( "main"
+       , []
+       , EApplication
+           ( EFun
+               ( [ PIdentifier "x" ]
+               , EBinaryOperation (LT, ELiteral (LString "asdf"), EIdentifier "x") )
+           , ELiteral LUnit ) );
   [%expect
     {|
   Unification failed: type of the expression is unit but expected type was string
@@ -676,16 +719,20 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-  @@ EFun
-       ( [ PIdentifier "line"; PIdentifier "number"; PIdentifier "line_mult_number" ]
-       , EMatchWith
-           ( EIdentifier "line"
-           , [ ( PConstructList (PIdentifier "head", PIdentifier "tail")
-               , EConstructList
-                   ( EBinaryOperation (Mul, EIdentifier "head", EIdentifier "number")
-                   , EApplication (EIdentifier "line_mult_number", EIdentifier "tail") ) )
-             ; PWildcard, EList []
-             ] ) );
+  @@ DDeclaration
+       ( "main"
+       , []
+       , EFun
+           ( [ PIdentifier "line"; PIdentifier "number"; PIdentifier "line_mult_number" ]
+           , EMatchWith
+               ( EIdentifier "line"
+               , [ ( PConstructList (PIdentifier "head", PIdentifier "tail")
+                   , EConstructList
+                       ( EBinaryOperation (Mul, EIdentifier "head", EIdentifier "number")
+                       , EApplication (EIdentifier "line_mult_number", EIdentifier "tail")
+                       ) )
+                 ; PWildcard, EList []
+                 ] ) ) );
   [%expect {|
   int list -> int -> (int list -> int list) -> int list
   |}]
@@ -693,30 +740,33 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-  @@ EFun
-       ( [ PIdentifier "x"; PIdentifier "y"; PIdentifier "z" ]
-       , EMatchWith
-           ( ETuple [ EIdentifier "x"; EIdentifier "y"; EIdentifier "z" ]
-           , [ ( PTuple
-                   [ PLiteral (LBool true)
-                   ; PLiteral (LBool true)
-                   ; PLiteral (LBool false)
-                   ]
-               , ELiteral (LBool true) )
-             ; ( PTuple
-                   [ PLiteral (LBool true)
-                   ; PLiteral (LBool false)
-                   ; PLiteral (LBool true)
-                   ]
-               , ELiteral (LBool true) )
-             ; ( PTuple
-                   [ PLiteral (LBool false)
-                   ; PLiteral (LBool true)
-                   ; PLiteral (LBool true)
-                   ]
-               , ELiteral (LBool true) )
-             ; PWildcard, ELiteral (LBool false)
-             ] ) );
+  @@ DDeclaration
+       ( "main"
+       , []
+       , EFun
+           ( [ PIdentifier "x"; PIdentifier "y"; PIdentifier "z" ]
+           , EMatchWith
+               ( ETuple [ EIdentifier "x"; EIdentifier "y"; EIdentifier "z" ]
+               , [ ( PTuple
+                       [ PLiteral (LBool true)
+                       ; PLiteral (LBool true)
+                       ; PLiteral (LBool false)
+                       ]
+                   , ELiteral (LBool true) )
+                 ; ( PTuple
+                       [ PLiteral (LBool true)
+                       ; PLiteral (LBool false)
+                       ; PLiteral (LBool true)
+                       ]
+                   , ELiteral (LBool true) )
+                 ; ( PTuple
+                       [ PLiteral (LBool false)
+                       ; PLiteral (LBool true)
+                       ; PLiteral (LBool true)
+                       ]
+                   , ELiteral (LBool true) )
+                 ; PWildcard, ELiteral (LBool false)
+                 ] ) ) );
   [%expect {|
   bool -> bool -> bool -> bool
   |}]
@@ -724,20 +774,25 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_result
-  @@ ELetIn
-       ( [ ERecursiveDeclaration
-             ( "factorial"
-             , [ PIdentifier "n"; PIdentifier "acc" ]
-             , EIf
-                 ( EBinaryOperation (LTE, EIdentifier "n", ELiteral (LInt 1))
-                 , EIdentifier "acc"
-                 , EApplication
-                     ( EApplication
-                         ( EIdentifier "factorial"
-                         , EBinaryOperation (Sub, EIdentifier "n", ELiteral (LInt 1)) )
-                     , EBinaryOperation (Mul, EIdentifier "acc", EIdentifier "n") ) ) )
-         ]
-       , EIdentifier "factorial" );
+  @@ DDeclaration
+       ( "main"
+       , []
+       , ELetIn
+           ( [ DRecursiveDeclaration
+                 ( "factorial"
+                 , [ PIdentifier "n"; PIdentifier "acc" ]
+                 , EIf
+                     ( EBinaryOperation (LTE, EIdentifier "n", ELiteral (LInt 1))
+                     , EIdentifier "acc"
+                     , EApplication
+                         ( EApplication
+                             ( EIdentifier "factorial"
+                             , EBinaryOperation (Sub, EIdentifier "n", ELiteral (LInt 1))
+                             )
+                         , EBinaryOperation (Mul, EIdentifier "acc", EIdentifier "n") ) )
+                 )
+             ]
+           , EIdentifier "factorial" ) );
   [%expect {|
   int -> int -> int
   |}]
