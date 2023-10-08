@@ -71,7 +71,6 @@ type error =
   | `NoVariable of identifier
   | `NoConstructor of identifier
   | `UnificationFailed of typ * typ
-  | `NotReachable
   ]
 
 let pp_error fmt (err : error) =
@@ -85,7 +84,6 @@ let pp_error fmt (err : error) =
     pp_type fmt t1;
     fprintf fmt " but expected type was ";
     pp_type fmt t2
-  | `NotReachable -> fprintf fmt "Not reachable."
 ;;
 
 let print_type_error error =
