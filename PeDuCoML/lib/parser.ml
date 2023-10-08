@@ -77,7 +77,7 @@ let parse_pattern d =
     ]
 ;;
 
-let parse_pliteral =
+let parse_literal constructor =
   fix
   @@ fun self ->
   remove_spaces
@@ -105,8 +105,11 @@ let parse_pliteral =
           ; parse_unit_literal
           ]
       in
-      pliteral <$> parse_literal)
+      constructor <$> parse_literal)
 ;;
+
+let parse_pliteral = parse_literal pliteral
+let parse_literal = parse_literal eliteral
 
 let parse_pidentifier =
   fix
@@ -182,36 +185,6 @@ let parse_pconstruct_list d =
 ;;
 
 (* Parsers *)
-let parse_literal =
-  fix
-  @@ fun self ->
-  remove_spaces
-  *> (parens self
-      <|>
-      let is_digit = function
-        | '0' .. '9' -> true
-        | _ -> false
-      in
-      let parse_int_literal = take_while1 is_digit >>| int_of_string >>| lint in
-      let parse_string_literal =
-        char '"' *> take_while (( != ) '"') <* char '"' >>| lstring
-      in
-      let parse_char_literal = char '\'' *> any_char <* char '\'' >>| lchar in
-      let parse_bool_literal =
-        string "true" <|> string "false" >>| bool_of_string >>| lbool
-      in
-      let parse_unit_literal = string "()" >>| lunit in
-      let parse_literal =
-        choice
-          [ parse_int_literal
-          ; parse_string_literal
-          ; parse_char_literal
-          ; parse_bool_literal
-          ; parse_unit_literal
-          ]
-      in
-      lift eliteral parse_literal)
-;;
 
 let parse_identifier =
   fix
