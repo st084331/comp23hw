@@ -1,4 +1,6 @@
 (executable
  (public_name PeDuCoML)
  (name main)
- (libraries PeDuCoML))
+ (libraries PeDuCoML)
+ (instrumentation
+  (backend bisect_ppx)))

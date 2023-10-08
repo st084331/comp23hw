@@ -4,4 +4,6 @@
  (preprocess
   (pps ppx_expect ppx_deriving.show ppx_deriving.eq))
  (inline_tests)
+ (instrumentation
+  (backend bisect_ppx))
  (name PeDuCoML))
