@@ -181,4 +181,12 @@ let fun_p d =
 let declaration_p d = val_p d <|> fun_p d
 
 (* main parser *)
-let default_dispatch = { expression_p; declaration_p }
+let dispatch = { expression_p; declaration_p }
+
+let parse program =
+  parse_string ~consume:All (many (declaration_p dispatch) <* skip) program
+;;
+
+let parse_optimistically program = Result.get_ok (parse program)
+
+(* tests *)
