@@ -119,22 +119,6 @@ let constr_pvar id = PVar id
 let ppwild = constr_pwild <$> pwild
 let ppconst = constr_pconst <$> pconst
 let ppvar = constr_pvar <$> pident
-
-(* type pdispatch =
-  { value : pdispatch -> pattern t
-  ; pat : pdispatch -> pattern t
-  }
-
-let pack =
-  let pat pack = choice [ pack.value pack ] in
-  let value pack =
-    fix @@ fun _ -> choice [ ppwild; ppconst; ppvar ] <|> pparens @@ pack.value pack
-  in
-  { value; pat }
-;;
-
-let pargs = pack.value pack *)
-
 let pattern = fix @@ fun m -> choice [ ppwild; ppconst; ppvar ] <|> pparens @@ m
 
 (**  Operation constructor *)
