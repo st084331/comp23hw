@@ -10,6 +10,7 @@ let is_space = function
 let skip = take_while is_space
 let spaces = take_while1 is_space
 let trim p = skip *> p <* skip
+let parens p = skip *> char '(' *> skip *> p <* skip <* char ')'
 
 let varname =
   let keywords =
@@ -35,7 +36,7 @@ let varname =
     | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' -> true
     | _ -> false
   in
-  peek_char
+  skip *> peek_char
   >>= function
   | Some c when is_valid_first_char c ->
     take_while is_varname_char
@@ -53,40 +54,51 @@ type dispatch =
   }
 
 let literal_p =
-  let parens p = spaces *> char '(' *> spaces *> p <* spaces <* char ')' in
+  fix
+  @@ fun self ->
+  skip
+  *>
+  let boolean = string "true" <|> string "false" >>| bool_of_string in
   let integer =
     take_while1 (function
       | '0' .. '9' -> true
       | _ -> false)
     >>| int_of_string
   in
-  fix
-  @@ fun self ->
-  spaces
-  *>
   let int_literal_p = integer >>| fun x -> LInt x in
-  let bool_literal_p =
-    string "true" <|> string "false" >>| bool_of_string >>| fun x -> LBool x
-  in
-  let parse_literal = choice [ int_literal_p; bool_literal_p ] in
-  parens self <|> (parse_literal >>| e_literal)
+  let bool_literal_p = boolean >>| fun x -> LBool x in
+  let literal = choice [ int_literal_p; bool_literal_p ] in
+  parens self <|> lift e_literal literal
 ;;
 
 let identifier_p =
+  fix
+  @@ fun self ->
+  skip
+  *>
   let is_wildcard c = c == "_" in
-  varname
-  >>= function
-  | id when not (is_wildcard id) -> return @@ e_identifier id
-  | _ -> fail "Invalid variable name"
+  let id =
+    varname
+    >>= function
+    | id when not (is_wildcard id) -> return @@ e_identifier id
+    | _ -> fail "Invalid variable name"
+  in
+  parens self <|> id
 ;;
 
 let unary_op_p d =
-  spaces *> lift2 e_unary_op (char '~' >>| uneg) (d.expression_p d)
-  <|> lift2 e_unary_op (string "not" >>| unot) (d.expression_p d)
+  fix
+  @@ fun self ->
+  skip
+  *>
+  let op = choice [ char '~' >>| uneg; string "not" >>| unot ] in
+  parens self <|> lift2 e_unary_op op (d.expression_p d)
 ;;
 
 let binary_op_p d =
-  spaces
+  fix
+  @@ fun self ->
+  skip
   *>
   let multiplicative = spaces *> choice [ char '*' >>| bmul; char '/' >>| bdiv ] in
   let additive = spaces *> choice [ char '+' >>| badd; char '-' >>| bsub ] in
@@ -114,36 +126,52 @@ let binary_op_p d =
     | h :: t -> chainl1 (parse_bin_op expr_parser t) h
     | _ -> fail "Unreachable"
   in
-  parse_bin_op
-    (d.expression_p d)
-    [ logical_or; logical_and; equality; relational; additive; multiplicative ]
+  parens self
+  <|> parse_bin_op
+        (d.expression_p d)
+        [ logical_or; logical_and; equality; relational; additive; multiplicative ]
 ;;
 
 let app_p d =
-  let expr1 = spaces *> d.expression_p d <* spaces in
-  let expr2 = spaces *> d.expression_p d <* spaces in
-  lift2 e_app expr1 expr2
+  fix
+  @@ fun self ->
+  skip
+  *>
+  let expr = spaces *> d.expression_p d <* spaces in
+  parens self <|> lift2 e_app expr expr
 ;;
 
 let abs_p d =
+  fix
+  @@ fun self ->
+  skip
+  *>
   let keyword = skip *> string "fn" *> spaces in
   let arg = varname in
-  let body = spaces *> string "=>" *> d.expression_p d <* spaces in
-  keyword *> lift2 e_abs arg body
+  let body = spaces *> string "=>" *> d.expression_p d in
+  parens self <|> keyword *> lift2 e_abs arg body
 ;;
 
 let if_then_else_p d =
-  let cond = spaces *> string "if" *> d.expression_p d <* spaces in
-  let if_true = spaces *> string "then" *> d.expression_p d <* spaces in
-  let if_false = spaces *> string "else" *> d.expression_p d <* spaces in
-  lift3 e_if_then_else cond if_true if_false
+  fix
+  @@ fun self ->
+  skip
+  *>
+  let cond = spaces *> string "if" *> d.expression_p d in
+  let if_true = spaces *> string "then" *> d.expression_p d in
+  let if_false = spaces *> string "else" *> d.expression_p d in
+  parens self <|> lift3 e_if_then_else cond if_true if_false
 ;;
 
 let let_in_p d =
-  let keyword = skip *> string "let" *> spaces in
-  let declarations = sep_by1 (trim (char ',')) (d.declaration_p d) in
-  let body = spaces *> string "in" *> d.expression_p d <* spaces <* string "end" in
-  keyword *> lift2 e_let_in declarations body
+  fix
+  @@ fun self ->
+  skip
+  *>
+  let keyword = string "let" *> skip in
+  let declarations = sep_by1 spaces (d.declaration_p d) in
+  let body = skip *> string "in" *> d.expression_p d <* skip <* string "end" in
+  parens self <|> keyword *> lift2 e_let_in declarations body
 ;;
 
 let expression_p d =
@@ -159,26 +187,22 @@ let expression_p d =
     ]
 ;;
 
-(* declaration parsers *)
-let val_p d =
-  let name = trim (string "val") *> varname in
-  let body = trim (char '=') *> d.expression_p d in
-  lift2 d_val name body
-;;
-
-let fun_p d =
-  let name =
-    skip *> string "fun" *> spaces *> identifier_p
+(* declaration parser *)
+let declaration_p d =
+  fix
+  @@ fun self ->
+  skip
+  *>
+  let name keyword =
+    string keyword *> spaces *> identifier_p
     >>= function
     | EIdentifier id -> return id
-    | _ -> fail "Invalid function name"
+    | _ -> fail "Invalid binding name"
   in
   let args = skip *> many (varname <* skip) in
   let body = trim (char '=') *> d.expression_p d in
-  lift3 d_fun name args body
+  parens self <|> lift2 d_val (name "val") body <|> lift3 d_fun (name "fun") args body
 ;;
-
-let declaration_p d = val_p d <|> fun_p d
 
 (* main parser *)
 let dispatch = { expression_p; declaration_p }
@@ -190,3 +214,11 @@ let parse program =
 let parse_optimistically program = Result.get_ok (parse program)
 
 (* tests *)
+let%test _ = parse_optimistically "val x = x" = [ DVal ("x", EIdentifier "x") ]
+
+(* let x program = parse_string ~consume:All varname program
+let _ =
+  x "x"
+  |> function
+  | Ok a | Error a -> print_string a
+;; *)

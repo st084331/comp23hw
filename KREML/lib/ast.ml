@@ -32,7 +32,7 @@ type expr =
   | EApp of expr * expr (* f x *)
   | EAbs of identifier * expr (* fn x => x + 1 *)
   | EIfThenElse of expr * expr * expr (* if true then 1 else 2 *)
-  | ELetIn of decl list * expr (* let fun f x = x, val y = 1 in f 1 * y *)
+  | ELetIn of decl list * expr (* let fun f x = x val y = 1 in f 1 * y *)
 
 and decl =
   | DVal of identifier * expr (* val x = 88 *)
