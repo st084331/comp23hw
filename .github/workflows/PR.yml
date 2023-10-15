@@ -77,13 +77,7 @@ jobs:
       - name: Running tests in ${{ env.latest }}...
         run: cd ${{ env.latest }} && opam exec -- dune runtest --profile=release
 
-      - name: Build API documentation for ${{ env.latest }}...
-        run: |
-          opam install odoc --yes
-          cd ${{ env.latest }} && opam exec -- dune build @doc --profile=release
-
       - name: Setting the environment
-        if: false
         env:
           LINTS_PATH: _build/default/_found_lints
         run: |
@@ -92,15 +86,44 @@ jobs:
           cd ${{ env.latest }} && mkdir -p ${{ env.LINTS_PATH }}
           echo "ZANUDA_REPORT_FILE_PATH=${{ env.LINTS_PATH }}/lints.txt" >> $GITHUB_ENV
 
+# API doc
+
+      - name: Build API documentation for ${{ env.latest }}...
+        run: cd ${{ env.latest }} && opam exec -- dune build @doc --profile=release
+
+      - run: |
+          ls
+          echo '==========='
+          ls ${{ env.latest }}
+      - run: |
+          echo ${{ env.latest }}          > projectname.txt
+          echo ${{ github.event.number }} > PR_number.txt
+      - run: |
+          echo ${{ env.latest }}          > ${{ env.latest }}/projectname.txt
+          echo ${{ github.event.number }} > ${{ env.latest }}/PR_number.txt
+
+      - name: Update docs artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: docs
+          path: |
+            ${{ env.latest }}/_build/default/_doc/_html
+            projectname.txt
+            PR_number.txt
+
+      - run: |
+          opam pin add https://github.com/Kakadu/zanuda.git --no-action
+          opam reinstall zanuda
+
+# linter
       - name: Running linter in ${{ env.latest }}...
-        if: false
         run: |
-          cd ${{ env.latest }} && opam exec -- zanuda -dir . -add-prefix ${{ env.latest }}/ -ordjsonl ${{ env.RDJSON_FILE_PATH }} > ${{ env.ZANUDA_REPORT_FILE_PATH }}
+          mkdir -p ${{ env.latest }}/_build/default/_found_lints
+          cd ${{ env.latest }} && opam exec -- zanuda -no-mutable_hashtables -dir . -add-prefix ${{ env.latest }}/ -ordjsonl ${{ env.RDJSON_FILE_PATH }} > ${{ env.ZANUDA_REPORT_FILE_PATH }}
 
       - run: cat ${{ env.latest }}/${{ env.RDJSON_FILE_PATH }}
-        if: false
+
       - name: Preparing lints tarball
-        if: false
         run: |
           echo ${{ env.latest }} > ${{ env.latest }}/${{ env.RDJSON_DIR_PATH }}/projectname.txt
           echo ${{ github.event.pull_request.user.login }} > ${{ env.latest }}/${{ env.RDJSON_DIR_PATH }}/piarast.txt
@@ -110,7 +133,6 @@ jobs:
       # TODO: maybe PR_number is not required
 
       - name: Upload linter (review.zip) artifact
-        if: false
         uses: actions/upload-artifact@v3
         with:
           name: review
@@ -120,33 +142,13 @@ jobs:
       - run: echo $(git rev-parse HEAD)
       - run: echo $(git rev-parse HEAD~1)
       - run: echo ${{ github.event.pull_request.head.sha }}
-      
 
-      - name: Update docs artifact
-        if: false
-        uses: actions/upload-artifact@v3
-        with:
-          name: docs
-          path: |
-            ${{ env.latest }}/_build/default/_doc/_html
-            ${{ env.latest }}/${{ env.RDJSON_DIR_PATH }}/projectname.txt
-            ${{ env.latest }}/${{ env.RDJSON_DIR_PATH }}/PR_number.txt
-          #${{ env.latest }}/${{ env.RDJSON_DIR_PATH }}/CI_COMMIT.txt
-
-      # Omitted. It is in docker image already
-      #- name: Installing a clone detector
-      #  run: npm install jscpd
-
-      #- run: which jscpd || exit 0
-      #- run: ls ~/.local/bin || exit 0
-      #- run: pwd ~ || exit 0
-
+# Local clones
       - name: Looking for clones
         if: false
         run: |
           echo ${{ env.latest }} > projectname.txt
           python3 ./find_clones.py ${{ env.latest }}
-          #python3 -m trace --trace ./find_clones.py ${{ env.latest }}
 
       - run: echo ${{ github.event.number }} > PR_number.txt
 
@@ -173,11 +175,6 @@ jobs:
           BISECT_DIR: /tmp/bisect_ppx_data
           BISECT_FILE: /tmp/bisect_ppx_data/data
 
-      #- run: ls ${{ env.BISECT_DIR }}
-      #  env:
-      #    BISECT_DIR: /tmp/bisect_ppx_data
-      #    BISECT_FILE: /tmp/bisect_ppx_data/data
-
       - name: Calculating coverage (2/2)
         id: calc-coverage
         run: |
@@ -194,7 +191,6 @@ jobs:
           BISECT_FILE: /tmp/bisect_ppx_data/data
 
       - name: Update coverage artifact ${{ steps.calc-coverage.outputs.percent }}
-        if: false
         uses: actions/upload-artifact@v3
         with:
           name: coverage
