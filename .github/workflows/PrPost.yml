@@ -128,7 +128,6 @@ jobs:
       #  run: echo ${{ steps.read-escaped-markdown.outputs.contents }}
 
       - name: Find a comment with linter report
-        #if: false
         uses: peter-evans/find-comment@v2
         id: fc
         with:
@@ -223,11 +222,18 @@ jobs:
       #    echo "${{ steps.fc.outputs.comment-author }}"
       #    echo "${{ steps.fc.outputs.comment-created-at }}"
 
-      - name: Create comment instead of "${{ steps.fc.outputs.comment-id }}"
-        if: ${{ always() }}
+      # The way to remove comments changes to prevent pulling extra docker image should exist.
+      - name: Delete old comment
+        uses: jungwinter/comment@v1
+        if: ${{ steps.fc.outputs.comment-id != 0 }}
+        with:
+          type: delete
+          comment_id: ${{ steps.fc.outputs.comment-id }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create comment
         uses: peter-evans/create-or-update-comment@v3
         with:
-          comment-id: ${{ steps.fc.outputs.comment-id }}
           edit-mode: replace
           issue-number: ${{ env.PR_NUMBER }}
           body-path: text.md
