@@ -155,7 +155,7 @@ jobs:
           issue: ${{ env.CI_PULL_REQUEST }}
           repo-owner: Kakadu
           repo-name: comp23hw
-          refresh-message-position: true
+          #refresh-message-position: true
           proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
 
   ###################################################################################################
@@ -234,7 +234,7 @@ jobs:
           issue: ${{ env.PR_NUMBER }}
           repo-owner: Kakadu
           repo-name: comp23hw
-          refresh-message-position: true
+          #refresh-message-position: true
           proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
 
   upload_coverage:
