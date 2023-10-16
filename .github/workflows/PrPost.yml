@@ -25,6 +25,12 @@ jobs:
       ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' }}
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1                # fix me later
+          submodules: false
+
       - run: echo "conclusion  = ${{ github.event.workflow_run.conclusion }}"
 
       - run: echo "event = ${{ github.event.workflow_run.event }}"
@@ -148,24 +154,29 @@ jobs:
           comment_id: ${{ steps.fc.outputs.comment-id }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create comment
-        uses: mshick/add-pr-comment@v2
-        with:
-          message: ${{ steps.read-escaped-markdown.outputs.contents }}
-          issue: ${{ env.CI_PULL_REQUEST }}
-          repo-owner: Kakadu
-          repo-name: comp23hw
-          #refresh-message-position: true
-          proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
+#      - name: Create comment
+#        uses: mshick/add-pr-comment@v2
+#        with:
+#          message: ${{ steps.read-escaped-markdown.outputs.contents }}
+#          issue: ${{ env.CI_PULL_REQUEST }}
+#          repo-owner: Kakadu
+#          repo-name: comp23hw
+#          #refresh-message-position: true
+#          proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
 
-      - uses: mshick/add-pr-comment@v2
-        with:
-          message: Hello from lints
-          issue: ${{ env.CI_PULL_REQUEST }}
-          repo-token: ${{ secrets.CLASSIC_TOKEN }}
-          repo-owner: Kakadu
-          repo-name: comp23hw
-          proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
+#      - uses: mshick/add-pr-comment@v2
+#        with:
+#          message: Hello from lints
+#          issue: ${{ env.CI_PULL_REQUEST }}
+#          repo-token: ${{ secrets.CLASSIC_TOKEN }}
+#          repo-owner: Kakadu
+#          repo-name: comp23hw
+#          proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
+
+
+      - name: manual adding of a comment from text.md
+        run: ocaml .github/add_comment.ml -file text.md -token ${{ secrets.CLASSIC_TOKEN }} -issue ${{ env.CI_PULL_REQUEST }}
+
 
   ###################################################################################################
   upload_docs:
