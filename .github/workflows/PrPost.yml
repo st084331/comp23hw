@@ -242,8 +242,9 @@ jobs:
 
       - uses: mshick/add-pr-comment@v2
         with:
-          message: |
-            **Howdie!**
+          message-path: text.md
+          issue: ${{ env.PR_NUMBER }}
+          repo-owner: Kakadu
           proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
 
   upload_coverage:
