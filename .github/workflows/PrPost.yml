@@ -156,7 +156,7 @@ jobs:
       #      -H "X-GitHub-Api-Version: 2022-11-28"
 
       - name: Create comment
-        if: false
+        #if: false
         uses: peter-evans/create-or-update-comment@v1
         with:
           edit-mode: replace
