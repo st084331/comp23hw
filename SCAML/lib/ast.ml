@@ -38,10 +38,12 @@ type expr =
   | EVar of id (**  abc *)
   | EIf of expr * expr * expr (** if x > 0 then x else 0 *)
   | EFun of pattern * expr (** fun x -> x * 2 *)
-  | ELet of bool * id * expr (** let [rec] f x = e *)
-  | ELetIn of expr * expr (** let [rec] f x = e in e' *)
+  | ELetIn of bool * id * expr * expr (** let [rec] f x = e in e' *)
   | EApp of expr * expr (** f x *)
 [@@deriving show { with_path = false }]
 
+type binding = ELet of bool * id * expr (** let [rec] f x = e *)
+[@@deriving show { with_path = false }]
+
 (** e1 ;; e2 ;; ... ;; en;; *)
-type program = expr list [@@deriving show { with_path = false }]
+type program = binding list [@@deriving show { with_path = false }]

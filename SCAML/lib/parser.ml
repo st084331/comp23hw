@@ -141,8 +141,7 @@ let constr_ebinop op e1 e2 = EBinOp (op, e1, e2)
 let constr_evar id = EVar id
 let constr_eif e1 e2 e3 = EIf (e1, e2, e3)
 let constr_efun pl e = List.fold_right ~init:e ~f:(fun p e -> EFun (p, e)) pl
-let constr_elet r f e = ELet (r, f, e)
-let constr_eletin elet e = ELetIn (elet, e)
+let constr_eletin b id e1 e2 = ELetIn (b, id, e1, e2)
 let constr_eapp f args = List.fold_left ~init:f ~f:(fun f arg -> EApp (f, arg)) args
 
 (** Expr parsers *)
@@ -153,7 +152,6 @@ type edispatch =
   ; op : edispatch -> expr t
   ; condition : edispatch -> expr t
   ; func : edispatch -> expr t
-  ; bind : edispatch -> expr t
   ; bind_in : edispatch -> expr t
   ; app : edispatch -> expr t
   ; expr : edispatch -> expr t
@@ -174,8 +172,12 @@ let plet_body_without_args pexpr =
   str_token "=" *> pexpr >>| fun expr -> constr_efun [] expr
 ;;
 
+let pbind_with_option_rec = pbinding *> option false (str_token1 "rec " >>| fun _ -> true)
+let pname_func = pident >>| fun name -> name
+let pbody_with_args pack = plet_body pfun_args (pack.expr pack)
+
 let pack =
-  let expr_parsers pack =
+  let expr pack =
     choice
       [ pack.op pack
       ; pack.app pack
@@ -184,7 +186,6 @@ let pack =
       ; pack.bind_in pack
       ]
   in
-  let expr pack = expr_parsers pack <|> pack.bind pack in
   let econst pack = fix @@ fun _ -> peconst <|> pparens @@ pack.econst pack in
   let evar pack = fix @@ fun _ -> pevar <|> pparens @@ pack.evar pack in
   let op_parsers pack =
@@ -235,14 +236,14 @@ let pack =
     lift3
       constr_eif
       (str_token "if" *> cond_bool_parsers pack)
-      (str_token1 "then" *> expr_parsers pack)
-      (str_token1 "else" *> expr_parsers pack)
+      (str_token1 "then" *> expr pack)
+      (str_token1 "else" *> expr pack)
     <|> pparens @@ pack.condition pack
   in
   let func pack =
     fix
     @@ fun _ ->
-    lift2 constr_efun (str_token "fun" *> pfun_args1) (parrow *> expr_parsers pack)
+    lift2 constr_efun (str_token "fun" *> pfun_args1) (parrow *> expr pack)
     <|> pparens @@ pack.func pack
   in
   let app pack =
@@ -251,34 +252,44 @@ let pack =
     lift2 constr_eapp (app_func_parsers pack) (many1 (token1 @@ app_args_parsers pack))
     <|> pparens @@ pack.app pack
   in
-  let plain_bind pack =
-    fix
-    @@ fun _ ->
-    lift3
-      constr_elet
-      (pbinding *> option false (str_token1 "rec " >>| fun _ -> true))
-      (pident >>| fun name -> name)
-      (plet_body pfun_args (expr_parsers pack))
-    <|> lift3
-          constr_elet
-          (pbinding *> return false)
-          (str_token1 "_" *> return "_")
-          (plet_body_without_args (expr_parsers pack))
-  in
-  let bind pack = fix @@ fun _ -> plain_bind pack <|> pparens @@ pack.bind pack in
+  let pbind_without_rec = pbinding *> return false in
+  let punderscore_name = str_token1 "_" *> return "_" in
+  let pbody_without_args pack = plet_body_without_args (expr pack) in
   let bind_in pack =
     fix
     @@ fun _ ->
-    lift2 constr_eletin (plain_bind pack) (str_token1 "in" *> expr_parsers pack)
+    lift4
+      constr_eletin
+      pbind_with_option_rec
+      pname_func
+      (pbody_with_args pack)
+      (str_token1 "in" *> expr pack)
+    <|> lift4
+          constr_eletin
+          pbind_without_rec
+          punderscore_name
+          (pbody_without_args pack)
+          (str_token1 "in" *> expr pack)
     <|> pparens @@ pack.bind_in pack
   in
-  { evar; econst; op; condition; func; bind; bind_in; app; expr }
+  { evar; econst; op; condition; func; bind_in; app; expr }
 ;;
 
 let expr = pack.expr pack
 
+(**  Binding constructor *)
+let constr_elet b id e = ELet (b, id, e)
+
+(**  Binding parser *)
+let bind =
+  fix
+  @@ fun m ->
+  lift3 constr_elet pbind_with_option_rec pname_func (pbody_with_args pack)
+  <|> pparens @@ m
+;;
+
 (**  Program parser *)
-let pprogram = many1 (token expr <* token (many1 (str_token ";;")))
+let pprogram = many1 (token bind <* choice [ token (str_token ";;"); empty ])
 
 let parse str = parse_str pprogram (String.strip str)
 
@@ -287,7 +298,7 @@ let parse str = parse_str pprogram (String.strip str)
 let show_parsed_result str parser show =
   match parse_str parser str with
   | Ok res -> Format.printf "%s" (show res)
-  | Error e -> Format.printf "%s" e
+  | Error e -> Format.printf "Error%s" e
 ;;
 
 (**  Consts tests *)
@@ -546,93 +557,99 @@ let%expect_test _ =
 (**  Let and let rec *)
 
 let%expect_test _ =
-  show_parsed_result "let f x = x" expr show_expr;
+  show_parsed_result "let f x = x" pprogram show_program;
   [%expect {|
-    (ELet (false, "f", (EFun ((PVar "x"), (EVar "x"))))) |}]
+    [(ELet (false, "f", (EFun ((PVar "x"), (EVar "x")))))] |}]
 ;;
 
 let%expect_test _ =
-  show_parsed_result "let bind x f = f x" expr show_expr;
+  show_parsed_result "let bind x f = f x" pprogram show_program;
   [%expect
     {|
-    (ELet (false, "bind",
-       (EFun ((PVar "x"), (EFun ((PVar "f"), (EApp ((EVar "f"), (EVar "x")))))))
-       )) |}]
+    [(ELet (false, "bind",
+        (EFun ((PVar "x"), (EFun ((PVar "f"), (EApp ((EVar "f"), (EVar "x")))))))
+        ))
+      ] |}]
 ;;
 
 let%expect_test _ =
-  show_parsed_result "let mult x = fun y -> x * y" expr show_expr;
+  show_parsed_result "let mult x = fun y -> x * y" pprogram show_program;
   [%expect
     {|
-    (ELet (false, "mult",
-       (EFun ((PVar "x"),
-          (EFun ((PVar "y"), (EBinOp (Mul, (EVar "x"), (EVar "y")))))))
-       )) |}]
+    [(ELet (false, "mult",
+        (EFun ((PVar "x"),
+           (EFun ((PVar "y"), (EBinOp (Mul, (EVar "x"), (EVar "y")))))))
+        ))
+      ] |}]
 ;;
 
 let%expect_test _ =
-  show_parsed_result "let x = 10" expr show_expr;
-  [%expect {|
-    (ELet (false, "x", (EConst (CInt 10)))) |}]
+  show_parsed_result "let x = 10" pprogram show_program;
+  [%expect {| [(ELet (false, "x", (EConst (CInt 10))))] |}]
 ;;
 
 let%expect_test _ =
   show_parsed_result
     "let rec factorial n =\n  if n <= 1\n  then 1\n  else factorial (n - 1) * n"
-    expr
-    show_expr;
+    pprogram
+    show_program;
   [%expect
     {|
-    (ELet (true, "factorial",
-       (EFun ((PVar "n"),
-          (EIf ((EBinOp (Leq, (EVar "n"), (EConst (CInt 1)))), (EConst (CInt 1)),
-             (EBinOp (Mul,
-                (EApp ((EVar "factorial"),
-                   (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
-                (EVar "n")))
-             ))
-          ))
-       )) |}]
+    [(ELet (true, "factorial",
+        (EFun ((PVar "n"),
+           (EIf ((EBinOp (Leq, (EVar "n"), (EConst (CInt 1)))),
+              (EConst (CInt 1)),
+              (EBinOp (Mul,
+                 (EApp ((EVar "factorial"),
+                    (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
+                 (EVar "n")))
+              ))
+           ))
+        ))
+      ] |}]
 ;;
 
 let%expect_test _ =
   show_parsed_result
     "let rec series n = if n = 1 then 1 else n + series (n - 1)"
-    expr
-    show_expr;
+    pprogram
+    show_program;
   [%expect
     {|
-    (ELet (true, "series",
-       (EFun ((PVar "n"),
-          (EIf ((EBinOp (Eq, (EVar "n"), (EConst (CInt 1)))), (EConst (CInt 1)),
-             (EBinOp (Add, (EVar "n"),
-                (EApp ((EVar "series"),
-                   (EBinOp (Sub, (EVar "n"), (EConst (CInt 1))))))
-                ))
-             ))
-          ))
-       )) |}]
+    [(ELet (true, "series",
+        (EFun ((PVar "n"),
+           (EIf ((EBinOp (Eq, (EVar "n"), (EConst (CInt 1)))), (EConst (CInt 1)),
+              (EBinOp (Add, (EVar "n"),
+                 (EApp ((EVar "series"),
+                    (EBinOp (Sub, (EVar "n"), (EConst (CInt 1))))))
+                 ))
+              ))
+           ))
+        ))
+      ] |}]
 ;;
 
 let%expect_test _ =
   show_parsed_result
     "let rec fibonacci n = if n <= 1 then 1 else fibonacci (n - 1) + fibonacci (n - 2)"
-    expr
-    show_expr;
+    pprogram
+    show_program;
   [%expect
     {|
-    (ELet (true, "fibonacci",
-       (EFun ((PVar "n"),
-          (EIf ((EBinOp (Leq, (EVar "n"), (EConst (CInt 1)))), (EConst (CInt 1)),
-             (EBinOp (Add,
-                (EApp ((EVar "fibonacci"),
-                   (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
-                (EApp ((EVar "fibonacci"),
-                   (EBinOp (Sub, (EVar "n"), (EConst (CInt 2))))))
-                ))
-             ))
-          ))
-       )) |}]
+    [(ELet (true, "fibonacci",
+        (EFun ((PVar "n"),
+           (EIf ((EBinOp (Leq, (EVar "n"), (EConst (CInt 1)))),
+              (EConst (CInt 1)),
+              (EBinOp (Add,
+                 (EApp ((EVar "fibonacci"),
+                    (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
+                 (EApp ((EVar "fibonacci"),
+                    (EBinOp (Sub, (EVar "n"), (EConst (CInt 2))))))
+                 ))
+              ))
+           ))
+        ))
+      ] |}]
 ;;
 
 (**  Let in and let rec in *)
@@ -641,11 +658,9 @@ let%expect_test _ =
   show_parsed_result "let sum x = fun y -> x + y in sum 10 5" expr show_expr;
   [%expect
     {|
-    (ELetIn (
-       (ELet (false, "sum",
-          (EFun ((PVar "x"),
-             (EFun ((PVar "y"), (EBinOp (Add, (EVar "x"), (EVar "y")))))))
-          )),
+    (ELetIn (false, "sum",
+       (EFun ((PVar "x"),
+          (EFun ((PVar "y"), (EBinOp (Add, (EVar "x"), (EVar "y"))))))),
        (EApp ((EApp ((EVar "sum"), (EConst (CInt 10)))), (EConst (CInt 5)))))) |}]
 ;;
 
@@ -656,16 +671,13 @@ let%expect_test _ =
     show_expr;
   [%expect
     {|
-    (ELetIn (
-       (ELet (true, "fact",
-          (EFun ((PVar "x"),
-             (EIf ((EBinOp (Leq, (EVar "x"), (EConst (CInt 1)))),
-                (EConst (CInt 1)),
-                (EBinOp (Mul,
-                   (EApp ((EVar "fact"),
-                      (EBinOp (Sub, (EVar "x"), (EConst (CInt 1)))))),
-                   (EVar "x")))
-                ))
+    (ELetIn (true, "fact",
+       (EFun ((PVar "x"),
+          (EIf ((EBinOp (Leq, (EVar "x"), (EConst (CInt 1)))), (EConst (CInt 1)),
+             (EBinOp (Mul,
+                (EApp ((EVar "fact"),
+                   (EBinOp (Sub, (EVar "x"), (EConst (CInt 1)))))),
+                (EVar "x")))
              ))
           )),
        (EApp ((EVar "fact"), (EConst (CInt 10)))))) |}]
