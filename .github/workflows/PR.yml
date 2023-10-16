@@ -86,6 +86,14 @@ jobs:
           cd ${{ env.latest }} && mkdir -p ${{ env.LINTS_PATH }}
           echo "ZANUDA_REPORT_FILE_PATH=${{ env.LINTS_PATH }}/lints.txt" >> $GITHUB_ENV
 
+      - run: |
+          echo ${{ env.latest }}          > projectname.txt
+          echo ${{ github.event.number }} > PR_number.txt
+      - run: |
+          echo ${{ env.latest }}          > ${{ env.latest }}/projectname.txt
+          echo ${{ github.event.number }} > ${{ env.latest }}/PR_number.txt
+
+
       ###################### Coverage #####################################
 
       - name: Calculating coverage (1/2)
@@ -115,23 +123,14 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: coverage
-          path: ${{ env.latest }}/_coverage
+          path: |
+            ${{ env.latest }}/_coverage
+            projectname.txt
 
 # API doc
 
       - name: Build API documentation for ${{ env.latest }}...
         run: cd ${{ env.latest }} && opam exec -- dune build @doc --profile=release
-
-      - run: |
-          ls
-          echo '==========='
-          ls ${{ env.latest }}
-      - run: |
-          echo ${{ env.latest }}          > projectname.txt
-          echo ${{ github.event.number }} > PR_number.txt
-      - run: |
-          echo ${{ env.latest }}          > ${{ env.latest }}/projectname.txt
-          echo ${{ github.event.number }} > ${{ env.latest }}/PR_number.txt
 
       - name: Update docs artifact
         uses: actions/upload-artifact@v3
@@ -196,4 +195,3 @@ jobs:
             jscpd_report.txt
             PR_number.txt
             projectname.txt
-
