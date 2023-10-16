@@ -148,21 +148,15 @@ jobs:
           comment_id: ${{ steps.fc.outputs.comment-id }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      #- name: Delete old comment
-      #  if: steps.fc.outputs.comment-id != 0
-      #  run: |
-      #    curl -L https://api.github.com/repos/Kakadu/fp2023/pulls/comments/${{ steps.fc.outputs.comment-id }} \
-      #      -X DELETE -H "Accept: application/vnd.github+json" \
-      #      -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-      #      -H "X-GitHub-Api-Version: 2022-11-28"
-
       - name: Create comment
-        #if: false
-        uses: peter-evans/create-or-update-comment@v1
+        uses: mshick/add-pr-comment@v2
         with:
-          edit-mode: replace
-          issue-number: ${{ env.CI_PULL_REQUEST }}
-          body: ${{ steps.read-escaped-markdown.outputs.contents }}
+          message: ${{ steps.read-escaped-markdown.outputs.contents }}
+          issue: ${{ env.CI_PULL_REQUEST }}
+          repo-owner: Kakadu
+          repo-name: comp23hw
+          refresh-message-position: true
+          proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
 
   ###################################################################################################
   upload_docs:
@@ -208,6 +202,8 @@ jobs:
 
       - run: .github/make_doc_msg.sh "${{ github.event.repository.name }}" "${{ env.LANG_NAME }}" text.md
 
+      - run: cat text.md
+
       - name: Find Comment
         uses: peter-evans/find-comment@v2
         id: fc
@@ -232,19 +228,13 @@ jobs:
           comment_id: ${{ steps.fc.outputs.comment-id }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create comment
-        if: false
-        uses: peter-evans/create-or-update-comment@v3
-        with:
-          edit-mode: replace
-          issue-number: ${{ env.PR_NUMBER }}
-          body-path: text.md
-
       - uses: mshick/add-pr-comment@v2
         with:
           message-path: text.md
           issue: ${{ env.PR_NUMBER }}
           repo-owner: Kakadu
+          repo-name: comp23hw
+          refresh-message-position: true
           proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
 
   upload_coverage:
