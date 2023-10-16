@@ -158,6 +158,11 @@ jobs:
           #refresh-message-position: true
           proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
 
+      - uses: mshick/add-pr-comment@v2
+        with:
+          message: Hello from lints
+          proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
+
   ###################################################################################################
   upload_docs:
     runs-on: ubuntu-latest
@@ -236,6 +241,12 @@ jobs:
           repo-name: comp23hw
           #refresh-message-position: true
           proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
+
+      - uses: mshick/add-pr-comment@v2
+        with:
+          message: Hello from docs
+          proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
+
 
   upload_coverage:
     runs-on: ubuntu-latest
