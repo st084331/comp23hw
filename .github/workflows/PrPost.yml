@@ -19,7 +19,8 @@ jobs:
     container:
       image: kakadu18/ocaml:llvm14
       options: --user root
-
+    permissions:
+      pull-requests: write
     if: >
       ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' }}
 
@@ -232,11 +233,18 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create comment
+        if: false
         uses: peter-evans/create-or-update-comment@v3
         with:
           edit-mode: replace
           issue-number: ${{ env.PR_NUMBER }}
           body-path: text.md
+
+      - uses: mshick/add-pr-comment@v2
+        with:
+          message: |
+            **Howdie!**
+          proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
 
   upload_coverage:
     runs-on: ubuntu-latest
