@@ -161,6 +161,9 @@ jobs:
       - uses: mshick/add-pr-comment@v2
         with:
           message: Hello from lints
+          issue: ${{ env.CI_PULL_REQUEST }}
+          repo-owner: Kakadu
+          repo-name: comp23hw
           proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
 
   ###################################################################################################
