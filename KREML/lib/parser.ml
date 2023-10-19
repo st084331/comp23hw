@@ -71,14 +71,14 @@ let declaration_p d =
   let args = skip *> many (varname <* skip) in
   let body =
     skip
-    *> char '='
+    *> string "="
     *> choice
          [ d.unary_op_p d
          ; d.binary_op_p d
+         ; d.let_in_p d
          ; d.app_p d
          ; d.abs_p d
          ; d.if_then_else_p d
-         ; d.let_in_p d
          ; d.literal_p
          ; d.identifier_p
          ]
@@ -125,9 +125,9 @@ let unary_op_p d =
     choice
       [ parens self
       ; d.binary_op_p d
+      ; d.let_in_p d
       ; d.app_p d
       ; d.if_then_else_p d
-      ; d.let_in_p d
       ; d.literal_p
       ; d.identifier_p
       ]
@@ -168,9 +168,9 @@ let binary_op_p d =
     choice
       [ parens self
       ; d.unary_op_p d
+      ; d.let_in_p d
       ; d.app_p d
       ; d.if_then_else_p d
-      ; d.let_in_p d
       ; d.literal_p
       ; d.identifier_p
       ]
@@ -233,8 +233,6 @@ let abs_p d =
 let if_then_else_p d =
   fix
   @@ fun self ->
-  parens self
-  <|>
   let condition =
     choice
       [ parens self
@@ -282,7 +280,7 @@ let let_in_p d =
       ]
   in
   let declarations = string "let" *> skip *> sep_by1 skip (declaration_p d) in
-  let body = skip *> string "in" *> expr <* skip <* string "end" in
+  let body = skip *> string "in" *> skip *> expr <* skip <* string "end" in
   skip *> lift2 e_let_in declarations body
 ;;
 
@@ -458,6 +456,11 @@ let%test _ =
     ]
 ;;
 
+let%test _ =
+  parse_optimistically "fun appp y x = y x"
+  = [ DFun ("appp", [ "y"; "x" ], EApp (EIdentifier "y", EIdentifier "x")) ]
+;;
+
 (*abs*)
 
 let%test _ =
@@ -587,19 +590,34 @@ let%test _ =
     ]
 ;;
 
-(*problem tests*)
-let%test _ =
-  parse_optimistically "val y = let val x = 5 in x end"
-  = [ DVal ("y", ELetIn ([ DVal ("x", ELiteral (LInt 5)) ], EIdentifier "x")) ]
-;;
+(*
+   (*problem tests*)
+   let%test _ =
+   parse_optimistically "val y = let val x = 5 in x end"
+   = [ DVal ("y", ELetIn ([ DVal ("x", ELiteral (LInt 5)) ], EIdentifier "x")) ]
+   ;;
 
-let%test _ =
-  parse_optimistically "val y = let fun f x = x in f 5 end"
-  = [ DVal
+   let%test _ =
+   parse_optimistically "val y = let fun f x = x in f 5 end"
+   = [ DVal
         ( "y"
         , ELetIn
             ( [ DFun ("f", [ "x" ], EIdentifier "x") ]
             , EApp (EIdentifier "f", ELiteral (LInt 5)) ) )
+    ]
+   ;;
+*)
+let%test _ =
+  parse_optimistically "val x = 8 / 2 * 3 + f x"
+  = [ DVal
+        ( "x"
+        , EBinaryOp
+            ( Add
+            , EBinaryOp
+                ( Mult
+                , EBinaryOp (Div, ELiteral (LInt 8), ELiteral (LInt 2))
+                , ELiteral (LInt 3) )
+            , EApp (EIdentifier "f", EIdentifier "x") ) )
     ]
 ;;
 
