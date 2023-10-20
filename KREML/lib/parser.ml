@@ -15,10 +15,12 @@ let varname =
   let keywords =
     [ "fun"
     ; "val"
+    ; "let"
+    ; "in"
+    ; "end"
     ; "if"
     ; "then"
     ; "else"
-    ; "in"
     ; "fn"
     ; "true"
     ; "false"
@@ -233,9 +235,11 @@ let abs_p d =
 let if_then_else_p d =
   fix
   @@ fun self ->
+  parens self
+  <|>
   let condition =
     choice
-      [ parens self
+      [ self
       ; d.unary_op_p d
       ; d.binary_op_p d
       ; d.let_in_p d
@@ -247,7 +251,7 @@ let if_then_else_p d =
   in
   let branch =
     choice
-      [ parens self
+      [ self
       ; d.unary_op_p d
       ; d.binary_op_p d
       ; d.let_in_p d
@@ -267,9 +271,11 @@ let if_then_else_p d =
 let let_in_p d =
   fix
   @@ fun self ->
+  parens self
+  <|>
   let expr =
     choice
-      [ parens self
+      [ self
       ; d.unary_op_p d
       ; d.binary_op_p d
       ; d.app_p d
@@ -280,7 +286,7 @@ let let_in_p d =
       ]
   in
   let declarations = string "let" *> skip *> sep_by1 skip (declaration_p d) in
-  let body = skip *> string "in" *> skip *> expr <* skip <* string "end" in
+  let body = skip *> string "in" *> expr <* skip <* string "end" in
   skip *> lift2 e_let_in declarations body
 ;;
 
@@ -314,12 +320,9 @@ let parse_error program =
 (* tests *)
 
 (*literal*)
-
 let%test _ = parse_optimistically "val x = 55" = [ DVal ("x", ELiteral (LInt 55)) ]
 let%test _ = parse_optimistically "val x = true" = [ DVal ("x", ELiteral (LBool true)) ]
-
 (*identifier*)
-
 let%test _ = parse_optimistically "val x = x" = [ DVal ("x", EIdentifier "x") ]
 
 (*unary op*)
@@ -590,24 +593,19 @@ let%test _ =
     ]
 ;;
 
-(*
-   (*problem tests*)
-   let%test _ =
-   parse_optimistically "val y = let val x = 5 in x end"
-   = [ DVal ("y", ELetIn ([ DVal ("x", ELiteral (LInt 5)) ], EIdentifier "x")) ]
-   ;;
+let%test _ =
+  parse_optimistically "val y = let val x = 5 in x end"
+  = [ DVal ("y", ELetIn ([ DVal ("x", ELiteral (LInt 5)) ], EIdentifier "x")) ]
+;;
 
-   let%test _ =
-   parse_optimistically "val y = let fun f x = x in f 5 end"
-   = [ DVal
+let%test _ =
+  parse_optimistically "val y = let fun f x = x in f 5 end"
+  = [ DVal
         ( "y"
         , ELetIn
             ( [ DFun ("f", [ "x" ], EIdentifier "x") ]
             , EApp (EIdentifier "f", ELiteral (LInt 5)) ) )
     ]
-   ;;
-
-*)
 
 let%test _ =
   parse_optimistically 
@@ -635,7 +633,6 @@ let%test _ =
               EBinaryOp (Mult, EIdentifier "n",
                 EApp (EIdentifier "factorial", EBinaryOp (Sub, EIdentifier "n", ELiteral (LInt 1))))));
     DVal ("result", EApp (EIdentifier "factorial", ELiteral (LInt 3))) ]
-    
 
 let%test _ =
   parse_optimistically "val x = 8 / 2 * 3 + f x"

@@ -13,12 +13,12 @@ type typ =
   | TTuple of typ list (** int * int *)
   | TList of typ (** 'a list *)
   | TGround of ground_type (** int *)
-
-(* Ground types *)
-let int_typ = TGround Int
-let bool_typ = TGround Bool
+  | TUnit
 
 (* Smart constructors for types *)
+let int_t = TGround Int
+let bool_t = TGround Bool
+let unit_t = TUnit
 let var_t n = TVar n
 let var_eq_t n = TEqualityVar n
 let arrow_t left_type right_type = TArr (left_type, right_type)
@@ -42,6 +42,7 @@ let rec pp_type fmt typ =
     | _ -> format_of_string "%a"
   in
   match typ with
+  | TUnit -> fprintf fmt "()"
   | TGround x ->
     (match x with
      | Int -> fprintf fmt "int"
