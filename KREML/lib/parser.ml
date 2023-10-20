@@ -606,7 +606,37 @@ let%test _ =
             , EApp (EIdentifier "f", ELiteral (LInt 5)) ) )
     ]
    ;;
+
 *)
+
+let%test _ =
+  parse_optimistically 
+    "fun factorial n = if n <= 1 then 1 else n * factorial (n - 1)"
+  = [DFun 
+    ("factorial", ["n"],
+        EIfThenElse
+            (EBinaryOp (LtOrEq, EIdentifier "n", ELiteral (LInt 1)),
+            ELiteral (LInt 1),
+            EBinaryOp (Mult, EIdentifier "n", 
+                EApp (EIdentifier "factorial", EBinaryOp (Sub, EIdentifier "n", ELiteral (LInt 1))))))]
+
+let%test _ =
+  parse_optimistically "val result = factorial 3"
+  = [DVal ("result", EApp (EIdentifier "factorial", ELiteral (LInt 3)))]
+
+  let%test _ =
+  parse_optimistically
+    "fun factorial n = if n <= 1 then 1 else n * factorial (n - 1) val result = factorial 3"
+  =  [DFun 
+       ("factorial", ["n"],
+        EIfThenElse
+            ( EBinaryOp (LtOrEq, EIdentifier "n", ELiteral (LInt 1)),
+              ELiteral (LInt 1),
+              EBinaryOp (Mult, EIdentifier "n",
+                EApp (EIdentifier "factorial", EBinaryOp (Sub, EIdentifier "n", ELiteral (LInt 1))))));
+    DVal ("result", EApp (EIdentifier "factorial", ELiteral (LInt 3))) ]
+    
+
 let%test _ =
   parse_optimistically "val x = 8 / 2 * 3 + f x"
   = [ DVal

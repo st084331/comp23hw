@@ -496,3 +496,80 @@ let%expect_test _ =
   [%expect
     {| Unification failed: type of the expression is int but expected type was bool |}]
 ;;
+
+let%expect_test _ =
+  parse_and_inference "val cube = fn x => x * x * x";
+  [%expect {|
+    int -> int
+  |}]
+;;
+
+
+let%expect_test _ =
+  parse_and_inference "val compare = fn x => fn y => x * y > 10";
+  [%expect {|
+    int -> int -> bool
+  |}]
+;;
+
+
+
+let%expect_test _ =
+  parse_and_inference "val identity = fn x => x";
+  [%expect {|
+    'a -> 'a
+  |}]
+;;
+
+let%expect_test _ =
+  parse_and_inference "val complex_cond = fn x => fn y => fn z => fn w => x < y andalso z > w";
+  [%expect {|
+    ''e -> ''e -> ''f -> ''f -> bool
+  |}]
+;;
+
+let%expect_test _ =
+  parse_and_inference "val result = let fun multiply3 x = x * 3 in (multiply3 5) end";
+  [%expect {|
+    int
+  |}]
+;;
+
+let%expect_test _ =
+  parse_and_inference "val result = let val x = 7 in x * 2 end";
+  [%expect {|
+    int
+  |}]
+;;
+
+let%expect_test _ =
+  parse_and_inference
+    "fun fact n = if n <= 1 then 1 else n * fact (n - 1)";
+  [%expect {|
+    int -> int
+  |}]
+;;
+
+
+let%expect_test _ =
+  parse_and_inference
+    "fun factorial n = if n <= 1 then 1 else n * factorial (n - 1)  val result = factorial 3";
+  [%expect {|
+    int -> int
+    int
+  |}]
+;;
+
+let%expect_test _ =
+  parse_and_inference
+    "fun double x = x + x";
+  [%expect {|
+    int -> int
+  |}]
+
+let%expect_test _ =
+  parse_and_inference
+    "fun sum x y = x + y";
+  [%expect {|
+    (int * int) -> int
+  |}]
