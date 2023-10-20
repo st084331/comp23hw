@@ -36,23 +36,23 @@ end = struct
   type 'a t = int -> int * ('a, error) Result.t
 
   let ( >>= ) : 'a 'b. 'a t -> ('a -> 'b t) -> 'b t =
-    fun monad f state ->
+   fun monad f state ->
     let last, result = monad state in
     match result with
     | Error e -> last, Error e
     | Ok x -> f x last
-  ;;
+ ;;
 
   let fail err state = state, Result.fail err
   let return x last = last, Result.return x
   let bind x ~f = x >>= f
 
   let ( >>| ) : 'a 'b. 'a t -> ('a -> 'b) -> 'b t =
-    fun x f state ->
+   fun x f state ->
     match x state with
     | state, Ok x -> state, Ok (f x)
     | state, Error e -> state, Error e
-  ;;
+ ;;
 
   module Syntax = struct
     let ( let* ) x f = bind x ~f
@@ -82,7 +82,7 @@ module Type = struct
     | TArr (l, r) -> occurs_in v l || occurs_in v r
     | TTuple typ_list -> List.exists typ_list ~f:(occurs_in v)
     | TList typ -> occurs_in v typ
-    | TGround _ -> false
+    | _ -> false
   ;;
 
   let free_vars =
@@ -96,7 +96,7 @@ module Type = struct
           ~f:(fun t s -> Set.union s (helper empty_set t))
           ~init:acc
       | TList typ -> helper acc typ
-      | TGround _ | TEqualityVar _ -> acc
+      | _ -> acc
     in
     helper empty_set
   ;;
@@ -124,7 +124,6 @@ end = struct
   open R
   open R.Syntax
 
-  (* An association list. In real world replace it by Map *)
   type t = (fresh, typ, Int.comparator_witness) Map.t
 
   let empty = Map.empty (module Int)
@@ -255,7 +254,7 @@ let fresh_var = fresh >>| var_t
 let fresh_eq_var = fresh >>| var_eq_t
 
 let instantiate : scheme -> typ R.t =
-  fun (set, t) ->
+ fun (set, t) ->
   VarSet.fold_right
     (fun typ name ->
       let* f = fresh_var in
@@ -266,7 +265,7 @@ let instantiate : scheme -> typ R.t =
 ;;
 
 let generalize : TypeEnv.t -> Type.t -> Scheme.t =
-  fun env typ ->
+ fun env typ ->
   let free = Set.diff (Type.free_vars typ) (TypeEnv.free_vars env) in
   free, typ
 ;;
@@ -293,17 +292,22 @@ let is_syntactically_value = function
   | _ -> false
 ;;
 
-let infer_decl =
-  let rec helper : TypeEnv.t -> decl -> (Subst.t * typ) R.t =
-    fun env -> function
-    | DVal (_, body) -> infer_expr env body
-    | DFun (_, _, body) -> infer_expr env body
+let infer =
+  let rec infer_decl : TypeEnv.t -> decl -> (Subst.t * typ) R.t =
+   fun env -> function
+    | DVal (_, body) -> infer_expr env @@ EAbs ("", body)
+    | DFun (_, args, body) ->
+      let rec curry = function
+        | [] -> EAbs ("", body)
+        | hd :: tl -> EAbs (hd, curry tl)
+      in
+      infer_expr env @@ curry args
   and infer_expr : TypeEnv.t -> expr -> (Subst.t * typ) R.t =
-    fun env -> function
+   fun env -> function
     | ELiteral literal ->
       (match literal with
-       | LInt _ -> return (Subst.empty, int_typ)
-       | LBool _ -> return (Subst.empty, bool_typ))
+       | LInt _ -> return (Subst.empty, int_t)
+       | LBool _ -> return (Subst.empty, bool_t))
     | EIdentifier identifier ->
       (match identifier with
        | "_" ->
@@ -313,8 +317,8 @@ let infer_decl =
     | EUnaryOp (op, expr) ->
       let operand_type =
         match op with
-        | Neg -> int_typ
-        | Not -> bool_typ
+        | Neg -> int_t
+        | Not -> bool_t
       in
       let* subst, t = infer_expr env expr in
       let* subst' = unify t operand_type in
@@ -325,12 +329,12 @@ let infer_decl =
       let* right_subst, right_type = infer_expr env right in
       (match op with
        | Add | Sub | Mult | Div ->
-         let* subst' = unify left_type int_typ in
-         let* subst'' = unify right_type int_typ in
+         let* subst' = unify left_type int_t in
+         let* subst'' = unify right_type int_t in
          let+ final_subst =
            Subst.compose_all [ subst'; subst''; left_subst; right_subst ]
          in
-         final_subst, int_typ
+         final_subst, int_t
        | Eq | Lt | LtOrEq | Gt | GtOrEq ->
          let* fresh_eq_var = fresh_eq_var in
          let* subst' = unify left_type fresh_eq_var in
@@ -338,49 +342,36 @@ let infer_decl =
          let+ final_subst =
            Subst.compose_all [ left_subst; right_subst; subst'; subst'' ]
          in
-         final_subst, bool_typ
+         final_subst, bool_t
        | And | Or ->
-         let* subst' = unify left_type bool_typ in
-         let* subst'' = unify right_type bool_typ in
+         let* subst' = unify left_type bool_t in
+         let* subst'' = unify right_type bool_t in
          let+ final_subst =
            Subst.compose_all [ subst'; subst''; left_subst; right_subst ]
          in
-         final_subst, bool_typ)
+         final_subst, bool_t)
     | ELetIn (bindings_list, expression) ->
       let rec process_list subst env = function
         | [] -> return (subst, env)
         | elem :: tail ->
-          (match elem with
-           | DVal (id, body) ->
-             let* fresh_var_instance = fresh_var in
-             let env' =
-               TypeEnv.extend env id (Set.empty (module Int), fresh_var_instance)
-             in
-             let* elem_subst, elem_type = infer_expr env' body in
-             let env'' = TypeEnv.apply elem_subst env' in
-             let generalized_type =
-               if is_syntactically_value body
-               then generalize env'' elem_type
-               else TypeEnv.free_vars env'', elem_type
-             in
-             let* subst' = Subst.compose subst elem_subst in
-             let env''' = TypeEnv.extend env'' id generalized_type in
-             process_list subst' env''' tail
-           | DFun (id, _, body) ->
-             let* fresh_var_instance = fresh_var in
-             let env' =
-               TypeEnv.extend env id (Set.empty (module Int), fresh_var_instance)
-             in
-             let* elem_subst, elem_type = infer_expr env' body in
-             let env'' = TypeEnv.apply elem_subst env' in
-             let generalized_type =
-               if is_syntactically_value body
-               then generalize env'' elem_type
-               else TypeEnv.free_vars env'', elem_type
-             in
-             let* subst' = Subst.compose subst elem_subst in
-             let env''' = TypeEnv.extend env'' id generalized_type in
-             process_list subst' env''' tail)
+          let* identifier, binding_body, env' =
+            match elem with
+            | DVal (id, body) -> return (id, body, env)
+            | DFun (id, _, body) ->
+              let* fresh_var = fresh_var in
+              let env' = TypeEnv.extend env id (Set.empty (module Int), fresh_var) in
+              return (id, body, env')
+          in
+          let* elem_subst, elem_type = infer_decl env' elem in
+          let env'' = TypeEnv.apply elem_subst env' in
+          let generalized_type =
+            if is_syntactically_value binding_body
+            then generalize env'' elem_type
+            else TypeEnv.free_vars env'', elem_type
+          in
+          let* subst' = Subst.compose subst elem_subst in
+          let env''' = TypeEnv.extend env'' identifier generalized_type in
+          process_list subst' env''' tail
       in
       let* subst, env = process_list Subst.empty env bindings_list in
       let* subst_expr, typ_expr = infer_expr env expression in
@@ -409,7 +400,7 @@ let infer_decl =
       let* condition_subst, condition_type = infer_expr env condition in
       let* true_branch_subst, true_branch_type = infer_expr env true_branch in
       let* false_branch_subst, false_branch_type = infer_expr env false_branch in
-      let* subst' = unify condition_type bool_typ in
+      let* subst' = unify condition_type bool_t in
       let* subst'' = unify true_branch_type false_branch_type in
       let+ final_subst =
         Subst.compose_all
@@ -417,22 +408,38 @@ let infer_decl =
       in
       final_subst, Subst.apply final_subst true_branch_type
   in
-  helper
+  let decls_to_expr env =
+    let rec last_decl = function
+      | [ DVal (id, _) ] | [ DFun (id, _, _) ] -> e_identifier id
+      | _ :: tl -> last_decl tl
+      | _ -> e_identifier ""
+    in
+    function
+    | [] -> return (Subst.empty, unit_t)
+    | decls -> infer_expr env @@ e_let_in decls (last_decl decls)
+  in
+  decls_to_expr
 ;;
 
-let run_inference program = Result.map (run (infer_decl TypeEnv.empty program)) ~f:snd
+let run_inference program = Result.map (run (infer TypeEnv.empty program)) ~f:snd
 
 let parse_and_inference input =
   match Parser.parse input with
-  | Ok ast_list ->
-    List.iter ast_list ~f:(fun ast ->
-      match run_inference ast with
-      | Ok typ -> print_typ typ
-      | Error e -> print_type_error e)
+  | Ok ast ->
+    (match run_inference ast with
+     | Ok typ -> print_typ typ
+     | Error e -> print_type_error e)
   | Error e -> Format.fprintf Format.std_formatter "Parsing error: (%S)" e
 ;;
 
 (* tests *)
+
+let%expect_test _ =
+  parse_and_inference "";
+  [%expect {|
+    ()
+  |}]
+;;
 
 let%expect_test _ =
   parse_and_inference "val x = fn x => x * x";
@@ -444,15 +451,7 @@ let%expect_test _ =
 let%expect_test _ =
   parse_and_inference "fun sum x = fn x => x * x";
   [%expect {|
-    int -> int
-  |}]
-;;
-
-let%expect_test _ =
-  parse_and_inference
-    "val r = let val n = (if n <= 1 then 1 else n * (n - 1)) in n * 2 end";
-  [%expect {|
-    int
+    'd -> int -> int
   |}]
 ;;
 
@@ -466,7 +465,7 @@ let%expect_test _ =
 let%expect_test _ =
   parse_and_inference "val id = fn x => x";
   [%expect {|
-    'a -> 'a
+    'b -> 'b
   |}]
 ;;
 
@@ -492,7 +491,23 @@ let%expect_test _ =
 ;;
 
 let%expect_test _ =
+  parse_and_inference
+    "fun fact n = if n <= 1 then 1 else n * fact (n - 1) \n val fact3 = fact 3";
+  [%expect {|
+    int
+  |}]
+;;
+
+let%expect_test _ =
   parse_and_inference "val z = fn x => fn y => x = y orelse y + x";
   [%expect
     {| Unification failed: type of the expression is int but expected type was bool |}]
+;;
+
+let%expect_test _ =
+  parse_and_inference
+    "val r = let val n = (if n <= 1 then 1 else n * (n - 1)) in n * 2 end";
+  [%expect {|
+    No such variable: n
+  |}]
 ;;
