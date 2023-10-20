@@ -505,7 +505,6 @@ let%expect_test _ =
   |}]
 ;;
 
-
 let%expect_test _ =
   parse_and_inference "val compare = fn x => fn y => x * y > 10";
   [%expect {|
@@ -513,17 +512,16 @@ let%expect_test _ =
   |}]
 ;;
 
-
-
 let%expect_test _ =
   parse_and_inference "val identity = fn x => x";
   [%expect {|
-    'a -> 'a
+    'b -> 'b
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "val complex_cond = fn x => fn y => fn z => fn w => x < y andalso z > w";
+  parse_and_inference
+    "val complex_cond = fn x => fn y => fn z => fn w => x < y andalso z > w";
   [%expect {|
     ''e -> ''e -> ''f -> ''f -> bool
   |}]
@@ -544,36 +542,34 @@ let%expect_test _ =
 ;;
 
 let%expect_test _ =
-  parse_and_inference
-    "fun fact n = if n <= 1 then 1 else n * fact (n - 1)";
+  parse_and_inference "fun fact n = if n <= 1 then 1 else n * fact (n - 1)";
   [%expect {|
     int -> int
   |}]
 ;;
 
-
 let%expect_test _ =
   parse_and_inference
-    "fun factorial n = if n <= 1 then 1 else n * factorial (n - 1)  val result = factorial 3";
+    "fun factorial n = if n <= 1 then 1 else n * factorial (n - 1)  val result = \
+     factorial 3";
   [%expect {|
-    int -> int
     int
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference
-    "fun double x = x + x";
+  parse_and_inference "fun double x = x + x";
   [%expect {|
     int -> int
   |}]
+;;
 
 let%expect_test _ =
-  parse_and_inference
-    "fun sum x y = x + y";
+  parse_and_inference "fun sum x y = x + y";
   [%expect {|
-    (int * int) -> int
+    int -> int -> int
   |}]
+;;
 
 (* test that should fail *)
 let%expect_test _ =
