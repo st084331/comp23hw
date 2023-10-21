@@ -2,10 +2,9 @@
  (name demoInfer)
  (public_name demoInfer)
  (modules DemoInfer)
+ (instrumentation
+  (backend bisect_ppx))
  (libraries KREML_lib stdio))
-
-(instrumentation
- (backend bisect_ppx))
 
 (cram
  (deps ./demoInfer.exe))
