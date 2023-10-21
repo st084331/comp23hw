@@ -5,7 +5,7 @@ on:
     branches:
       - 'master'
 env:
-  OPAMROOT: /home/user/.opam
+  OPAMROOT: /home/opam/.opam
   OPAMCONFIRMLEVEL: unsafe-yes
 
 jobs:

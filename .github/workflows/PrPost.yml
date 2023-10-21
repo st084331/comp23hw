@@ -9,7 +9,7 @@ on:
       - completed
 
 env:
-  OPAMROOT: /home/user/.opam
+  OPAMROOT: /home/opam/.opam
   OPAMCONFIRMLEVEL: unsafe-yes
   #DOCKERIMAGE: kakadu18/ocaml:llvm14
 
