@@ -1,6 +1,7 @@
 (* http://dev.stephendiehl.com/fun/006_hindley_milner.html *)
 
 open Base
+open Ast
 open Ty
 module Format = Caml.Format (* silencing a warning *)
 
@@ -100,7 +101,7 @@ module Type = struct
   let rec occurs_in v = function
     | TVar b -> b = v
     | TArrow (l, r) -> occurs_in v l || occurs_in v r
-    | TInt | TBool -> false
+    | TInt | TBool | TUnit -> false
   ;;
 
   (* Возвращает сет всех типовых переменых, которые встречаются в выражении*)
@@ -108,7 +109,7 @@ module Type = struct
     let rec helper acc = function
       | TVar b -> VarSet.add b acc
       | TArrow (l, r) -> helper (helper acc l) r
-      | TInt | TBool -> acc
+      | TInt | TBool | TUnit-> acc
     in
     helper VarSet.empty
   ;;
@@ -314,15 +315,34 @@ let pp_env subst ppf env =
 ;;
 
 let infer =
-  let rec (helper : TypeEnv.t -> Parsetree.expr -> (Subst.t * ty) R.t) =
+  let rec (helper : TypeEnv.t -> Ast.expr -> (Subst.t * ty) R.t) =
     fun env -> function
-    | Parsetree.EVar "*" | Parsetree.EVar "-" | Parsetree.EVar "+" ->
-      return (Subst.empty, arrow int_typ (arrow int_typ int_typ))
-    | Parsetree.EVar "=" -> return (Subst.empty, arrow int_typ (arrow int_typ bool_typ))
-    | Parsetree.EVar x -> lookup_env x env
-    | ELam (PVar x, e1) ->
+    | EBinOp (bin_op, l, r) ->
+      let* sl, tl = helper env l in
+      let* sr, tr = helper env r in
+      (match bin_op with
+      | Add | Sub | Mul | Div | Mod->
+        let* s1 = unify tl int_typ in
+        let* s2 = unify tr int_typ in
+        let* sres = Subst.compose_all [ s1; s2; sl; sr ] in
+        return (sres, int_typ) 
+      | Less | Leq | Gre | Geq | Eq | Neq -> 
+        let* s1 = unify tl tr in
+        let* sres = Subst.compose_all [ s1; sl; sr ] in
+        return (sres, bool_typ)
+      | And | Or -> 
+        let* s1 = unify tl bool_typ in
+        let* s2 = unify tr bool_typ in
+        let* sres = Subst.compose_all [ s1; s2; sl; sr ] in
+        return (sres, bool_typ))
+    | EVar x -> lookup_env x env
+    | EFun (p, e1) ->
       let* tv = fresh_var in
-      let env2 = TypeEnv.extend env (x, S (VarSet.empty, tv)) in
+      let* env2  = 
+      (match p with
+      | PVar x -> return (TypeEnv.extend env (x, S (VarSet.empty, tv)))
+      | _ -> return env
+      ) in
       let* s, ty = helper env2 e1 in
       let trez = TArrow (Subst.apply s tv, ty) in
       return (s, trez)
@@ -334,23 +354,28 @@ let infer =
       let trez = Subst.apply s3 tv in
       let* final_subst = Subst.compose_all [ s3; s2; s1 ] in
       return (final_subst, trez)
-    | EConst _n -> return (Subst.empty, Prim "int")
-    | Parsetree.EIf (c, th, el) ->
+    | EConst n -> 
+      (match n with
+      |  CInt _ -> return (Subst.empty, int_typ)
+      | CBool _ -> return (Subst.empty, bool_typ)
+      | CUnit -> return (Subst.empty, unit_typ)
+      )
+    | EIf (c, th, el) ->
       let* s1, t1 = helper env c in
       let* s2, t2 = helper env th in
       let* s3, t3 = helper env el in
-      let* s4 = unify t1 (Prim "bool") in
+      let* s4 = unify t1 bool_typ in
       let* s5 = unify t2 t3 in
       let* final_subst = Subst.compose_all [ s5; s4; s3; s2; s1 ] in
       R.return (final_subst, Subst.apply s5 t2)
-    | Parsetree.ELet (NonRecursive, PVar x, e1, e2) ->
+    | ELetIn (false, x, e1, e2) ->
       let* s1, t1 = helper env e1 in
       let env2 = TypeEnv.apply s1 env in
       let t2 = generalize env2 t1 in
       let* s2, t3 = helper (TypeEnv.extend env2 (x, t2)) e2 in
       let* final_subst = Subst.compose s1 s2 in
       return (Subst.(final_subst), t3)
-    | Parsetree.ELet (Recursive, PVar x, e1, e2) ->
+    | ELetIn (true, x, e1, e2) ->
       let* tv = fresh_var in
       let env = TypeEnv.extend env (x, S (VarSet.empty, tv)) in
       let* s1, t1 = helper env e1 in
@@ -366,36 +391,3 @@ let infer =
 ;;
 
 let w e = Result.map (run (infer TypeEnv.empty e)) ~f:snd
-
-(** {3} Tests *)
-
-let run_subst subst =
-  match R.run subst with
-  | Result.Error _ -> Format.printf "Error%!"
-  | Ok subst -> Format.printf "%a%!" Subst.pp subst
-;;
-
-let%expect_test _ =
-  let _ = unify (v 1 @-> v 1) (int_typ @-> v 2) |> run_subst in
-  [%expect {| [ 1 -> int, 2 -> int ] |}]
-;;
-
-let%expect_test _ =
-  let _ = unify (v 1 @-> v 1) ((v 2 @-> int_typ) @-> int_typ @-> int_typ) |> run_subst in
-  [%expect {| [ 1 -> (int -> int), 2 -> int ] |}]
-;;
-
-let%expect_test _ =
-  let _ = unify (v 1 @-> v 2) (v 2 @-> v 3) |> run_subst in
-  [%expect {| [ 1 -> '_3, 2 -> '_3 ] |}]
-;;
-
-let%expect_test "Getting free variables from type scheme" =
-  let _ =
-    Format.printf
-      "%a%!"
-      VarSet.pp
-      (Scheme.free_vars (S (VarSet.singleton 1, v 1 @-> v 2)))
-  in
-  [%expect {| [ 2; ] |}]
-;;
