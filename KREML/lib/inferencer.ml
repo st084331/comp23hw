@@ -293,10 +293,10 @@ let is_syntactically_value = function
 ;;
 
 let infer =
-  let rec infer_decl : TypeEnv.t -> decl -> (Subst.t * typ) R.t =
+  let rec infer_binding : TypeEnv.t -> binding -> (Subst.t * typ) R.t =
    fun env -> function
-    | DVal (_, body) -> infer_expr env @@ EAbs ("", body)
-    | DFun (_, args, body) ->
+    | BVal (_, body) -> infer_expr env @@ EAbs ("", body)
+    | BFun (_, args, body) ->
       let rec curry = function
         | [] -> EAbs ("", body)
         | hd :: tl -> EAbs (hd, curry tl)
@@ -356,13 +356,13 @@ let infer =
         | elem :: tail ->
           let* identifier, binding_body, env' =
             match elem with
-            | DVal (id, body) -> return (id, body, env)
-            | DFun (id, _, body) ->
+            | BVal (id, body) -> return (id, body, env)
+            | BFun (id, _, body) ->
               let* fresh_var = fresh_var in
               let env' = TypeEnv.extend env id (Set.empty (module Int), fresh_var) in
               return (id, body, env')
           in
-          let* elem_subst, elem_type = infer_decl env' elem in
+          let* elem_subst, elem_type = infer_binding env' elem in
           let env'' = TypeEnv.apply elem_subst env' in
           let generalized_type =
             if is_syntactically_value binding_body
@@ -408,17 +408,17 @@ let infer =
       in
       final_subst, Subst.apply final_subst true_branch_type
   in
-  let decls_to_expr env =
-    let rec last_decl = function
-      | [ DVal (id, _) ] | [ DFun (id, _, _) ] -> e_identifier id
-      | _ :: tl -> last_decl tl
+  let program_to_expr env =
+    let rec last_binding = function
+      | [ BVal (id, _) ] | [ BFun (id, _, _) ] -> e_identifier id
+      | _ :: tl -> last_binding tl
       | _ -> e_identifier ""
     in
     function
     | [] -> return (Subst.empty, unit_t)
-    | decls -> infer_expr env @@ e_let_in decls (last_decl decls)
+    | bindings -> infer_expr env @@ e_let_in bindings (last_binding bindings)
   in
-  decls_to_expr
+  program_to_expr
 ;;
 
 let run_inference program = Result.map (run (infer TypeEnv.empty program)) ~f:snd

@@ -32,11 +32,11 @@ type expr =
   | EApp of expr * expr (* f x *)
   | EAbs of identifier * expr (* fn x => x + 1 *)
   | EIfThenElse of expr * expr * expr (* if true then 1 else 2 *)
-  | ELetIn of decl list * expr (* let fun f x = x val y = 1 in f 1 * y *)
+  | ELetIn of binding list * expr (* let fun f x = x val y = 1 in f 1 * y *)
 
-and decl =
-  | DVal of identifier * expr (* val x = 88 *)
-  | DFun of identifier * identifier list * expr (* fun sqr x = x * x *)
+and binding =
+  | BVal of identifier * expr (* val x = 88 *)
+  | BFun of identifier * identifier list * expr (* fun sqr x = x * x *)
 [@@deriving show { with_path = false }]
 
 (* smart constructors *)
@@ -49,11 +49,11 @@ let e_app x1 x2 = EApp (x1, x2)
 let e_abs arg body = EAbs (arg, body)
 let e_if_then_else cond if_true if_false = EIfThenElse (cond, if_true, if_false)
 let e_binary_op op left right = EBinaryOp (op, left, right)
-let e_let_in declarations body = ELetIn (declarations, body)
+let e_let_in bindings body = ELetIn (bindings, body)
 
-(* declarations *)
-let d_val value_id expression = DVal (value_id, expression)
-let d_fun fun_id args body = DFun (fun_id, args, body)
+(* bindings *)
+let b_val value_id expression = BVal (value_id, expression)
+let b_fun fun_id args body = BFun (fun_id, args, body)
 
 (* binary operations *)
 let badd _ = Add
@@ -71,3 +71,7 @@ let bor _ = Or
 (* unary operations *)
 let uneg _ = Neg
 let unot _ = Not
+
+(* literals *)
+let lint x = LInt x
+let lbool x = LBool x

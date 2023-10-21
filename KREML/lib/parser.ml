@@ -60,8 +60,8 @@ type dispatch =
   ; let_in_p : dispatch -> expr t
   }
 
-(* declaration parser *)
-let declaration_p d =
+(* binding parser *)
+let binding_p d =
   fix
   @@ fun self ->
   let name keyword =
@@ -86,7 +86,7 @@ let declaration_p d =
          ]
   in
   skip
-  *> (parens self <|> lift2 d_val (name "val") body <|> lift3 d_fun (name "fun") args body)
+  *> (parens self <|> lift2 b_val (name "val") body <|> lift3 b_fun (name "fun") args body)
 ;;
 
 (* expression parsers *)
@@ -100,8 +100,8 @@ let literal_p =
       | _ -> false)
     >>| int_of_string
   in
-  let int_literal = integer >>| fun x -> LInt x in
-  let bool_literal = boolean >>| fun x -> LBool x in
+  let int_literal = integer >>| lint in
+  let bool_literal = boolean >>| lbool in
   let literal = choice [ int_literal; bool_literal ] in
   skip *> (parens self <|> lift e_literal literal)
 ;;
@@ -285,9 +285,9 @@ let let_in_p d =
       ; d.identifier_p
       ]
   in
-  let declarations = string "let" *> skip *> sep_by1 skip (declaration_p d) in
+  let bindings = string "let" *> skip *> sep_by1 skip (binding_p d) in
   let body = skip *> string "in" *> expr <* skip <* string "end" in
-  skip *> lift2 e_let_in declarations body
+  skip *> lift2 e_let_in bindings body
 ;;
 
 (* main parser *)
@@ -303,10 +303,7 @@ let dispatch =
   }
 ;;
 
-let parse program =
-  parse_string ~consume:All (many (declaration_p dispatch) <* skip) program
-;;
-
+let parse program = parse_string ~consume:All (many (binding_p dispatch) <* skip) program
 let parse_optimistically program = Result.get_ok (parse program)
 
 let parse_error program =
@@ -320,65 +317,65 @@ let parse_error program =
 (* tests *)
 
 (*literal*)
-let%test _ = parse_optimistically "val x = 55" = [ DVal ("x", ELiteral (LInt 55)) ]
-let%test _ = parse_optimistically "val x = true" = [ DVal ("x", ELiteral (LBool true)) ]
+let%test _ = parse_optimistically "val x = 55" = [ BVal ("x", ELiteral (LInt 55)) ]
+let%test _ = parse_optimistically "val x = true" = [ BVal ("x", ELiteral (LBool true)) ]
 (*identifier*)
-let%test _ = parse_optimistically "val x = x" = [ DVal ("x", EIdentifier "x") ]
+let%test _ = parse_optimistically "val x = x" = [ BVal ("x", EIdentifier "x") ]
 
 (*unary op*)
 
 let%test _ =
-  parse_optimistically "val x = ~55" = [ DVal ("x", EUnaryOp (Neg, ELiteral (LInt 55))) ]
+  parse_optimistically "val x = ~55" = [ BVal ("x", EUnaryOp (Neg, ELiteral (LInt 55))) ]
 ;;
 
 let%test _ =
   parse_optimistically "val x = not true"
-  = [ DVal ("x", EUnaryOp (Not, ELiteral (LBool true))) ]
+  = [ BVal ("x", EUnaryOp (Not, ELiteral (LBool true))) ]
 ;;
 
 let%test _ =
-  parse_optimistically "val x = ~y" = [ DVal ("x", EUnaryOp (Neg, EIdentifier "y")) ]
+  parse_optimistically "val x = ~y" = [ BVal ("x", EUnaryOp (Neg, EIdentifier "y")) ]
 ;;
 
 let%test _ =
-  parse_optimistically "val x = not y" = [ DVal ("x", EUnaryOp (Not, EIdentifier "y")) ]
+  parse_optimistically "val x = not y" = [ BVal ("x", EUnaryOp (Not, EIdentifier "y")) ]
 ;;
 
 (*binary op *)
 
 let%test _ =
   parse_optimistically "val x = 5 + 3"
-  = [ DVal ("x", EBinaryOp (Add, ELiteral (LInt 5), ELiteral (LInt 3))) ]
+  = [ BVal ("x", EBinaryOp (Add, ELiteral (LInt 5), ELiteral (LInt 3))) ]
 ;;
 
 let%test _ =
   parse_optimistically "val x = 8 / 2"
-  = [ DVal ("x", EBinaryOp (Div, ELiteral (LInt 8), ELiteral (LInt 2))) ]
+  = [ BVal ("x", EBinaryOp (Div, ELiteral (LInt 8), ELiteral (LInt 2))) ]
 ;;
 
 let%test _ =
   parse_optimistically "val x = 5 <= 5"
-  = [ DVal ("x", EBinaryOp (LtOrEq, ELiteral (LInt 5), ELiteral (LInt 5))) ]
+  = [ BVal ("x", EBinaryOp (LtOrEq, ELiteral (LInt 5), ELiteral (LInt 5))) ]
 ;;
 
 let%test _ =
   parse_optimistically "val x = 5 >= 3"
-  = [ DVal ("x", EBinaryOp (GtOrEq, ELiteral (LInt 5), ELiteral (LInt 3))) ]
+  = [ BVal ("x", EBinaryOp (GtOrEq, ELiteral (LInt 5), ELiteral (LInt 3))) ]
 ;;
 
 let%test _ =
   parse_optimistically "val x = true andalso false"
-  = [ DVal ("x", EBinaryOp (And, ELiteral (LBool true), ELiteral (LBool false))) ]
+  = [ BVal ("x", EBinaryOp (And, ELiteral (LBool true), ELiteral (LBool false))) ]
 ;;
 
 let%test _ =
   parse_optimistically "val x = true orelse false"
-  = [ DVal ("x", EBinaryOp (Or, ELiteral (LBool true), ELiteral (LBool false))) ]
+  = [ BVal ("x", EBinaryOp (Or, ELiteral (LBool true), ELiteral (LBool false))) ]
 ;;
 
 let%test _ =
   parse_optimistically "val x = (5 + 3) - 2"
-  = [ DVal
+  = [ BVal
         ( "x"
         , EBinaryOp
             (Sub, EBinaryOp (Add, ELiteral (LInt 5), ELiteral (LInt 3)), ELiteral (LInt 2))
@@ -388,7 +385,7 @@ let%test _ =
 
 let%test _ =
   parse_optimistically "val x = (8 / 2) * 3"
-  = [ DVal
+  = [ BVal
         ( "x"
         , EBinaryOp
             ( Mult
@@ -399,7 +396,7 @@ let%test _ =
 
 let%test _ =
   parse_optimistically "val x = ~((5 <= 5) andalso (3 < 4))"
-  = [ DVal
+  = [ BVal
         ( "x"
         , EUnaryOp
             ( Neg
@@ -412,17 +409,17 @@ let%test _ =
 
 let%test _ =
   parse_optimistically "val a = x + y"
-  = [ DVal ("a", EBinaryOp (Add, EIdentifier "x", EIdentifier "y")) ]
+  = [ BVal ("a", EBinaryOp (Add, EIdentifier "x", EIdentifier "y")) ]
 ;;
 
 let%test _ =
   parse_optimistically "val a = x / y"
-  = [ DVal ("a", EBinaryOp (Div, EIdentifier "x", EIdentifier "y")) ]
+  = [ BVal ("a", EBinaryOp (Div, EIdentifier "x", EIdentifier "y")) ]
 ;;
 
 let%test _ =
   parse_optimistically "val x = ((5 + (3 - 1)) * 2) / 3"
-  = [ DVal
+  = [ BVal
         ( "x"
         , EBinaryOp
             ( Div
@@ -441,17 +438,17 @@ let%test _ =
 
 let%test _ =
   parse_optimistically "val x = f t"
-  = [ DVal ("x", EApp (EIdentifier "f", EIdentifier "t")) ]
+  = [ BVal ("x", EApp (EIdentifier "f", EIdentifier "t")) ]
 ;;
 
 let%test _ =
   parse_optimistically "val x = f (g t)"
-  = [ DVal ("x", EApp (EIdentifier "f", EApp (EIdentifier "g", EIdentifier "t"))) ]
+  = [ BVal ("x", EApp (EIdentifier "f", EApp (EIdentifier "g", EIdentifier "t"))) ]
 ;;
 
 let%test _ =
   parse_optimistically "val x = f (g (h t))"
-  = [ DVal
+  = [ BVal
         ( "x"
         , EApp
             ( EIdentifier "f"
@@ -461,25 +458,25 @@ let%test _ =
 
 let%test _ =
   parse_optimistically "fun appp y x = y x"
-  = [ DFun ("appp", [ "y"; "x" ], EApp (EIdentifier "y", EIdentifier "x")) ]
+  = [ BFun ("appp", [ "y"; "x" ], EApp (EIdentifier "y", EIdentifier "x")) ]
 ;;
 
 (*abs*)
 
 let%test _ =
   parse_optimistically "val y = fn x => x + 1"
-  = [ DVal ("y", EAbs ("x", EBinaryOp (Add, EIdentifier "x", ELiteral (LInt 1)))) ]
+  = [ BVal ("y", EAbs ("x", EBinaryOp (Add, EIdentifier "x", ELiteral (LInt 1)))) ]
 ;;
 
 let%test _ =
   parse_optimistically "val y = fn x => fn z => (x + z)"
-  = [ DVal ("y", EAbs ("x", EAbs ("z", EBinaryOp (Add, EIdentifier "x", EIdentifier "z"))))
+  = [ BVal ("y", EAbs ("x", EAbs ("z", EBinaryOp (Add, EIdentifier "x", EIdentifier "z"))))
     ]
 ;;
 
 let%test _ =
   parse_optimistically "val y = fn x => fn z => fn w => (x + (z + w))"
-  = [ DVal
+  = [ BVal
         ( "y"
         , EAbs
             ( "x"
@@ -498,13 +495,13 @@ let%test _ =
 
 let%test _ =
   parse_optimistically "val x = if true then 1 else 0"
-  = [ DVal ("x", EIfThenElse (ELiteral (LBool true), ELiteral (LInt 1), ELiteral (LInt 0)))
+  = [ BVal ("x", EIfThenElse (ELiteral (LBool true), ELiteral (LInt 1), ELiteral (LInt 0)))
     ]
 ;;
 
 let%test _ =
   parse_optimistically "fun ifthen y x z = if y then x else z"
-  = [ DFun
+  = [ BFun
         ( "ifthen"
         , [ "y"; "x"; "z" ]
         , EIfThenElse (EIdentifier "y", EIdentifier "x", EIdentifier "z") )
@@ -513,7 +510,7 @@ let%test _ =
 
 let%test _ =
   parse_optimistically "val x = if y >= 4 then (fn z => (z+1)) else f"
-  = [ DVal
+  = [ BVal
         ( "x"
         , EIfThenElse
             ( EBinaryOp (GtOrEq, EIdentifier "y", ELiteral (LInt 4))
@@ -524,7 +521,7 @@ let%test _ =
 
 let%test _ =
   parse_optimistically "fun ifthen y x z = if (y andalso not x) then z else ~z"
-  = [ DFun
+  = [ BFun
         ( "ifthen"
         , [ "y"; "x"; "z" ]
         , EIfThenElse
@@ -536,7 +533,7 @@ let%test _ =
 
 let%test _ =
   parse_optimistically "val x = if (f t) then 1 else 0"
-  = [ DVal
+  = [ BVal
         ( "x"
         , EIfThenElse
             (EApp (EIdentifier "f", EIdentifier "t"), ELiteral (LInt 1), ELiteral (LInt 0))
@@ -546,7 +543,7 @@ let%test _ =
 
 let%test _ =
   parse_optimistically "val x = if y > 4 then if z > 10 then 1 else 0 else 0"
-  = [ DVal
+  = [ BVal
         ( "x"
         , EIfThenElse
             ( EBinaryOp (Gt, EIdentifier "y", ELiteral (LInt 4))
@@ -562,32 +559,32 @@ let%test _ =
 
 let%test _ =
   parse_optimistically "val y = let val x = 5 in x * 2 end"
-  = [ DVal
+  = [ BVal
         ( "y"
         , ELetIn
-            ( [ DVal ("x", ELiteral (LInt 5)) ]
+            ( [ BVal ("x", ELiteral (LInt 5)) ]
             , EBinaryOp (Mult, EIdentifier "x", ELiteral (LInt 2)) ) )
     ]
 ;;
 
-let%test _ = parse_optimistically "fun f x = x" = [ DFun ("f", [ "x" ], EIdentifier "x") ]
+let%test _ = parse_optimistically "fun f x = x" = [ BFun ("f", [ "x" ], EIdentifier "x") ]
 
 let%test _ =
   parse_optimistically "val y = let fun f x = x * 2 in (f 5) end"
-  = [ DVal
+  = [ BVal
         ( "y"
         , ELetIn
-            ( [ DFun ("f", [ "x" ], EBinaryOp (Mult, EIdentifier "x", ELiteral (LInt 2))) ]
+            ( [ BFun ("f", [ "x" ], EBinaryOp (Mult, EIdentifier "x", ELiteral (LInt 2))) ]
             , EApp (EIdentifier "f", ELiteral (LInt 5)) ) )
     ]
 ;;
 
 let%test _ =
   parse_optimistically "val z = let fun f x = x val y = 1 in ((f 1 )* y) end"
-  = [ DVal
+  = [ BVal
         ( "z"
         , ELetIn
-            ( [ DFun ("f", [ "x" ], EIdentifier "x"); DVal ("y", ELiteral (LInt 1)) ]
+            ( [ BFun ("f", [ "x" ], EIdentifier "x"); BVal ("y", ELiteral (LInt 1)) ]
             , EBinaryOp (Mult, EApp (EIdentifier "f", ELiteral (LInt 1)), EIdentifier "y")
             ) )
     ]
@@ -595,22 +592,22 @@ let%test _ =
 
 let%test _ =
   parse_optimistically "val y = let val x = 5 in x end"
-  = [ DVal ("y", ELetIn ([ DVal ("x", ELiteral (LInt 5)) ], EIdentifier "x")) ]
+  = [ BVal ("y", ELetIn ([ BVal ("x", ELiteral (LInt 5)) ], EIdentifier "x")) ]
 ;;
 
 let%test _ =
   parse_optimistically "val y = let fun f x = x in f 5 end"
-  = [ DVal
+  = [ BVal
         ( "y"
         , ELetIn
-            ( [ DFun ("f", [ "x" ], EIdentifier "x") ]
+            ( [ BFun ("f", [ "x" ], EIdentifier "x") ]
             , EApp (EIdentifier "f", ELiteral (LInt 5)) ) )
     ]
 ;;
 
 let%test _ =
   parse_optimistically "fun factorial n = if n <= 1 then 1 else n * factorial (n - 1)"
-  = [ DFun
+  = [ BFun
         ( "factorial"
         , [ "n" ]
         , EIfThenElse
@@ -627,14 +624,14 @@ let%test _ =
 
 let%test _ =
   parse_optimistically "val result = factorial 3"
-  = [ DVal ("result", EApp (EIdentifier "factorial", ELiteral (LInt 3))) ]
+  = [ BVal ("result", EApp (EIdentifier "factorial", ELiteral (LInt 3))) ]
 ;;
 
 let%test _ =
   parse_optimistically
     "fun factorial n = if n <= 1 then 1 else n * factorial (n - 1) val result = \
      factorial 3"
-  = [ DFun
+  = [ BFun
         ( "factorial"
         , [ "n" ]
         , EIfThenElse
@@ -646,13 +643,13 @@ let%test _ =
                 , EApp
                     ( EIdentifier "factorial"
                     , EBinaryOp (Sub, EIdentifier "n", ELiteral (LInt 1)) ) ) ) )
-    ; DVal ("result", EApp (EIdentifier "factorial", ELiteral (LInt 3)))
+    ; BVal ("result", EApp (EIdentifier "factorial", ELiteral (LInt 3)))
     ]
 ;;
 
 let%test _ =
   parse_optimistically "val x = 8 / 2 * 3 + f x"
-  = [ DVal
+  = [ BVal
         ( "x"
         , EBinaryOp
             ( Add
