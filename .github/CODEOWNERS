@@ -8,7 +8,11 @@ test_proj                   @Kakadu
 #    	    Дудников      Печенев
 PeDuCoML    @airh4ck      @Danila-Pechenev
 
+<<<<<<< HEAD
 #           Старцев       Алексеев
+=======
+#           Старцев       лексеев
+>>>>>>> 033aff4 (Alignment)
 CreeperML   @tozarin      @arthur100500
 
 #           Панкратов     Друмов
@@ -20,8 +24,8 @@ SCAML       @grrrance     @foreverjun
 #           Краев         Бадреева
 KREML       @Anton-Kraev  @BadreevaPolina
 
-#           Кузьмина        Голофастов
-MimiML      @sayumikko      @l-golofastov
+#           Кузьмина       Голофастов
+MimiML      @sayumikko     @l-golofastov
 
-#           Евдокимов      Шангареев
-ZRusML     @st084331      @letit6E
+#          Евдокимов       Шангареев
+ZRusML     @st084331       @letit6E
