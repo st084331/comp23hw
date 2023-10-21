@@ -374,7 +374,7 @@ let infer =
       let t2 = generalize env2 t1 in
       let* s2, t3 = helper (TypeEnv.extend env2 (x, t2)) e2 in
       let* final_subst = Subst.compose s1 s2 in
-      return (Subst.(final_subst), t3)
+      return (final_subst, t3)
     | ELetIn (true, x, e1, e2) ->
       let* tv = fresh_var in
       let env = TypeEnv.extend env (x, S (VarSet.empty, tv)) in
