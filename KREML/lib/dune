@@ -3,6 +3,8 @@
  (public_name KREML.Lib)
  (modules Ast Parser Inferencer Typing)
  (libraries base angstrom)
+ (instrumentation
+  (backend bisect_ppx))
  (preprocess
   (pps ppx_expect ppx_deriving.show))
  (inline_tests))
