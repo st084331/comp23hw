@@ -1,0 +1,8 @@
+(executable
+ (name demoInfer)
+ (public_name demoInfer)
+ (modules DemoInfer)
+ (libraries KREML_lib stdio))
+
+(cram
+ (deps ./demoInfer.exe))
