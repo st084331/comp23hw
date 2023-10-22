@@ -1,4 +1,7 @@
-(executable
- (public_name ZRusML)
- (name main)
- (libraries ZRusML_lib))
+(env
+ (dev
+  (flags
+   (:standard -warn-error -A -w -3-9-32-34-58)))
+ (release
+  (flags
+   (:standard -warn-error -A -w -58))))

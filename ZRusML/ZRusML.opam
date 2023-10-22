@@ -9,7 +9,6 @@ tags: ["MiniML" "Compiler" "ML"]
 depends: [
   "ocaml"
   "dune" {>= "3.10"}
-  "odoc" {with-doc}
   "core"
   "angstrom"
   "ppx_inline_test" {with-test}
