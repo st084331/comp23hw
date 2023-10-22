@@ -74,6 +74,7 @@ end = struct
         f acc (key, data))
     ;;
   end
+
   let fresh : int t = fun last -> last + 1, Result.Ok last
   let run m = snd (m 0)
 end
@@ -83,14 +84,12 @@ type fresh = int
 module Type = struct
   type t = ty
 
-  (* проверяет встерчается ли искомый TVar в выражении *)
   let rec occurs_in v = function
     | TVar b -> b = v
     | TArrow (l, r) -> occurs_in v l || occurs_in v r
     | TInt | TBool | TUnit -> false
   ;;
 
-  (* Возвращает сет всех типовых переменых, которые встречаются в выражении*)
   let free_vars =
     let rec helper acc = function
       | TVar b -> VarSet.add b acc
@@ -150,7 +149,6 @@ end = struct
   let find k xs = Base.Map.find xs k
   let remove xs k = Base.Map.remove xs k
 
-  (* Подставляет типы в выражение согласно контексту из списка и  возвращает результат замены*)
   let apply s =
     let rec helper = function
       | TVar b as ty ->
@@ -163,8 +161,6 @@ end = struct
     helper
   ;;
 
-  (* Пытается унифицировать(Также проверить совместимость двх выражений по типам) типы двух выражений и возвращает либо ошибку,
-     либо результат(ассоциативный список с "номером" типа и типом) либо ошибку *)
   let rec unify l r =
     match l, r with
     | TInt, TInt | TBool, TBool -> return empty
@@ -176,9 +172,6 @@ end = struct
       compose subs1 subs2
     | _ -> fail (`Unification_failed (l, r))
 
-  (* Следующие функции помогают объеденить два ассоцитавных списка*)
-
-  (* расширяет контекст новой переменной типа, либо добавляя ее в список и применяя к ней все из контекста, либо унифицируя ее тип*)
   and extend s (k, v) =
     match find k s with
     | None ->
@@ -218,18 +211,14 @@ end
 module Scheme = struct
   type t = scheme
 
-  (* Проверяет встречается ли в схеме (варсете и типовом выражении) данная типовая переменная *)
   let occurs_in v = function
     | S (xs, t) -> (not (VarSet.mem v xs)) && Type.occurs_in v t
   ;;
 
-  (* Возвращает все типовые переменные, которые есть в выражении, но нет в сете*)
   let free_vars = function
     | S (bs, t) -> VarSet.diff (Type.free_vars t) bs
   ;;
 
-  (* Возвращает новую схему, удаляя из ассоциативного списка все что есть в varset и применяя к типовому выражению полученный список
-     (насколько я понимаю это сделано для того, чтобы задавать локальный контекст)*)
   let apply sub (S (names, ty)) =
     let s2 = VarSet.fold (fun k s -> Subst.remove s k) names sub in
     S (names, Subst.apply s2 ty)
@@ -241,10 +230,9 @@ end
 module TypeEnv = struct
   type t = (id, scheme, String.comparator_witness) Map.t
 
-  let extend e s = Base.Map.update e (fst s) ~f:(fun _ -> snd s )
+  let extend e s = Base.Map.update e (fst s) ~f:(fun _ -> snd s)
   let empty = Map.empty (module String)
 
-  (* Просто возвращает все переменные, которые есть во всех выражениях, но нет в сетах*)
   let free_vars : t -> VarSet.t =
     Map.fold ~init:VarSet.empty ~f:(fun ~key:_ ~data:s acc ->
       VarSet.union acc (Scheme.free_vars s))
@@ -260,15 +248,13 @@ module TypeEnv = struct
 
   let find_exn name xs = Map.find_exn ~equal:String.equal xs name
 end
- 
+
 open R
 open R.Syntax
 
 let unify = Subst.unify
 let fresh_var = fresh >>| fun n -> TVar n
 
-(* Создает новые fresh_var и заменяет ими старые типовые переменные в выражении
-   (Насколько я понял это нужно чтобы уточнять тип функции в каждом конкретном случае)*)
 let instantiate : scheme -> ty R.t =
   fun (S (bs, t)) ->
   VarSet.fold_left_m
@@ -370,47 +356,45 @@ let infer =
   helper
 ;;
 
-let infer_prog prog = 
-  let sc_to_type = 
-    function
-    | S (_ , t) -> t
+let infer_prog prog =
+  let sc_to_type = function
+    | S (_, t) -> t
   in
-  let rec helper env prog l= 
-    (match prog with
+  let rec helper env prog l =
+    match prog with
     | h :: tl ->
       (match h with
-      | ELet (false, id, expr) ->
-        let* s, t = infer env expr in
-        let env = TypeEnv.apply s env in
-        let t = generalize env t in
-        let env = TypeEnv.extend env (id, t) in
-        let l1 = l @ [(id, sc_to_type t)] in
-        helper env tl l1
-      | ELet (true, id, expr) ->
-        let* tv = fresh_var in
-        let env = TypeEnv.extend env (id, S (VarSet.empty, tv)) in
-        let* s, t = infer env expr in
-        let* s2 = unify (Subst.apply s tv) t in
-        let* s = Subst.compose s2 s in
-        let env = TypeEnv.apply s env in
-        let t = generalize env (Subst.apply s tv) in
-        let env = TypeEnv.extend env (id, t) in
-        let l1 = l @ [(id, sc_to_type t)] in
-        helper env tl l1
-      )
-    | [] -> return l)
-
-    in helper TypeEnv.empty prog []
-
+       | ELet (false, id, expr) ->
+         let* s, t = infer env expr in
+         let env = TypeEnv.apply s env in
+         let t = generalize env t in
+         let env = TypeEnv.extend env (id, t) in
+         let l1 = l @ [ id, sc_to_type t ] in
+         helper env tl l1
+       | ELet (true, id, expr) ->
+         let* tv = fresh_var in
+         let env = TypeEnv.extend env (id, S (VarSet.empty, tv)) in
+         let* s, t = infer env expr in
+         let* s2 = unify (Subst.apply s tv) t in
+         let* s = Subst.compose s2 s in
+         let env = TypeEnv.apply s env in
+         let t = generalize env (Subst.apply s tv) in
+         let env = TypeEnv.extend env (id, t) in
+         let l1 = l @ [ id, sc_to_type t ] in
+         helper env tl l1)
+    | [] -> return l
+  in
+  helper TypeEnv.empty prog []
+;;
 
 let w e = Result.map (run (infer TypeEnv.empty e)) ~f:snd
+let run_prog_inference prog = run (infer_prog prog)
 
-let run_prog_inference prog = run(infer_prog prog) 
-
-let print_prog_result prog = 
+let print_prog_result prog =
   match run_prog_inference prog with
-  | Ok l -> List.iter l ~f:(fun (id, t) -> Stdlib.Format.printf "%s : %a\n" id pp_typ t);
+  | Ok l -> List.iter l ~f:(fun (id, t) -> Stdlib.Format.printf "%s : %a\n" id pp_typ t)
   | Error e -> print_typ_err e
+;;
 
 let print_result expression =
   match w expression with
@@ -442,15 +426,20 @@ let%expect_test _ =
 ;;
 
 let%expect_test _ =
-  print_prog_result [((ELet (true, "series",
-        (EFun ((PVar "n"),
-           (EIf ((EBinOp (Eq, (EVar "n"), (EConst (CInt 1)))), (EConst (CInt 1)),
-              (EBinOp (Add, (EVar "n"),
-                 (EApp ((EVar "series"),
-                    (EBinOp (Sub, (EVar "n"), (EConst (CInt 1))))))
-                 ))
-              ))
-           ))
-        )))];
+  print_prog_result
+    [ ELet
+        ( true
+        , "series"
+        , EFun
+            ( PVar "n"
+            , EIf
+                ( EBinOp (Eq, EVar "n", EConst (CInt 1))
+                , EConst (CInt 1)
+                , EBinOp
+                    ( Add
+                    , EVar "n"
+                    , EApp (EVar "series", EBinOp (Sub, EVar "n", EConst (CInt 1))) ) ) )
+        )
+    ];
   [%expect {| series : int -> int |}]
 ;;
