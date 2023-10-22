@@ -4,23 +4,29 @@
 
 (generate_opam_files true)
 
-(source
- (github username/reponame))
+(cram enable)
 
-(authors "Author Name")
+(license LGPL-2.1)
 
-(maintainers "Maintainer Name")
+(authors "Shangareev Rustam" , "Danil Yevdokimov")
 
-(license LICENSE)
-
-(documentation https://url/to/documentation)
+(maintainers "Shangareev Rustam" , "Danil Yevdokimov")
 
 (package
  (name ZRusML)
- (synopsis "A short synopsis")
- (description "A longer description")
- (depends ocaml dune)
+ (synopsis "ZRusML")
+ (description "Compiler for MiniML")
+ (depends
+  ocaml
+  dune
+  core
+  angstrom
+  (ppx_inline_test :with-test)
+  qcheck-core
+  ppx_expect
+  ppx_deriving
+  (odoc :with-doc)
+  (ocamlformat :build)
+  base)
  (tags
-  (topics "to describe" your project)))
-
-; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
+  (MiniML Compiler ML)))
