@@ -40,7 +40,10 @@ let rec pp_typ ppf = function
   | TVar n -> fprintf ppf "%s" @@ "'" ^ Char.escaped (Char.chr (n + 97))
   | TInt -> fprintf ppf "int"
   | TBool -> fprintf ppf "bool"
-  | TArrow (l, r) -> fprintf ppf "%a -> %a" pp_typ l pp_typ r
+  | TArrow (l, r) -> 
+    (match l with
+    | TArrow (_, _) -> fprintf ppf "(%a) -> %a" pp_typ l pp_typ r
+    | _ -> fprintf ppf "%a -> %a" pp_typ l pp_typ r)
   | TUnit -> fprintf ppf "()"
 ;;
 
