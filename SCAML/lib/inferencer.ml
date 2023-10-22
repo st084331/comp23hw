@@ -74,7 +74,6 @@ end = struct
         f acc (key, data))
     ;;
   end
-
   let fresh : int t = fun last -> last + 1, Result.Ok last
   let run m = snd (m 0)
 end
@@ -356,29 +355,69 @@ let infer =
       let* s5 = unify t2 t3 in
       let* final_subst = Subst.compose_all [ s5; s4; s3; s2; s1 ] in
       R.return (final_subst, Subst.apply s5 t2)
-    | ELetIn (false, x, e1, e2) ->
+    | ELetIn (false, id, e1, e2) ->
       let* s1, t1 = helper env e1 in
       let env2 = TypeEnv.apply s1 env in
       let t2 = generalize env2 t1 in
-      let* s2, t3 = helper (TypeEnv.extend env2 (x, t2)) e2 in
+      let* s2, t3 = helper (TypeEnv.extend env2 (id, t2)) e2 in
       let* final_subst = Subst.compose s1 s2 in
       return (final_subst, t3)
-    | ELetIn (true, x, e1, e2) ->
+    | ELetIn (true, id, e1, e2) ->
       let* tv = fresh_var in
-      let env = TypeEnv.extend env (x, S (VarSet.empty, tv)) in
+      let env = TypeEnv.extend env (id, S (VarSet.empty, tv)) in
       let* s1, t1 = helper env e1 in
       let* s2 = unify (Subst.apply s1 tv) t1 in
       let* s = Subst.compose s2 s1 in
       let env = TypeEnv.apply s env in
       let t2 = generalize env (Subst.apply s tv) in
-      let* s2, t2 = helper TypeEnv.(extend (apply s env) (x, t2)) e2 in
+      let* s2, t2 = helper TypeEnv.(extend (apply s env) (id, t2)) e2 in
       let* final_subst = Subst.compose s s2 in
       return (final_subst, t2)
   in
   helper
 ;;
 
+let infer_prog prog = 
+  let format_env env =
+    let* env = env in
+   return @@ List.rev_map env ~f:(fun (id, s) ->
+    match s with
+    | S (_, t) -> (id, t)
+    )
+  in
+  let rec helper env prog = 
+    (match prog with
+    | h :: tl ->
+      (match h with
+      | ELet (false, id, expr) ->
+        let* s, t = infer env expr in
+        let env = TypeEnv.apply s env in
+        let t = generalize env t in
+        let env = TypeEnv.extend env (id, t) in
+        Stdlib.Format.printf "%s -> %a\n" id pp_scheme t;
+        helper env tl
+      | ELet (true, id, expr) ->
+        let* tv = fresh_var in
+        let env = TypeEnv.extend env (id, S (VarSet.empty, tv)) in
+        let* s, t = infer env expr in
+        let* s2 = unify (Subst.apply s tv) t in
+        let* s = Subst.compose s2 s in
+        let env = TypeEnv.apply s env in
+        helper env tl
+      )
+    | [] -> return env)
+
+    in format_env (helper TypeEnv.empty prog)
+
+
 let w e = Result.map (run (infer TypeEnv.empty e)) ~f:snd
+
+let run_prog_inference prog = run(infer_prog prog) 
+
+let print_prog_result prog = 
+  match run_prog_inference prog with
+  | Ok l -> List.iter l ~f:(fun (id, t) -> Stdlib.Format.printf "%s -> %a\n" id pp_typ t);
+  | Error e -> print_typ_err e
 
 let print_result expression =
   match w expression with
@@ -407,4 +446,18 @@ let%expect_test _ =
 let%expect_test _ =
   print_result (EFun (PVar "x", EFun (PVar "y", EFun (PVar "z", EConst (CInt 5)))));
   [%expect {| 'a -> 'b -> 'c -> int |}]
+;;
+
+let%expect_test _ =
+  print_prog_result [((ELet (true, "series",
+        (EFun ((PVar "n"),
+           (EIf ((EBinOp (Eq, (EVar "n"), (EConst (CInt 1)))), (EConst (CInt 1)),
+              (EBinOp (Add, (EVar "n"),
+                 (EApp ((EVar "series"),
+                    (EBinOp (Sub, (EVar "n"), (EConst (CInt 1))))))
+                 ))
+              ))
+           ))
+        )))];
+  [%expect {| series -> int -> int |}]
 ;;
