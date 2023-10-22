@@ -451,16 +451,6 @@ let%expect_test _ =
                  ))
               ))
            ))
-        )));
-        ((ELet (true, "series",
-        (EFun ((PVar "n"),
-           (EIf ((EBinOp (Eq, (EVar "n"), (EConst (CInt 1)))), (EConst (CInt 1)),
-              (EBinOp (Add, (EVar "n"),
-                 (EApp ((EVar "series"),
-                    (EBinOp (Sub, (EVar "n"), (EConst (CInt 1))))))
-                 ))
-              ))
-           ))
         )))];
   [%expect {| series : int -> int |}]
 ;;
