@@ -239,28 +239,28 @@ module Scheme = struct
 end
 
 module TypeEnv = struct
-  type t = (string * scheme) list
+  type t = (id, scheme, String.comparator_witness) Map.t
 
-  let extend e h = h :: e
-  let empty = []
+  let extend e s = Base.Map.update e (fst s) ~f:(fun _ -> snd s )
+  let empty = Map.empty (module String)
 
   (* Просто возвращает все переменные, которые есть во всех выражениях, но нет в сетах*)
   let free_vars : t -> VarSet.t =
-    List.fold_left ~init:VarSet.empty ~f:(fun acc (_, s) ->
+    Map.fold ~init:VarSet.empty ~f:(fun ~key:_ ~data:s acc ->
       VarSet.union acc (Scheme.free_vars s))
   ;;
 
-  let apply s env = List.Assoc.map env ~f:(Scheme.apply s)
+  let apply s env = Map.map env ~f:(Scheme.apply s)
 
   let pp ppf xs =
     Stdlib.Format.fprintf ppf "{| ";
-    List.iter xs ~f:(fun (n, s) -> Stdlib.Format.fprintf ppf "%s -> %a; " n pp_scheme s);
+    Map.iter xs ~f:(fun (n, s) -> Stdlib.Format.fprintf ppf "%s -> %a; " n pp_scheme s);
     Stdlib.Format.fprintf ppf "|}%!"
   ;;
 
-  let find_exn name xs = List.Assoc.find_exn ~equal:String.equal xs name
+  let find_exn name xs = Map.find_exn ~equal:String.equal xs name
 end
-
+ 
 open R
 open R.Syntax
 
@@ -288,18 +288,11 @@ let generalize : TypeEnv.t -> Type.t -> Scheme.t =
 
 (* достает из окружения схему функции *)
 let lookup_env e xs =
-  match List.Assoc.find_exn xs ~equal:String.equal e with
+  match Map.find_exn xs e with
   | (exception Stdlib.Not_found) | (exception Not_found_s _) -> fail (`No_variable e)
   | scheme ->
     let* ans = instantiate scheme in
     return (Subst.empty, ans)
-;;
-
-let pp_env subst ppf env =
-  let env : TypeEnv.t =
-    List.map ~f:(fun (k, S (args, v)) -> k, S (args, Subst.apply subst v)) env
-  in
-  TypeEnv.pp ppf env
 ;;
 
 let infer =
@@ -378,14 +371,11 @@ let infer =
 ;;
 
 let infer_prog prog = 
-  let format_env env =
-    let* env = env in
-   return @@ List.rev_map env ~f:(fun (id, s) ->
-    match s with
-    | S (_, t) -> (id, t)
-    )
+  let sc_to_type = 
+    function
+    | S (_ , t) -> t
   in
-  let rec helper env prog = 
+  let rec helper env prog l= 
     (match prog with
     | h :: tl ->
       (match h with
@@ -394,8 +384,8 @@ let infer_prog prog =
         let env = TypeEnv.apply s env in
         let t = generalize env t in
         let env = TypeEnv.extend env (id, t) in
-        Stdlib.Format.printf "%s -> %a\n" id pp_scheme t;
-        helper env tl
+        let l1 = l @ [(id, sc_to_type t)] in
+        helper env tl l1
       | ELet (true, id, expr) ->
         let* tv = fresh_var in
         let env = TypeEnv.extend env (id, S (VarSet.empty, tv)) in
@@ -403,11 +393,14 @@ let infer_prog prog =
         let* s2 = unify (Subst.apply s tv) t in
         let* s = Subst.compose s2 s in
         let env = TypeEnv.apply s env in
-        helper env tl
+        let t = generalize env (Subst.apply s tv) in
+        let env = TypeEnv.extend env (id, t) in
+        let l1 = l @ [(id, sc_to_type t)] in
+        helper env tl l1
       )
-    | [] -> return env)
+    | [] -> return l)
 
-    in format_env (helper TypeEnv.empty prog)
+    in helper TypeEnv.empty prog []
 
 
 let w e = Result.map (run (infer TypeEnv.empty e)) ~f:snd
@@ -450,6 +443,16 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_prog_result [((ELet (true, "series",
+        (EFun ((PVar "n"),
+           (EIf ((EBinOp (Eq, (EVar "n"), (EConst (CInt 1)))), (EConst (CInt 1)),
+              (EBinOp (Add, (EVar "n"),
+                 (EApp ((EVar "series"),
+                    (EBinOp (Sub, (EVar "n"), (EConst (CInt 1))))))
+                 ))
+              ))
+           ))
+        )));
+        ((ELet (true, "series",
         (EFun ((PVar "n"),
            (EIf ((EBinOp (Eq, (EVar "n"), (EConst (CInt 1)))), (EConst (CInt 1)),
               (EBinOp (Add, (EVar "n"),
