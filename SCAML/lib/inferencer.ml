@@ -1,3 +1,7 @@
+(** Copyright 2023-2024, Grigory Aseev and Matvey Kalashnikov *)
+
+(** SPDX-License-Identifier: LGPL-2.1-or-later *)
+
 (* http://dev.stephendiehl.com/fun/006_hindley_milner.html *)
 
 open Base
@@ -446,126 +450,126 @@ let%expect_test "let rec series n = if n = 1 then 1 else n + series (n - 1)" =
 
 let%expect_test "let bind x f = f x" =
   print_prog_result
-    [(ELet (false, "bind",
-        (EFun ((PVar "x"), (EFun ((PVar "f"), (EApp ((EVar "f"), (EVar "x")))))))
-        ))
-      ];
+    [ ELet (false, "bind", EFun (PVar "x", EFun (PVar "f", EApp (EVar "f", EVar "x")))) ];
   [%expect {| bind : 'a -> ('a -> 'c) -> 'c |}]
 ;;
 
-
 let%expect_test "let x = 10" =
-  print_prog_result
-    [(ELet (false, "x", (EConst (CInt 10))))];
+  print_prog_result [ ELet (false, "x", EConst (CInt 10)) ];
   [%expect {| x : int |}]
 ;;
 
-let%expect_test "let rec factorial n =\n  if n <= 1\n  then 1\n  else factorial (n - 1) * n" =
+let%expect_test "let rec factorial n =\n\
+                \  if n <= 1\n\
+                \  then 1\n\
+                \  else factorial (n - 1) * n"
+  =
   print_prog_result
-    [(ELet (true, "factorial",
-        (EFun ((PVar "n"),
-           (EIf ((EBinOp (Leq, (EVar "n"), (EConst (CInt 1)))),
-              (EConst (CInt 1)),
-              (EBinOp (Mul,
-                 (EApp ((EVar "factorial"),
-                    (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
-                 (EVar "n")))
-              ))
-           ))
-        ))
-      ];
+    [ ELet
+        ( true
+        , "factorial"
+        , EFun
+            ( PVar "n"
+            , EIf
+                ( EBinOp (Leq, EVar "n", EConst (CInt 1))
+                , EConst (CInt 1)
+                , EBinOp
+                    ( Mul
+                    , EApp (EVar "factorial", EBinOp (Sub, EVar "n", EConst (CInt 1)))
+                    , EVar "n" ) ) ) )
+    ];
   [%expect {| factorial : int -> int |}]
 ;;
 
 let%expect_test "let mult x = fun y -> x * y" =
   print_prog_result
-    [(ELet (false, "mult",
-        (EFun ((PVar "x"),
-           (EFun ((PVar "y"), (EBinOp (Mul, (EVar "x"), (EVar "y")))))))
-        ))
-      ];
+    [ ELet
+        (false, "mult", EFun (PVar "x", EFun (PVar "y", EBinOp (Mul, EVar "x", EVar "y"))))
+    ];
   [%expect {| mult : int -> int -> int |}]
 ;;
 
 let%expect_test "let a = 10 \n let incr x = x + 1 \n let incremented_a = a + 1 " =
   print_prog_result
-    [(ELet (false, "a", (EConst (CInt 10))));
-      (ELet (false, "incr",
-         (EFun ((PVar "x"), (EBinOp (Add, (EVar "x"), (EConst (CInt 1))))))));
-      (ELet (false, "incremented_a",
-         (EBinOp (Add, (EVar "a"), (EConst (CInt 1))))))
-       ];
+    [ ELet (false, "a", EConst (CInt 10))
+    ; ELet (false, "incr", EFun (PVar "x", EBinOp (Add, EVar "x", EConst (CInt 1))))
+    ; ELet (false, "incremented_a", EBinOp (Add, EVar "a", EConst (CInt 1)))
+    ];
   [%expect {|
     a : int
     incr : int -> int
     incremented_a : int |}]
 ;;
 
-let%expect_test "let a = 10
-let b = 11
-let c = a + b
-let c1 a b = if (a = b) then true else false 
-let c2 a b = if (a > b) then true else false 
-let compare l r c = c l r
-let k = compare a b c1 
-let k1 = compare a b c2" =
+let%expect_test "let a = 10\n\
+                 let b = 11\n\
+                 let c = a + b\n\
+                 let c1 a b = if (a = b) then true else false \n\
+                 let c2 a b = if (a > b) then true else false \n\
+                 let compare l r c = c l r\n\
+                 let k = compare a b c1 \n\
+                 let k1 = compare a b c2"
+  =
   print_prog_result
-    [(ELet (false, "a", (EConst (CInt 10))));
-      (ELet (false, "b", (EConst (CInt 11))));
-      (ELet (false, "c", (EBinOp (Add, (EVar "a"), (EVar "b")))));
-      (ELet (false, "c1",
-         (EFun ((PVar "a"),
-            (EFun ((PVar "b"),
-               (EIf ((EBinOp (Eq, (EVar "a"), (EVar "b"))),
-                  (EConst (CBool true)), (EConst (CBool false))))
-               ))
-            ))
-         ));
-      (ELet (false, "c2",
-         (EFun ((PVar "a"),
-            (EFun ((PVar "b"),
-               (EIf ((EBinOp (Gre, (EVar "a"), (EVar "b"))),
-                  (EConst (CBool true)), (EConst (CBool false))))
-               ))
-            ))
-         ));
-      (ELet (false, "compare",
-         (EFun ((PVar "l"),
-            (EFun ((PVar "r"),
-               (EFun ((PVar "c"),
-                  (EApp ((EApp ((EVar "c"), (EVar "l"))), (EVar "r")))))
-               ))
-            ))
-         ));
-      (ELet (false, "k",
-         (EApp ((EApp ((EApp ((EVar "compare"), (EVar "a"))), (EVar "b"))),
-            (EVar "c1")))
-         ));
-      (ELet (false, "k1",
-         (EApp ((EApp ((EApp ((EVar "compare"), (EVar "a"))), (EVar "b"))),
-            (EVar "c2")))
-         ))
-      ];
-  [%expect {|
+    [ ELet (false, "a", EConst (CInt 10))
+    ; ELet (false, "b", EConst (CInt 11))
+    ; ELet (false, "c", EBinOp (Add, EVar "a", EVar "b"))
+    ; ELet
+        ( false
+        , "c1"
+        , EFun
+            ( PVar "a"
+            , EFun
+                ( PVar "b"
+                , EIf
+                    ( EBinOp (Eq, EVar "a", EVar "b")
+                    , EConst (CBool true)
+                    , EConst (CBool false) ) ) ) )
+    ; ELet
+        ( false
+        , "c2"
+        , EFun
+            ( PVar "a"
+            , EFun
+                ( PVar "b"
+                , EIf
+                    ( EBinOp (Gre, EVar "a", EVar "b")
+                    , EConst (CBool true)
+                    , EConst (CBool false) ) ) ) )
+    ; ELet
+        ( false
+        , "compare"
+        , EFun
+            ( PVar "l"
+            , EFun (PVar "r", EFun (PVar "c", EApp (EApp (EVar "c", EVar "l"), EVar "r")))
+            ) )
+    ; ELet (false, "k", EApp (EApp (EApp (EVar "compare", EVar "a"), EVar "b"), EVar "c1"))
+    ; ELet
+        (false, "k1", EApp (EApp (EApp (EVar "compare", EVar "a"), EVar "b"), EVar "c2"))
+    ];
+  [%expect
+    {|
     a : int
-    incr : int -> int
-    incremented_a : int |}]
+    b : int
+    c : int
+    c1 : 'b -> 'b -> bool
+    c2 : 'd -> 'd -> bool
+    compare : 'e -> 'f -> ('e -> 'f -> 'i) -> 'i
+    k : bool
+    k1 : bool |}]
 ;;
 
 let%expect_test "let f x = x + true" =
   print_prog_result
-    [(ELet (false, "f",
-      (EFun ((PVar "x"), (EBinOp (Add, (EVar "x"), (EConst (CBool true))))))))
-       ];
+    [ ELet (false, "f", EFun (PVar "x", EBinOp (Add, EVar "x", EConst (CBool true)))) ];
   [%expect {| unification failed on bool and int |}]
 ;;
 
 let%expect_test "let a = 10 \n let incr x = x + 1 \n let incremented_a = k + 1 " =
   print_prog_result
-    [(ELet (false, "a", (EConst (CInt 10))));
-      (ELet (false, "incr",
-         (EFun ((PVar "x"), (EBinOp (Add, (EVar "x"), (EConst (CInt 1))))))));
-      (ELet (false, "incremented_a",
-         (EBinOp (Add, (EVar "k"), (EConst (CInt 1))))))
-       ];
+    [ ELet (false, "a", EConst (CInt 10))
+    ; ELet (false, "incr", EFun (PVar "x", EBinOp (Add, EVar "x", EConst (CInt 1))))
+    ; ELet (false, "incremented_a", EBinOp (Add, EVar "k", EConst (CInt 1)))
+    ];
   [%expect {| Undefined variable 'k' |}]
+;;

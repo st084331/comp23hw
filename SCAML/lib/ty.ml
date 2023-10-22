@@ -1,3 +1,7 @@
+(** Copyright 2023-2024, Grigory Aseev and Matvey Kalashnikov *)
+
+(** SPDX-License-Identifier: LGPL-2.1-or-later *)
+
 open Format
 
 type binder = int [@@deriving show { with_path = false }]
@@ -40,10 +44,10 @@ let rec pp_typ ppf = function
   | TVar n -> fprintf ppf "%s" @@ "'" ^ Char.escaped (Char.chr (n + 97))
   | TInt -> fprintf ppf "int"
   | TBool -> fprintf ppf "bool"
-  | TArrow (l, r) -> 
+  | TArrow (l, r) ->
     (match l with
-    | TArrow (_, _) -> fprintf ppf "(%a) -> %a" pp_typ l pp_typ r
-    | _ -> fprintf ppf "%a -> %a" pp_typ l pp_typ r)
+     | TArrow (_, _) -> fprintf ppf "(%a) -> %a" pp_typ l pp_typ r
+     | _ -> fprintf ppf "%a -> %a" pp_typ l pp_typ r)
   | TUnit -> fprintf ppf "()"
 ;;
 
