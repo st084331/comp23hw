@@ -1,7 +1,7 @@
 (library
  (name ZRusML_lib)
  (public_name ZRusML.lib)
- (modules Ast Parser)
+ (modules Ast Parser Typing)
  (inline_tests)
  (libraries base angstrom core)
  (preprocess
