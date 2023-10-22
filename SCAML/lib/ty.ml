@@ -1,10 +1,9 @@
 open Format
 
-
 type binder = int [@@deriving show { with_path = false }]
 
 module VarSet = struct
-  include Caml.Set.Make (Int)
+  include Stdlib.Set.Make (Int)
 
   let pp ppf s =
     Format.fprintf ppf "[ ";
@@ -23,6 +22,12 @@ type ty =
   | TArrow of ty * ty
 [@@deriving show { with_path = false }]
 
+type error =
+  [ `Occurs_check
+  | `No_variable of string
+  | `Unification_failed of ty * ty
+  ]
+
 type scheme = S of binder_set * ty [@@deriving show { with_path = false }]
 
 let arrow l r = TArrow (l, r)
@@ -32,13 +37,30 @@ let unit_typ = TUnit
 let v x = TVar x
 
 let rec pp_typ ppf = function
-  | TVar n -> fprintf ppf "'_%d" n
-  | TInt -> pp_print_string ppf "int"
-  | TBool -> pp_print_string ppf "bool"
-  | TArrow (l, r) -> fprintf ppf "(%a -> %a)" pp_typ l pp_typ r
-  | TUnit -> pp_print_string ppf "unit"
+  | TVar n -> fprintf ppf "%s" @@ "'" ^ Char.escaped (Char.chr (n + 97))
+  | TInt -> fprintf ppf "int"
+  | TBool -> fprintf ppf "bool"
+  | TArrow (l, r) -> fprintf ppf "%a -> %a" pp_typ l pp_typ r
+  | TUnit -> fprintf ppf "()"
 ;;
 
 let pp_scheme ppf = function
   | S (xs, t) -> fprintf ppf "forall %a . %a" VarSet.pp xs pp_typ t
+;;
+
+let print_typ typ =
+  let s = Format.asprintf "%a" pp_typ typ in
+  Format.printf "%s\n" s
+;;
+
+let pp_error ppf : error -> _ = function
+  | `Occurs_check -> Format.fprintf ppf "Occurs check failed"
+  | `No_variable s -> Format.fprintf ppf "Undefined variable '%s'" s
+  | `Unification_failed (l, r) ->
+    Format.fprintf ppf "unification failed on %a and %a" pp_typ l pp_typ r
+;;
+
+let print_typ_err e =
+  let s = Format.asprintf "%a" pp_error e in
+  Format.printf "%s\n" s
 ;;

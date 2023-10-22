@@ -3,7 +3,7 @@
 open Base
 open Ast
 open Ty
-module Format = Caml.Format (* silencing a warning *)
+module Format = Stdlib.Format (* silencing a warning *)
 
 let use_logging = false
 
@@ -11,19 +11,6 @@ let log fmt =
   if use_logging
   then Format.kasprintf (fun s -> Format.printf "%s\n%!" s) fmt
   else Format.ifprintf Format.std_formatter fmt
-;;
-
-type error =
-  [ `Occurs_check
-  | `No_variable of string
-  | `Unification_failed of ty * ty
-  ]
-
-let pp_error ppf : error -> _ = function
-  | `Occurs_check -> Format.fprintf ppf "Occurs check failed"
-  | `No_variable s -> Format.fprintf ppf "Undefined variable '%s'" s
-  | `Unification_failed (l, r) ->
-    Format.fprintf ppf "unification failed on %a and %a" pp_typ l pp_typ r
 ;;
 
 module R : sig
@@ -109,7 +96,7 @@ module Type = struct
     let rec helper acc = function
       | TVar b -> VarSet.add b acc
       | TArrow (l, r) -> helper (helper acc l) r
-      | TInt | TBool | TUnit-> acc
+      | TInt | TBool | TUnit -> acc
     in
     helper VarSet.empty
   ;;
@@ -118,7 +105,7 @@ end
 module Subst : sig
   type t
 
-  val pp : Caml.Format.formatter -> t -> unit
+  val pp : Stdlib.Format.formatter -> t -> unit
   val empty : t
   val singleton : fresh -> ty -> t R.t
 
@@ -135,10 +122,9 @@ module Subst : sig
   val compose_all : t list -> t R.t
   val remove : t -> fresh -> t
 end = struct
-
   open R
   open R.Syntax
-  
+
   type t = (fresh, ty, Int.comparator_witness) Map.t
 
   let pp ppf subst =
@@ -158,7 +144,7 @@ end = struct
 
   let singleton k v =
     let* k, v = mapping k v in
-    return  (Map.singleton (module Int) k v)
+    return (Map.singleton (module Int) k v)
   ;;
 
   let find_exn k xs = Base.Map.find_exn xs k
@@ -209,7 +195,11 @@ end = struct
 
   and compose s1 s2 = RMap.fold_left s2 ~init:(return s1) ~f:extend
 
-  let compose_all ss = List.fold_left ss ~init:(return empty) ~f: (fun acc ss -> let* acc = acc in compose acc ss)
+  let compose_all ss =
+    List.fold_left ss ~init:(return empty) ~f:(fun acc ss ->
+      let* acc = acc in
+      compose acc ss)
+  ;;
 end
 
 module VarSet = struct
@@ -264,10 +254,9 @@ module TypeEnv = struct
   let apply s env = List.Assoc.map env ~f:(Scheme.apply s)
 
   let pp ppf xs =
-    Caml.Format.fprintf ppf "{| ";
-    List.iter xs ~f:(fun (n, s) ->
-      Caml.Format.fprintf ppf "%s -> %a; " n pp_scheme s);
-    Caml.Format.fprintf ppf "|}%!"
+    Stdlib.Format.fprintf ppf "{| ";
+    List.iter xs ~f:(fun (n, s) -> Stdlib.Format.fprintf ppf "%s -> %a; " n pp_scheme s);
+    Stdlib.Format.fprintf ppf "|}%!"
   ;;
 
   let find_exn name xs = List.Assoc.find_exn ~equal:String.equal xs name
@@ -280,7 +269,7 @@ let unify = Subst.unify
 let fresh_var = fresh >>| fun n -> TVar n
 
 (* Создает новые fresh_var и заменяет ими старые типовые переменные в выражении
-(Насколько я понял это нужно чтобы уточнять тип функции в каждом конкретном случае)*)
+   (Насколько я понял это нужно чтобы уточнять тип функции в каждом конкретном случае)*)
 let instantiate : scheme -> ty R.t =
   fun (S (bs, t)) ->
   VarSet.fold_left_m
@@ -301,7 +290,7 @@ let generalize : TypeEnv.t -> Type.t -> Scheme.t =
 (* достает из окружения схему функции *)
 let lookup_env e xs =
   match List.Assoc.find_exn xs ~equal:String.equal e with
-  | (exception Caml.Not_found) | (exception Not_found_s _) -> fail (`No_variable e)
+  | (exception Stdlib.Not_found) | (exception Not_found_s _) -> fail (`No_variable e)
   | scheme ->
     let* ans = instantiate scheme in
     return (Subst.empty, ans)
@@ -321,28 +310,28 @@ let infer =
       let* sl, tl = helper env l in
       let* sr, tr = helper env r in
       (match bin_op with
-      | Add | Sub | Mul | Div | Mod->
-        let* s1 = unify tl int_typ in
-        let* s2 = unify tr int_typ in
-        let* sres = Subst.compose_all [ s1; s2; sl; sr ] in
-        return (sres, int_typ) 
-      | Less | Leq | Gre | Geq | Eq | Neq -> 
-        let* s1 = unify tl tr in
-        let* sres = Subst.compose_all [ s1; sl; sr ] in
-        return (sres, bool_typ)
-      | And | Or -> 
-        let* s1 = unify tl bool_typ in
-        let* s2 = unify tr bool_typ in
-        let* sres = Subst.compose_all [ s1; s2; sl; sr ] in
-        return (sres, bool_typ))
+       | Add | Sub | Mul | Div | Mod ->
+         let* s1 = unify tl int_typ in
+         let* s2 = unify tr int_typ in
+         let* sres = Subst.compose_all [ s1; s2; sl; sr ] in
+         return (sres, int_typ)
+       | Less | Leq | Gre | Geq | Eq | Neq ->
+         let* s1 = unify tl tr in
+         let* sres = Subst.compose_all [ s1; sl; sr ] in
+         return (sres, bool_typ)
+       | And | Or ->
+         let* s1 = unify tl bool_typ in
+         let* s2 = unify tr bool_typ in
+         let* sres = Subst.compose_all [ s1; s2; sl; sr ] in
+         return (sres, bool_typ))
     | EVar x -> lookup_env x env
     | EFun (p, e1) ->
       let* tv = fresh_var in
-      let* env2  = 
-      (match p with
-      | PVar x -> return (TypeEnv.extend env (x, S (VarSet.empty, tv)))
-      | _ -> return env
-      ) in
+      let* env2 =
+        match p with
+        | PVar x -> return (TypeEnv.extend env (x, S (VarSet.empty, tv)))
+        | _ -> return env
+      in
       let* s, ty = helper env2 e1 in
       let trez = TArrow (Subst.apply s tv, ty) in
       return (s, trez)
@@ -354,12 +343,11 @@ let infer =
       let trez = Subst.apply s3 tv in
       let* final_subst = Subst.compose_all [ s3; s2; s1 ] in
       return (final_subst, trez)
-    | EConst n -> 
+    | EConst n ->
       (match n with
-      |  CInt _ -> return (Subst.empty, int_typ)
-      | CBool _ -> return (Subst.empty, bool_typ)
-      | CUnit -> return (Subst.empty, unit_typ)
-      )
+       | CInt _ -> return (Subst.empty, int_typ)
+       | CBool _ -> return (Subst.empty, bool_typ)
+       | CUnit -> return (Subst.empty, unit_typ))
     | EIf (c, th, el) ->
       let* s1, t1 = helper env c in
       let* s2, t2 = helper env th in
@@ -374,7 +362,7 @@ let infer =
       let t2 = generalize env2 t1 in
       let* s2, t3 = helper (TypeEnv.extend env2 (x, t2)) e2 in
       let* final_subst = Subst.compose s1 s2 in
-      return (Subst.(final_subst), t3)
+      return (final_subst, t3)
     | ELetIn (true, x, e1, e2) ->
       let* tv = fresh_var in
       let env = TypeEnv.extend env (x, S (VarSet.empty, tv)) in
@@ -391,3 +379,32 @@ let infer =
 ;;
 
 let w e = Result.map (run (infer TypeEnv.empty e)) ~f:snd
+
+let print_result expression =
+  match w expression with
+  | Ok typ -> print_typ typ
+  | Error e -> print_typ_err e
+;;
+
+let%expect_test _ =
+  print_result
+    (ELetIn
+       ( true
+       , "fac"
+       , EFun
+           ( PVar "n"
+           , EIf
+               ( EBinOp (Leq, EVar "n", EConst (CInt 1))
+               , EConst (CInt 1)
+               , EBinOp
+                   ( Mul
+                   , EBinOp (Sub, EVar "n", EConst (CInt 1))
+                   , EApp (EVar "fac", EBinOp (Sub, EVar "n", EConst (CInt 1))) ) ) )
+       , EApp (EVar "fac", EConst (CInt 5)) ));
+  [%expect {| int |}]
+;;
+
+let%expect_test _ =
+  print_result (EFun (PVar "x", EFun (PVar "y", EFun (PVar "z", EConst (CInt 5)))));
+  [%expect {| 'a -> 'b -> 'c -> int |}]
+;;
