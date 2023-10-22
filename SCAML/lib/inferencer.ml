@@ -416,7 +416,7 @@ let run_prog_inference prog = run(infer_prog prog)
 
 let print_prog_result prog = 
   match run_prog_inference prog with
-  | Ok l -> List.iter l ~f:(fun (id, t) -> Stdlib.Format.printf "%s -> %a\n" id pp_typ t);
+  | Ok l -> List.iter l ~f:(fun (id, t) -> Stdlib.Format.printf "%s : %a\n" id pp_typ t);
   | Error e -> print_typ_err e
 
 let print_result expression =
@@ -459,5 +459,5 @@ let%expect_test _ =
               ))
            ))
         )))];
-  [%expect {| series -> int -> int |}]
+  [%expect {| series : int -> int |}]
 ;;
