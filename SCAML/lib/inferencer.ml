@@ -1,6 +1,6 @@
 (** Copyright 2023-2024, Grigory Aseev and Matvey Kalashnikov *)
 
-(** SPDX-License-Identifier: LGPL-2.1-or-later *)
+(** SPDX-License-Identifier: LGPL-3.0 *)
 
 (* http://dev.stephendiehl.com/fun/006_hindley_milner.html *)
 
