@@ -14,7 +14,6 @@ type typ =
   | TVar of type_variable_number (** 'a *)
   | TEqualityVar of type_variable_number (** ''a *)
   | TArr of typ * typ (** string -> int *)
-  | TTuple of typ list (** int * int *)
   | TList of typ (** 'a list *)
   | TGround of ground_type (** int *)
   | TUnit
@@ -26,7 +25,6 @@ let unit_t = TUnit
 let var_t n = TVar n
 let var_eq_t n = TEqualityVar n
 let arrow_t left_type right_type = TArr (left_type, right_type)
-let tuple_t type_list = TTuple type_list
 let list_t typ = TList typ
 
 type scheme = (type_variable_number, Base.Int.comparator_witness) Base.Set.t * typ
@@ -51,14 +49,6 @@ let rec pp_type fmt typ =
     (match x with
      | Int -> fprintf fmt "int"
      | Bool -> fprintf fmt "bool")
-  | TTuple value_list ->
-    fprintf
-      fmt
-      "%a"
-      (pp_print_list
-         ~pp_sep:(fun _ _ -> fprintf fmt " * ")
-         (fun fmt typ -> pp_type fmt typ))
-      value_list
   | TList typ -> fprintf fmt (arrow_format typ ^^ " list") pp_type typ
   | TArr (typ_left, typ_right) ->
     fprintf fmt (arrow_format typ_left ^^ " -> %a") pp_type typ_left pp_type typ_right

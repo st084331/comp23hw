@@ -40,23 +40,23 @@ end = struct
   type 'a t = int -> int * ('a, error) Result.t
 
   let ( >>= ) : 'a 'b. 'a t -> ('a -> 'b t) -> 'b t =
-   fun monad f state ->
+    fun monad f state ->
     let last, result = monad state in
     match result with
     | Error e -> last, Error e
     | Ok x -> f x last
- ;;
+  ;;
 
   let fail err state = state, Result.fail err
   let return x last = last, Result.return x
   let bind x ~f = x >>= f
 
   let ( >>| ) : 'a 'b. 'a t -> ('a -> 'b) -> 'b t =
-   fun x f state ->
+    fun x f state ->
     match x state with
     | state, Ok x -> state, Ok (f x)
     | state, Error e -> state, Error e
- ;;
+  ;;
 
   module Syntax = struct
     let ( let* ) x f = bind x ~f
@@ -84,7 +84,6 @@ module Type = struct
   let rec occurs_in v = function
     | TVar id | TEqualityVar id -> id = v
     | TArr (l, r) -> occurs_in v l || occurs_in v r
-    | TTuple typ_list -> List.exists typ_list ~f:(occurs_in v)
     | TList typ -> occurs_in v typ
     | _ -> false
   ;;
@@ -94,11 +93,6 @@ module Type = struct
     let rec helper acc = function
       | TVar n -> Set.add acc n
       | TArr (left, right) -> helper (helper acc left) right
-      | TTuple typ_list ->
-        List.fold_right
-          typ_list
-          ~f:(fun t s -> Set.union s (helper empty_set t))
-          ~init:acc
       | TList typ -> helper acc typ
       | _ -> acc
     in
@@ -156,7 +150,6 @@ end = struct
          | exception Not_found_s _ -> var_eq_t n
          | x -> x)
       | TArr (left, right) -> arrow_t (helper left) (helper right)
-      | TTuple typ_list -> tuple_t @@ List.map typ_list ~f:helper
       | TList typ -> list_t @@ helper typ
       | ground -> ground
     in
@@ -174,17 +167,6 @@ end = struct
       let* subs1 = unify l1 l2 in
       let* subs2 = unify (apply subs1 r1) (apply subs1 r2) in
       compose subs1 subs2
-    | TTuple typ_list_l, TTuple typ_list_r ->
-      (match List.zip typ_list_l typ_list_r with
-       | List.Or_unequal_lengths.Unequal_lengths -> fail @@ `UnificationFailed (l, r)
-       | List.Or_unequal_lengths.Ok zipped_list ->
-         List.fold_right
-           zipped_list
-           ~f:(fun (x, y) subst ->
-             let* head_sub = unify x y in
-             let* subst = subst in
-             compose head_sub subst)
-           ~init:(return empty))
     | TList typ1, TList typ2 -> unify typ1 typ2
     | _ -> fail @@ `UnificationFailed (l, r)
 
@@ -258,7 +240,7 @@ let fresh_var = fresh >>| var_t
 let fresh_eq_var = fresh >>| var_eq_t
 
 let instantiate : scheme -> typ R.t =
- fun (set, t) ->
+  fun (set, t) ->
   VarSet.fold_right
     (fun typ name ->
       let* f = fresh_var in
@@ -269,7 +251,7 @@ let instantiate : scheme -> typ R.t =
 ;;
 
 let generalize : TypeEnv.t -> Type.t -> Scheme.t =
- fun env typ ->
+  fun env typ ->
   let free = Set.diff (Type.free_vars typ) (TypeEnv.free_vars env) in
   free, typ
 ;;
@@ -298,7 +280,7 @@ let is_syntactically_value = function
 
 let infer =
   let rec infer_binding : TypeEnv.t -> binding -> (Subst.t * typ) R.t =
-   fun env -> function
+    fun env -> function
     | BVal (_, body) -> infer_expr env @@ EAbs ("", body)
     | BFun (_, args, body) ->
       let rec curry = function
@@ -307,7 +289,7 @@ let infer =
       in
       infer_expr env @@ curry args
   and infer_expr : TypeEnv.t -> expr -> (Subst.t * typ) R.t =
-   fun env -> function
+    fun env -> function
     | ELiteral literal ->
       (match literal with
        | LInt _ -> return (Subst.empty, int_t)
@@ -446,166 +428,143 @@ let parse_and_inference input =
 
 (* tests *)
 
-let%expect_test _ =
-  let () = parse_and_inference "" in
+let%expect_test "Empty input" =
+  parse_and_inference "";
   [%expect {|
     ()
-|}]
+  |}]
 ;;
 
-let%expect_test _ =
-  let () = parse_and_inference "val x = fn x => x * x" in
+let%expect_test "Square function" =
+  parse_and_inference "val x = fn x => x * x";
   [%expect {|
     int -> int
   |}]
 ;;
 
-let%expect_test _ =
-  let () = parse_and_inference "fun sum x = fn x => x * x" in
+let%expect_test "Sum function" =
+  parse_and_inference "fun sum x = fn x => x * x";
   [%expect {|
     'd -> int -> int
   |}]
 ;;
 
-let%expect_test _ =
-  let () = parse_and_inference "val r = fn x => not x" in
+let%expect_test "Boolean not function" =
+  parse_and_inference "val r = fn x => not x";
   [%expect {|
     bool -> bool
   |}]
 ;;
 
-let%expect_test _ =
-  let () = parse_and_inference "val id = fn x => x" in
+let%expect_test "Identity function" =
+  parse_and_inference "val id = fn x => x";
   [%expect {|
     'b -> 'b
   |}]
 ;;
 
-let%expect_test _ =
-  let () =
-    parse_and_inference "val x = fn x => fn y => fn z => fn w => x < y orelse z > w"
-  in
+let%expect_test "Multi parameter logical function" =
+  parse_and_inference "val x = fn x => fn y => fn z => fn w => x < y orelse z > w";
   [%expect {|
     ''e -> ''e -> ''f -> ''f -> bool
   |}]
 ;;
-
-let%expect_test _ =
-  let () = parse_and_inference "val y = let fun f x = x * 2 in (f 5) end" in
+let%expect_test "Function definition within let expression" =
+  parse_and_inference "val y = let fun f x = x * 2 in (f 5) end";
   [%expect {|
     int
   |}]
-;;
 
-let%expect_test _ =
-  let () = parse_and_inference "val y = let val x = 5 in x * 2 end" in
+let%expect_test "Value bindings in let expression" =
+  parse_and_inference "val y = let val x = 5 in x * 2 end";
   [%expect {|
     int
   |}]
-;;
 
-let%expect_test _ =
-  let () =
-    parse_and_inference
-      "fun fact n = if n <= 1 then 1 else n * fact (n - 1) \n val fact3 = fact 3"
-  in
+let%expect_test "Recursion and factorial calculation" =
+  parse_and_inference
+    "fun fact n = if n <= 1 then 1 else n * fact (n - 1) \n val fact3 = fact 3";
   [%expect {|
     int
   |}]
-;;
 
-let%expect_test _ =
-  let () = parse_and_inference "val cube = fn x => x * x * x" in
+let%expect_test "Cubing function" =
+  parse_and_inference "val cube = fn x => x * x * x";
   [%expect {|
     int -> int
   |}]
-;;
 
-let%expect_test _ =
-  let () = parse_and_inference "val compare = fn x => fn y => x * y > 10" in
+let%expect_test "Two argument comparison function" =
+  parse_and_inference "val compare = fn x => fn y => x * y > 10";
   [%expect {|
     int -> int -> bool
   |}]
-;;
 
-let%expect_test _ =
-  let () = parse_and_inference "val identity = fn x => x" in
+let%expect_test "Identity function parsing" =
+  parse_and_inference "val identity = fn x => x";
   [%expect {|
     'b -> 'b
   |}]
-;;
 
-let%expect_test _ =
-  let () =
-    parse_and_inference
-      "val complex_cond = fn x => fn y => fn z => fn w => x < y andalso z > w"
-  in
+let%expect_test "Four variables" =
+  parse_and_inference
+    "val complex_cond = fn x => fn y => fn z => fn w => x < y andalso z > w";
   [%expect {|
     ''e -> ''e -> ''f -> ''f -> bool
   |}]
-;;
 
-let%expect_test _ =
-  let () =
-    parse_and_inference "val result = let fun multiply3 x = x * 3 in (multiply3 5) end"
-  in
+let%expect_test "Multiplication function within let expression" =
+  parse_and_inference "val result = let fun multiply3 x = x * 3 in (multiply3 5) end";
   [%expect {|
     int
   |}]
-;;
-
-let%expect_test _ =
-  let () = parse_and_inference "val result = let val x = 7 in x * 2 end" in
+  let%expect_test "Multiplication in let expression" =
+  parse_and_inference "val result = let val x = 7 in x * 2 end";
   [%expect {|
-    int
+  int
   |}]
-;;
-
-let%expect_test _ =
-  let () = parse_and_inference "fun fact n = if n <= 1 then 1 else n * fact (n - 1)" in
+  ;;
+  
+  let%expect_test "Recursive factorial function" =
+  parse_and_inference "fun fact n = if n <= 1 then 1 else n * fact (n - 1)";
   [%expect {|
-    int -> int
+  int -> int
   |}]
-;;
-
-let%expect_test _ =
-  let () =
-    parse_and_inference
-      "fun factorial n = if n <= 1 then 1 else n * factorial (n - 1)  val result = \
-       factorial 3"
-  in
+  ;;
+  
+  let%expect_test "Factorial calculation" =
+  parse_and_inference
+  "fun factorial n = if n <= 1 then 1 else n * factorial (n - 1) val result =
+  factorial 3";
   [%expect {|
-    int
+  int
   |}]
-;;
-
-let%expect_test _ =
-  let () = parse_and_inference "fun double x = x + x" in
+  ;;
+  
+  let%expect_test "Function double" =
+  parse_and_inference "fun double x = x + x";
   [%expect {|
-    int -> int
+  int -> int
   |}]
-;;
-
-let%expect_test _ =
-  let () = parse_and_inference "fun sum x y = x + y" in
+  ;;
+  
+  let%expect_test "Function sum" =
+  parse_and_inference "fun sum x y = x + y";
   [%expect {|
-    int -> int -> int
+  int -> int -> int
   |}]
-;;
-
-(* test that should fail *)
-let%expect_test _ =
-  let () =
-    parse_and_inference
-      "val r = let val n = (if n <= 1 then 1 else n * (n - 1)) in n * 2 end"
-  in
+  ;;
+  
+  let%expect_test "Let expression with condition and multiplication" =
+  parse_and_inference
+  "val r = let val n = (if n <= 1 then 1 else n * (n - 1)) in n * 2 end";
   [%expect {|
-    No such variable: n
+  No such variable: n
   |}]
-;;
-
-let%expect_test _ =
-  let () = parse_and_inference "val z = fn x => fn y => x = y orelse y + x" in
+  ;;
+  
+  let%expect_test "Equality and sum function" =
+  parse_and_inference "val z = fn x => fn y => x = y orelse y + x";
   [%expect
-    {| Unification failed: type of the expression is int but expected type was bool |}]
-;;
+  {| Unification failed: type of the expression is int but expected type was bool |}]
+  ;;
