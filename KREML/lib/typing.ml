@@ -1,6 +1,6 @@
-(** Copyright 2023-2024, Anton Kraev and Polina Badreeva*)
+(** Copyright 2023-2024, Anton Kraev and Polina Badreeva *)
 
-(** SPDX-License-Identifier: LGPL-2.1 *)
+(** SPDX-License-Identifier: LGPL-3.0-or-later *)
 
 type type_variable_number = int
 type identifier = string
@@ -67,11 +67,6 @@ let rec pp_type fmt typ =
     fprintf fmt "%s" @@ "''" ^ Char.escaped (Stdlib.Char.chr (var + 97))
 ;;
 
-let print_typ typ =
-  let s = Format.asprintf "%a" pp_type typ in
-  Format.printf "%s\n" s
-;;
-
 let pp_error fmt (err : error) =
   let open Format in
   match err with
@@ -83,9 +78,4 @@ let pp_error fmt (err : error) =
     fprintf fmt " but expected type was ";
     pp_type fmt t2
   | `Unreachable -> fprintf fmt "Not reachable."
-;;
-
-let print_type_error error =
-  let s = Format.asprintf "%a" pp_error error in
-  Format.printf "%s\n" s
 ;;
