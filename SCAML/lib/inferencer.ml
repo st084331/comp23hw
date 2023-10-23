@@ -4,6 +4,9 @@
 
 (* http://dev.stephendiehl.com/fun/006_hindley_milner.html *)
 
+(* The code is a modified version of the inferencer taken from here 
+   https://gitlab.com/Kakadu/fp2020course-materials/-/blob/master/code/miniml*)
+
 open Base
 open Ast
 open Ty
