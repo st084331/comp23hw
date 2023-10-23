@@ -27,6 +27,4 @@ type error =
     | `UnificationFailed of typ * typ
     | `Unreachable ]
 val pp_type : Format.formatter -> typ -> unit
-val print_typ : typ -> unit
 val pp_error : Format.formatter -> error -> unit
-val print_type_error : error -> unit
