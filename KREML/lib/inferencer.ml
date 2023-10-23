@@ -1,6 +1,6 @@
-(** Copyright 2023-2024, Anton Kraev and Polina Badreeva*)
+(** Copyright 2023-2024, Anton Kraev and Polina Badreeva *)
 
-(** SPDX-License-Identifier: LGPL-2.1 *)
+(** SPDX-License-Identifier: LGPL-3.0-or-later *)
 
 open Base
 open Ast
@@ -439,137 +439,147 @@ let parse_and_inference input =
 (* tests *)
 
 let%expect_test _ =
-  parse_and_inference "";
+  let _ = parse_and_inference "" in
   [%expect {|
     ()
-  |}]
+|}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "val x = fn x => x * x";
+  let _ = parse_and_inference "val x = fn x => x * x" in
   [%expect {|
     int -> int
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "fun sum x = fn x => x * x";
+  let _ = parse_and_inference "fun sum x = fn x => x * x" in
   [%expect {|
     'd -> int -> int
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "val r = fn x => not x";
+  let _ = parse_and_inference "val r = fn x => not x" in
   [%expect {|
     bool -> bool
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "val id = fn x => x";
+  let _ = parse_and_inference "val id = fn x => x" in
   [%expect {|
     'b -> 'b
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "val x = fn x => fn y => fn z => fn w => x < y orelse z > w";
+  let _ =
+    parse_and_inference "val x = fn x => fn y => fn z => fn w => x < y orelse z > w"
+  in
   [%expect {|
     ''e -> ''e -> ''f -> ''f -> bool
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "val y = let fun f x = x * 2 in (f 5) end";
+  let _ = parse_and_inference "val y = let fun f x = x * 2 in (f 5) end" in
   [%expect {|
     int
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "val y = let val x = 5 in x * 2 end";
+  let _ = parse_and_inference "val y = let val x = 5 in x * 2 end" in
   [%expect {|
     int
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference
-    "fun fact n = if n <= 1 then 1 else n * fact (n - 1) \n val fact3 = fact 3";
+  let _ =
+    parse_and_inference
+      "fun fact n = if n <= 1 then 1 else n * fact (n - 1) \n val fact3 = fact 3"
+  in
   [%expect {|
     int
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "val cube = fn x => x * x * x";
+  let _ = parse_and_inference "val cube = fn x => x * x * x" in
   [%expect {|
     int -> int
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "val compare = fn x => fn y => x * y > 10";
+  let _ = parse_and_inference "val compare = fn x => fn y => x * y > 10" in
   [%expect {|
     int -> int -> bool
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "val identity = fn x => x";
+  let _ = parse_and_inference "val identity = fn x => x" in
   [%expect {|
     'b -> 'b
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference
-    "val complex_cond = fn x => fn y => fn z => fn w => x < y andalso z > w";
+  let _ =
+    parse_and_inference
+      "val complex_cond = fn x => fn y => fn z => fn w => x < y andalso z > w"
+  in
   [%expect {|
     ''e -> ''e -> ''f -> ''f -> bool
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "val result = let fun multiply3 x = x * 3 in (multiply3 5) end";
+  let _ =
+    parse_and_inference "val result = let fun multiply3 x = x * 3 in (multiply3 5) end"
+  in
   [%expect {|
     int
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "val result = let val x = 7 in x * 2 end";
+  let _ = parse_and_inference "val result = let val x = 7 in x * 2 end" in
   [%expect {|
     int
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "fun fact n = if n <= 1 then 1 else n * fact (n - 1)";
+  let _ = parse_and_inference "fun fact n = if n <= 1 then 1 else n * fact (n - 1)" in
   [%expect {|
     int -> int
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference
-    "fun factorial n = if n <= 1 then 1 else n * factorial (n - 1)  val result = \
-     factorial 3";
+  let _ =
+    parse_and_inference
+      "fun factorial n = if n <= 1 then 1 else n * factorial (n - 1)  val result = \
+       factorial 3"
+  in
   [%expect {|
     int
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "fun double x = x + x";
+  let _ = parse_and_inference "fun double x = x + x" in
   [%expect {|
     int -> int
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "fun sum x y = x + y";
+  let _ = parse_and_inference "fun sum x y = x + y" in
   [%expect {|
     int -> int -> int
   |}]
@@ -577,15 +587,17 @@ let%expect_test _ =
 
 (* test that should fail *)
 let%expect_test _ =
-  parse_and_inference
-    "val r = let val n = (if n <= 1 then 1 else n * (n - 1)) in n * 2 end";
+  let _ =
+    parse_and_inference
+      "val r = let val n = (if n <= 1 then 1 else n * (n - 1)) in n * 2 end"
+  in
   [%expect {|
     No such variable: n
   |}]
 ;;
 
 let%expect_test _ =
-  parse_and_inference "val z = fn x => fn y => x = y orelse y + x";
+  let _ = parse_and_inference "val z = fn x => fn y => x = y orelse y + x" in
   [%expect
     {| Unification failed: type of the expression is int but expected type was bool |}]
 ;;
