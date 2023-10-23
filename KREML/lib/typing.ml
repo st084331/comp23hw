@@ -2,21 +2,18 @@
 
 (** SPDX-License-Identifier: LGPL-3.0-or-later *)
 
-type type_variable_number = int
-type identifier = string
-
 type ground_type =
   | Int
   | Bool
 [@@deriving show { with_path = false }]
 
 type typ =
-  | TVar of type_variable_number (** 'a *)
-  | TEqualityVar of type_variable_number (** ''a *)
+  | TVar of int (** 'a *)
+  | TEqualityVar of int (** ''a *)
   | TArr of typ * typ (** string -> int *)
-  | TList of typ (** 'a list *)
   | TGround of ground_type (** int *)
   | TUnit
+[@@deriving show { with_path = false }]
 
 (* Smart constructors for types *)
 let int_t = TGround Int
@@ -25,16 +22,13 @@ let unit_t = TUnit
 let var_t n = TVar n
 let var_eq_t n = TEqualityVar n
 let arrow_t left_type right_type = TArr (left_type, right_type)
-let list_t typ = TList typ
 
-type scheme = (type_variable_number, Base.Int.comparator_witness) Base.Set.t * typ
+type scheme = (int, Base.Int.comparator_witness) Base.Set.t * typ
 
 type error =
   [ `OccursCheck (** Occurs check fail *)
-  | `NoVariable of identifier (** Use of undefined variable *)
+  | `NoVariable of string (** Use of undefined variable *)
   | `UnificationFailed of typ * typ (** Expression of a different type was expected *)
-  | `Unreachable
-    (** Unreachable code. If this error is thrown then there is a bug in parser *)
   ]
 
 let rec pp_type fmt typ =
@@ -49,7 +43,6 @@ let rec pp_type fmt typ =
     (match x with
      | Int -> fprintf fmt "int"
      | Bool -> fprintf fmt "bool")
-  | TList typ -> fprintf fmt (arrow_format typ ^^ " list") pp_type typ
   | TArr (typ_left, typ_right) ->
     fprintf fmt (arrow_format typ_left ^^ " -> %a") pp_type typ_left pp_type typ_right
   | TVar var -> fprintf fmt "%s" @@ "'" ^ Char.escaped (Stdlib.Char.chr (var + 97))
@@ -67,5 +60,4 @@ let pp_error fmt (err : error) =
     pp_type fmt t1;
     fprintf fmt " but expected type was ";
     pp_type fmt t2
-  | `Unreachable -> fprintf fmt "Not reachable."
 ;;
