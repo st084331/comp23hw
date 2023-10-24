@@ -7,7 +7,7 @@ maintainer: ["Anton Kraev" "Polina Badreeva"]
 authors: ["Anton Kraev" "Polina Badreeva"]
 license: "LGPL-3.0-or-later"
 depends: [
-  "dune" {>= "2.8"}
+  "dune" {>= "3.11"}
   "angstrom"
   "ppx_inline_test" {with-test}
   "qcheck-core"
