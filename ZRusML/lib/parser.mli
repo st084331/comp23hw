@@ -6,9 +6,10 @@
 
 open Ast
 open Base
+open Angstrom
 
 (** [parse p s] applies the parser [p] on string [s]. *)
-val parse : 'a Angstrom.t -> string -> 'a Angstrom.result
+val parse : 'a t -> string -> ('a, string) result
 
 (** [prog] is the main parser for the entire program. *)
-val prog : prog Angstrom.t
+val prog : prog t

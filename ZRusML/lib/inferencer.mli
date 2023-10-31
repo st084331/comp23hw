@@ -85,11 +85,7 @@ module Subst : sig
 end
 
 module VarSet : sig
-  val fold
-    :  (typ -> type_variable_number -> typ R.t)
-    -> typ
-    -> (type_variable_number, Int.comparator_witness) Set.t
-    -> typ R.t
+  val fold : ('a -> 'b -> 'a R.t) -> 'a R.t -> ('b, 'c) Base.Set.t -> 'a R.t
 end
 
 module Scheme : sig
@@ -117,8 +113,16 @@ module TypeEnv : sig
   (** Applies a substitution to an environment. *)
   val apply : Subst.t -> t -> t
 
-  val find_exn : identifier -> t -> scheme
+  val find_exn : 'a -> ('a, equal:(string -> string -> bool) -> 'b, 'c) Base.Map.t -> 'b
 end
 
 (** The main inference function for expressions. *)
 val infer : TypeEnv.t -> exp -> (Subst.t * Type.t * TypeEnv.t) R.t
+
+val run_inference
+  :  Ast.decl
+  -> TypeEnv.t
+  -> ( (Typing.identifier, Typing.scheme, Base.String.comparator_witness) Base.Map.t
+       * Typing.typ
+       , Typing.error )
+       Base.Result.t
