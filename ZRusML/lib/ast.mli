@@ -9,23 +9,23 @@ type id = string [@@deriving show { with_path = false }]
 
 (** Binary operations available in the language *)
 type bin_op =
-  | And       (** Logical and *)
-  | Or        (** Logical or  *)
-  | Less      (** Less than   *)
-  | Leq       (** Less or equal *)
-  | Gre       (** Greater than  *)
-  | Geq       (** Greater or equal *)
-  | Eq        (** Equality    *)
-  | Neq       (** Not equal  *)
-  | Add       (** Addition   *)
-  | Sub       (** Subtraction *)
-  | Mul       (** Multiplication *)
-  | Div       (** Division *)
+  | And (** Logical and *)
+  | Or (** Logical or *)
+  | Less (** Less than *)
+  | Leq (** Less or equal *)
+  | Gre (** Greater than *)
+  | Geq (** Greater or equal *)
+  | Eq (** Equality *)
+  | Neq (** Not equal *)
+  | Add (** Addition *)
+  | Sub (** Subtraction *)
+  | Mul (** Multiplication *)
+  | Div (** Division *)
 
 (** Unary operations available in the language *)
 and un_op =
-  | Not       (** Logical not *)
-  | Minus     (** Unary minus *)
+  | Not (** Logical not *)
+  | Minus (** Unary minus *)
 
 (** Binding type for let expressions and function arguments *)
 and binding = bool * pt * exp
@@ -34,31 +34,30 @@ and binding = bool * pt * exp
 and case = pt * exp
 
 (** Declarations available in the language *)
-and decl =
-  | DLet of binding  (** let declaration *)
+and decl = DLet of binding (** let declaration *)
 
 (** Program type representing a list of declarations *)
 and prog = decl list
 
 (** Constants available in the language *)
 and const =
-  | CInt of int       (** Integer constant *)
-  | CBool of bool     (** Boolean constant *)
+  | CInt of int (** Integer constant *)
+  | CBool of bool (** Boolean constant *)
 
 (** Expressions in the language *)
 and exp =
-  | EConst of const               (** Constants *)
-  | EUnOp of un_op * exp          (** Unary operations *)
-  | EVar of id                    (** Variables *)
-  | ELet of binding list * exp    (** Let expressions *)
-  | EFun of pt * exp              (** Function definitions *)
-  | EIf of exp * exp * exp        (** Conditional expressions *)
-  | EBinOp of bin_op * exp * exp  (** Binary operations *)
-  | EApp of exp * exp             (** Function application *)
+  | EConst of const (** Constants *)
+  | EUnOp of un_op * exp (** Unary operations *)
+  | EVar of id (** Variables *)
+  | ELet of binding list * exp (** Let expressions *)
+  | EFun of pt * exp (** Function definitions *)
+  | EIf of exp * exp * exp (** Conditional expressions *)
+  | EBinOp of bin_op * exp * exp (** Binary operations *)
+  | EApp of exp * exp (** Function application *)
 
 (** Patterns available in the language for pattern matching *)
 and pt =
-  | PtWild        (** Wildcard pattern *)
-  | PtVar of id   (** Variable pattern *)
-  | PtConst of const  (** Constant pattern *)
+  | PtWild (** Wildcard pattern *)
+  | PtVar of id (** Variable pattern *)
+  | PtConst of const (** Constant pattern *)
 [@@deriving show { with_path = false }]
