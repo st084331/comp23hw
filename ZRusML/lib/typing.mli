@@ -12,14 +12,14 @@ type identifier = string
 
 (** Basic ground types in the language *)
 type ground_type =
-  | Int   (** Integer type *)
-  | Bool  (** Boolean type *)
+  | Int (** Integer type *)
+  | Bool (** Boolean type *)
 
 (** Representation of types in the language *)
 type typ =
-  | TVar of type_variable_number    (** Type variable, e.g., 'a *)
-  | TArr of typ * typ               (** Function type, e.g., int -> bool *)
-  | TGround of ground_type          (** Ground types *)
+  | TVar of type_variable_number (** Type variable, e.g., 'a *)
+  | TArr of typ * typ (** Function type, e.g., int -> bool *)
+  | TGround of ground_type (** Ground types *)
 
 (** Utility function to represent the int type *)
 val int_typ : typ

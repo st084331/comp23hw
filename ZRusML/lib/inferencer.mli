@@ -15,16 +15,16 @@ module R : sig
 
   (** Bind function for our monadic type. *)
   val bind : 'a t -> f:('a -> 'b t) -> 'b t
-  
+
   (** Return function for our monadic type. *)
   val return : 'a -> 'a t
-  
+
   (** Function to fail with a specific error. *)
   val fail : error -> 'a t
-  
+
   (** Some monadic infix operators for syntactic sugar. *)
   include Monad.Infix with type 'a t := 'a t
-  
+
   module Syntax : sig
     val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
   end
@@ -40,7 +40,7 @@ module R : sig
 
   (** Produces a fresh integer. *)
   val fresh : int t
-  
+
   (** Runs the monad, producing a result. *)
   val run : 'a t -> ('a, error) Result.t
 end
@@ -49,68 +49,74 @@ type fresh = int
 
 module Type : sig
   type t = typ
-  
+
   (** Checks if a type variable occurs in a type. *)
   val occurs_in : type_variable_number -> t -> bool
-  
+
   (** Extracts type variables from a type. *)
   val unpack_vars : t -> (type_variable_number, Int.comparator_witness) Set.t
 end
 
 module Subst : sig
   type t
-  
+
   val empty : t
-  
+
   (** Creates a singleton substitution. *)
   val singleton : fresh -> typ -> t R.t
-  
+
   (** Find functions for substitutions. *)
   val find_exn : fresh -> t -> typ
+
   val find : fresh -> t -> typ option
-  
+
   (** Applies a substitution to a type. *)
   val apply : t -> typ -> typ
-  
+
   (** Attempts to unify two types, producing a substitution. *)
   val unify : typ -> typ -> t R.t
-  
+
   val add : t -> fresh -> typ -> t
   val compose : t -> t -> t R.t
   val compose_all : t list -> t R.t
-  
+
   (** Removes a substitution. *)
   val remove : t -> fresh -> t
 end
 
 module VarSet : sig
-  val fold : (typ -> type_variable_number -> typ R.t) -> typ -> (type_variable_number, Int.comparator_witness) Set.t -> typ R.t
+  val fold
+    :  (typ -> type_variable_number -> typ R.t)
+    -> typ
+    -> (type_variable_number, Int.comparator_witness) Set.t
+    -> typ R.t
 end
 
 module Scheme : sig
   type t = scheme
-  
+
   (** Checks if a type variable occurs in a scheme. *)
   val occurs_in : type_variable_number -> t -> bool
-  
+
   (** Extracts type variables from a scheme. *)
   val unpack_vars : t -> (type_variable_number, Int.comparator_witness) Set.t
-  
+
   (** Applies a substitution to a scheme. *)
   val apply : Subst.t -> t -> t
 end
 
 module TypeEnv : sig
   type t = (identifier, scheme, String.comparator_witness) Map.t
-  
+
   val extend : t -> identifier -> scheme -> t
   val empty : t
-  
+
   (** Extracts type variables from an environment. *)
   val unpack_vars : t -> (type_variable_number, Int.comparator_witness) Set.t
-  
+
   (** Applies a substitution to an environment. *)
   val apply : Subst.t -> t -> t
+
   val find_exn : identifier -> t -> scheme
 end
 
