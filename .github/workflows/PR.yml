@@ -150,7 +150,7 @@ jobs:
       - name: Running linter in ${{ env.latest }}...
         run: |
           mkdir -p ${{ env.latest }}/_build/default/_found_lints
-          cd ${{ env.latest }} && opam exec -- zanuda -no-mutable_hashtables -dir . -add-prefix ${{ env.latest }}/ -ordjsonl ${{ env.RDJSON_FILE_PATH }} > ${{ env.ZANUDA_REPORT_FILE_PATH }}
+          cd ${{ env.latest }} && opam exec -- zanuda -no-mutable_hashtables -no-no_toplevel_eval -dir . -add-prefix ${{ env.latest }}/ -ordjsonl ${{ env.RDJSON_FILE_PATH }} > ${{ env.ZANUDA_REPORT_FILE_PATH }}
 
       - run: cat ${{ env.latest }}/${{ env.RDJSON_FILE_PATH }}
 
