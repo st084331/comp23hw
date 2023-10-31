@@ -7,6 +7,5 @@
     it prints the inferred types for each declaration.
     If a type error is detected, it prints an error message indicating the location of the error.
     If the code cannot be parsed, it prints "Parse error".
-    @param code The input code as a string.
-*)
+    @param code The input code as a string. *)
 val inference : unit -> string -> unit
