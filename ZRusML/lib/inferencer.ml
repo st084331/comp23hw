@@ -138,7 +138,7 @@ end = struct
 
   let rec unify l r =
     match l, r with
-    | TGround l, TGround r when l == r -> return empty
+    | TGround l, TGround r when phys_equal l r -> return empty
     | TGround _, TGround _ -> fail @@ `UnificationFailed (l, r)
     | TVar a, TVar b when a = b -> return empty
     | TVar b, t | t, TVar b -> singleton b t
