@@ -5,6 +5,6 @@
 open ZRusML_lib.Code_inferencer
 
 let _ =
-  let prog = Stdio.In_channel.input_all Caml.stdin in
+  let prog = Stdio.In_channel.input_all Stdlib.stdin in
   Format.printf "%a_______\n" inference prog
 ;;
