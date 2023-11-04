@@ -11,6 +11,6 @@
   Anf
   Compare)
  (inline_tests)
- (libraries base angstrom core)
+ (libraries base angstrom core ounit2)
  (preprocess
   (pps ppx_expect ppx_deriving.show ppx_deriving.eq)))
