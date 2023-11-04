@@ -1,7 +1,15 @@
 (library
  (name ZRusML_lib)
  (public_name ZRusML.lib)
- (modules Ast Parser Parser_test Code_inferencer Typing Inferencer)
+ (modules
+  Ast
+  Parser
+  Parser_test
+  Code_inferencer
+  Typing
+  Inferencer
+  Anf
+  Compare)
  (inline_tests)
  (libraries base angstrom core)
  (preprocess
