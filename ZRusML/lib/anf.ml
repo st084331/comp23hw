@@ -63,9 +63,3 @@ and bindings_to_anf bindings =
     bindings
     (EVar (fresh_var ()), [])
 ;;
-
-let example_exp =
-  ELet ([ false, PtVar "x", EBinOp (Add, EConst (CInt 1), EConst (CInt 2)) ], EVar "x")
-;;
-
-let anf_exp, anf_lets = exp_to_anf example_exp
