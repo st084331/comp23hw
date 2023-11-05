@@ -4,7 +4,7 @@
 
 open Ast
 
-(** Ast without anonymous functions, arguments are listed *)
+(** Ast without anonymous functions, arguments are listed, the recursiveness of nested binding has been removed, since it makes no sense to store it for a variable *)
 
 type llexpr =
   | LLConst of const (** constants such as integers, boolean, unit*)
@@ -13,7 +13,7 @@ type llexpr =
   | LLVar of id (** identifier for variables *)
   | LLIf of llexpr * llexpr * llexpr (** conditionals *)
   | LLApp of llexpr * llexpr (** applying a function to an argument *)
-  | LLLetIn of bool * id * llexpr * llexpr (** binding to a variable *)
+  | LLLetIn of id * llexpr * llexpr (** binding to a variable *)
 
 type llbinding =
   | LLLet of bool * id * pattern list * llexpr (** binding to a function with arguments *)
