@@ -652,6 +652,43 @@ let%expect_test _ =
       ] |}]
 ;;
 
+let%expect_test _ =
+  show_parsed_result
+    "let fack1 k n m = k (n * m);; let rec fack n k = if n <= 1 then k 1 else fack (n-1) \
+     (fack1 k n);; let id x = x;; let fac n = fack n id"
+    pprogram
+    show_program;
+  [%expect
+    {|
+    [(ELet (false, "fack1",
+        (EFun ((PVar "k"),
+           (EFun ((PVar "n"),
+              (EFun ((PVar "m"),
+                 (EApp ((EVar "k"), (EBinOp (Mul, (EVar "n"), (EVar "m")))))))
+              ))
+           ))
+        ));
+      (ELet (true, "fack",
+         (EFun ((PVar "n"),
+            (EFun ((PVar "k"),
+               (EIf ((EBinOp (Leq, (EVar "n"), (EConst (CInt 1)))),
+                  (EApp ((EVar "k"), (EConst (CInt 1)))),
+                  (EApp (
+                     (EApp ((EVar "fack"),
+                        (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
+                     (EApp ((EApp ((EVar "fack1"), (EVar "k"))), (EVar "n")))))
+                  ))
+               ))
+            ))
+         ));
+      (ELet (false, "id", (EFun ((PVar "x"), (EVar "x")))));
+      (ELet (false, "fac",
+         (EFun ((PVar "n"),
+            (EApp ((EApp ((EVar "fack"), (EVar "n"))), (EVar "id")))))
+         ))
+      ] |}]
+;;
+
 (**  Let in and let rec in *)
 
 let%expect_test _ =

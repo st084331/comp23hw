@@ -14,9 +14,11 @@ type llexpr =
   | LLIf of llexpr * llexpr * llexpr (** conditionals *)
   | LLApp of llexpr * llexpr (** applying a function to an argument *)
   | LLLetIn of id * llexpr * llexpr (** binding to a variable *)
+[@@deriving show { with_path = false }]
 
-type llbinding =
-  | LLLet of bool * id * pattern list * llexpr (** binding to a function with arguments *)
+(** binding to a function with arguments *)
+type llbinding = LLLet of bool * id * pattern list * llexpr
+[@@deriving show { with_path = false }]
 
 (** type containing functions at the top level *)
-type llprogram = llbinding list
+type llprogram = llbinding list [@@deriving show { with_path = false }]
