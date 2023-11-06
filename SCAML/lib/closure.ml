@@ -22,20 +22,20 @@ let closure_conversion decl =
     | EFun (x, _) as orig ->
       let s, e' = efun_helper orig in
       (match x with
-       | PVar st ->
+       | PVar _ ->
          let folded =
-           Set.fold
-             ~init:e'
-             ~f:(fun acc x ->
-               constr_eapp (constr_efun [ constr_pvar x ] acc) [ constr_evar st ])
-             s
+           Set.fold_right ~init:e' ~f:(fun x acc -> constr_efun [ constr_pvar x ] acc) s
          in
-         Set.empty (module String), folded
+         let folded2 =
+           Set.fold ~init:folded ~f:(fun acc x -> constr_eapp acc [ constr_evar x ]) s
+         in
+         Set.empty (module String), folded2
        | _ -> Set.empty (module String), e')
     | ELetIn (b, x, e1, e2) ->
-      let s1, e1' = expr_closure e1 in
+      let s1, e1' = efun_helper e1 in
       let s2, e2' = expr_closure e2 in
-      Set.union s1 (Set.remove s2 x), constr_eletin b x e1' e2'
+      let s1' = if b then Set.remove s1 x else s1 in
+      Set.union s1' (Set.remove s2 x), constr_eletin b x e1' e2'
   and efun_helper = function
     | EFun (x, e) ->
       (match x with
@@ -62,7 +62,32 @@ let print_prog_result decl =
 
 let%expect_test _ =
   print_prog_result
-      (ELet (false, "fac",
+    (ELet
+       ( false
+       , "fac"
+       , EFun
+           ( PVar "n"
+           , ELetIn
+               ( true
+               , "fack"
+               , EFun
+                   ( PVar "n"
+                   , EFun
+                       ( PVar "k"
+                       , EIf
+                           ( EBinOp (Leq, EVar "n", EConst (CInt 1))
+                           , EApp (EVar "k", EConst (CInt 1))
+                           , EApp
+                               ( EApp
+                                   (EVar "fack", EBinOp (Sub, EVar "n", EConst (CInt 1)))
+                               , EFun
+                                   ( PVar "m"
+                                   , EApp (EVar "k", EBinOp (Mul, EVar "m", EVar "n")) )
+                               ) ) ) )
+               , EApp (EApp (EVar "fack", EVar "n"), EFun (PVar "x", EVar "x")) ) ) ));
+  [%expect
+    {|
+      [(ELet (false, "fac",
           (EFun ((PVar "n"),
              (ELetIn (true, "fack",
                 (EFun ((PVar "n"),
@@ -72,61 +97,60 @@ let%expect_test _ =
                          (EApp (
                             (EApp ((EVar "fack"),
                                (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
-                            (EFun ((PVar "m"),
-                               (EApp ((EVar "k"),
-                                  (EBinOp (Mul, (EVar "m"), (EVar "n")))))
-                               ))
+                            (EApp (
+                               (EApp (
+                                  (EFun ((PVar "k"),
+                                     (EFun ((PVar "n"),
+                                        (EFun ((PVar "m"),
+                                           (EApp ((EVar "k"),
+                                              (EBinOp (Mul, (EVar "m"), (EVar "n")
+                                                 ))
+                                              ))
+                                           ))
+                                        ))
+                                     )),
+                                  (EVar "k"))),
+                               (EVar "n")))
                             ))
                          ))
-                     ))
+                      ))
                    )),
                 (EApp ((EApp ((EVar "fack"), (EVar "n"))),
                    (EFun ((PVar "x"), (EVar "x")))))
                 ))
              ))
           ))
-  ;
-[%expect {|
-    [(ELet (false, "fac",
-        (EFun ((PVar "n"),
-           (ELetIn (true, "fack",
-              (EApp (
-                 (EFun ((PVar "fack"),
-                    (EFun ((PVar "n"),
-                       (EFun ((PVar "k"),
-                          (EIf ((EBinOp (Leq, (EVar "n"), (EConst (CInt 1)))),
-                             (EApp ((EVar "k"), (EConst (CInt 1)))),
-                             (EApp (
-                                (EApp ((EVar "fack"),
-                                   (EBinOp (Sub, (EVar "n"), (EConst (CInt 1))))
-                                   )),
-                                (EApp (
-                                   (EFun ((PVar "n"),
-                                      (EApp (
-                                         (EFun ((PVar "k"),
-                                            (EFun ((PVar "m"),
-                                               (EApp ((EVar "k"),
-                                                  (EBinOp (Mul, (EVar "m"),
-                                                     (EVar "n")))
-                                                  ))
-                                               ))
-                                            )),
-                                         (EVar "m")))
-                                      )),
-                                   (EVar "m")))
-                                ))
-                             ))
-                          ))
-                       ))
-                    )),
-                 (EVar "n"))),
-              (EApp ((EApp ((EVar "fack"), (EVar "n"))),
-                 (EFun ((PVar "x"), (EVar "x")))))
-              ))
-           ))
-        ))
-      ] |}]
+        ] |}]
 ;;
+(* 
+let%expect_test _ =
+  print_prog_result
+    (ELet
+       ( false
+       , "a"
+       , EFun
+           ( PVar "c"
+           , ELetIn
+               ( false
+               , "k"
+               , EFun (PVar "m", EBinOp (Add, EVar "m", EVar "c"))
+               , EApp (EVar "k", EConst (CInt 5)) ) ) ));
+  [%expect
+    {|
+      [(ELet (false, "a",
+          (EFun ((PVar "c"),
+             (ELetIn (false, "k",
+                (EFun ((PVar "m"),
+                   (EApp (
+                      (EFun ((PVar "c"), (EBinOp (Add, (EVar "m"), (EVar "c"))))),
+                      (EVar "c")))
+                   )),
+                (EApp ((EVar "k"), (EConst (CInt 5))))))
+             ))
+          ))
+        ]
+     |}]
+;; *)
 
 (* let fac n =
    let rec fack n k =
@@ -144,3 +168,9 @@ let%expect_test _ =
    let fack1 k m = k (m * n) in
    let rec fack n k = if n <= 1 then k 1 else fack (n - 1) (fack1 k ) in
    fack n (fun x -> x);; *)
+
+let a c d =
+  let m = c + d in
+  let k l = l + m in
+  k (5 + m)
+;;
