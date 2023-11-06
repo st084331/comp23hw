@@ -4,11 +4,5 @@
  (public_name inferencer_test)
  (libraries ZRusML.lib stdio stdlib))
 
-(executable
- (name anf_test)
- (modules anf_test)
- (public_name anf_test)
- (libraries ZRusML.lib stdio ounit2))
-
 (cram
  (deps ./inferencer_test.exe))
