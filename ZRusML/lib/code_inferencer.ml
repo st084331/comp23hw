@@ -6,8 +6,7 @@ open Ast
 open Inferencer
 open Typing
 
-let rec find x lst =
-  match lst with
+let rec find x = function
   | [] -> 0
   | h :: t -> if x = h then 1 else 1 + find x t
 ;;
