@@ -5,6 +5,7 @@
 open Ast
 
 let counter = ref 0
+let reset_counter () = counter := 0
 
 let fresh_var () =
   let var = "v" ^ string_of_int !counter in
@@ -18,11 +19,8 @@ let rec exp_to_anf exp =
   | EConst _ | EVar _ -> exp, []
   | EUnOp (op, e) ->
     let e_anf, e_lets = exp_to_anf e in
-    (match e_anf with
-     | EVar _ | EConst _ -> EUnOp (op, e_anf), e_lets
-     | _ ->
-       let var = fresh_var () in
-       EVar var, e_lets @ [ false, PtVar var, EUnOp (op, e_anf) ])
+    let var = fresh_var () in
+    EVar var, e_lets @ [ false, PtVar var, EUnOp (op, e_anf) ]
   | EBinOp (op, e1, e2) ->
     let e1_anf, e1_lets = exp_to_anf e1 in
     let e2_anf, e2_lets = exp_to_anf e2 in
