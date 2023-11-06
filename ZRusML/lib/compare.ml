@@ -62,15 +62,16 @@ and print_un_op op =
 let rec print_pt pt =
   match pt with
   | PtWild -> "_"
-  | PtVar v -> v
+  | PtVar v -> Printf.sprintf "PtVar(%s)" v
   | PtConst c -> print_const c
 
 and print_const c =
   match c with
   | CInt i -> Printf.sprintf "CInt(%d)" i
   | CBool b -> Printf.sprintf "CBool(%b)" b
+;;
 
-and print_exp exp =
+let rec print_exp exp =
   match exp with
   | EConst c -> print_const c
   | EVar v -> Printf.sprintf "EVar(%s)" v
@@ -80,31 +81,19 @@ and print_exp exp =
   | EIf (e1, e2, e3) ->
     Printf.sprintf "EIf(%s, %s, %s)" (print_exp e1) (print_exp e2) (print_exp e3)
   | ELet (bindings, e) ->
-    Printf.sprintf "ELet(%s, %s)" (print_bindings bindings) (print_exp e)
+    Printf.sprintf
+      "ELet(%s, %s)"
+      (String.concat ", " (List.map print_let bindings))
+      (print_exp e)
   | EFun (pt, e) -> Printf.sprintf "EFun(%s, %s)" (print_pt pt) (print_exp e)
   | EApp (e1, e2) -> Printf.sprintf "EApp(%s, %s)" (print_exp e1) (print_exp e2)
+
+and print_let (is_rec, pt, exp) =
+  Printf.sprintf "(%b, %s, %s)" is_rec (print_pt pt) (print_exp exp)
 
 and print_bindings bindings =
   let print_binding (b, pt, e) =
     Printf.sprintf "(%b, %s, %s)" b (print_pt pt) (print_exp e)
   in
   "[" ^ String.concat "; " (List.map print_binding bindings) ^ "]"
-;;
-
-let assert_equal
-  (expected : exp * (bool * pt * exp) list)
-  (actual : exp * (bool * pt * exp) list)
-  =
-  let exp_expected, lets_expected = expected in
-  let exp_actual, lets_actual = actual in
-  if compare_exp exp_expected exp_actual && compare_bindings lets_expected lets_actual
-  then print_endline "Test passed."
-  else (
-    let msg =
-      Printf.sprintf
-        "Expected expression:\n%s\nBut got:\n%s"
-        (print_exp exp_expected)
-        (print_exp exp_actual)
-    in
-    failwith msg)
 ;;
