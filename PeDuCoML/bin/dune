@@ -1,6 +1,6 @@
 (executable
+ (public_name PeDuCoML)
  (name main)
- (public_name main)
- (libraries CreeperML)
+ (libraries PeDuCoML)
  (instrumentation
   (backend bisect_ppx)))

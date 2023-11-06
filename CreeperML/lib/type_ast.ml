@@ -5,12 +5,9 @@
 module InferType = struct
   open Parser_ast.ParserAst
 
-  type lvl = int [@@deriving show { with_path = false }]
+  type lvl = int
 
-  type ground_typ = TInt | TString | TBool | TUnit | TFloat
-  [@@deriving show { with_path = false }]
-
-  type 'a lvls = { value : 'a; mutable old_lvl : lvl; mutable new_lvl : lvl }
+  and ground_typ = TInt | TString | TBool | TUnit | TFloat
   [@@deriving show { with_path = false }]
 
   type ty =
@@ -19,8 +16,9 @@ module InferType = struct
     | TGround of ground_typ
     | TVar of tv ref
 
-  and typ = ty lvls [@@deriving show { with_path = false }]
   and tv = Unbound of name * lvl | Link of typ
+  and 'a lvls = { value : 'a; mutable old_lvl : lvl; mutable new_lvl : lvl }
+  and typ = ty lvls [@@deriving show { with_path = false }]
 
   type env = (name * typ) list [@@deriving show { with_path = false }]
 end
@@ -33,7 +31,6 @@ module InferTypeUtils = struct
   let t_string = TString
   let t_bool = TBool
   let t_unit = TUnit
-  let t_float = TFloat
   let t_arrow t1 t2 = TArrow (t1, t2)
   let t_tuple ts = TTuple ts
   let t_ground t = TGround t
@@ -76,9 +73,8 @@ module TypeAst = struct
     | TyTuple of ty list
     | TyGround of ground_typ
     | TyVar of name
-  [@@deriving show { with_path = false }]
 
-  type ('a, 'b) typed = { value : 'a; typ : 'b }
+  and ('a, 'b) typed = { value : 'a; typ : 'b }
   [@@deriving show { with_path = false }]
 
   type 'ty typ_lvalue = (lvalue, 'ty) typed
@@ -116,17 +112,6 @@ module TypeAst = struct
 
   type 'ty typ_program = 'ty typ_let_binding list
   [@@deriving show { with_path = false }]
-
-  let rec show_ty = function
-    | TyArrow (x, y) -> Format.sprintf "%s -> %s" (show_ty x) (show_ty y)
-    | TyGround TInt -> "int"
-    | TyGround TString -> "string"
-    | TyGround TBool -> "bool"
-    | TyGround TUnit -> "()"
-    | TyGround TFloat -> "float"
-    | TyTuple xs ->
-        List.map show_ty xs |> String.concat ", " |> Format.sprintf "(%s)"
-    | TyVar n -> Format.sprintf "'%s" n
 end
 
 module TypeAstUtils = struct

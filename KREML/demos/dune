@@ -6,14 +6,5 @@
   (backend bisect_ppx))
  (libraries KREML_lib stdio))
 
-(executable
- (name demoAnf)
- (public_name demoAnf)
- (modules DemoAnf)
- (instrumentation
-  (backend bisect_ppx))
- (libraries KREML_lib stdio))
-
-
 (cram
- (deps ./demoInfer.exe ./demoAnf.exe))
+ (deps ./demoInfer.exe))
