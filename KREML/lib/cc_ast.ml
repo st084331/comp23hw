@@ -1,7 +1,7 @@
 open Ast
 
 (** Simplified ast representation which is the result of closure conversion stage.
-    The only difference is that there's 1 binding in let_in expr, not a list*)
+    The only difference is that there's 1 binding in let_in expr, not a list *)
 
 type cc_expr =
   | CLiteral of literal
