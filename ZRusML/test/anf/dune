@@ -2,9 +2,7 @@
  (name anf_test)
  (modules anf_test)
  (public_name anf_test)
- (libraries ZRusML.lib stdio ounit2)
- (preprocess
-  (pps bisect_ppx)))
+ (libraries ZRusML.lib stdio ounit2))
 
 (cram
  (deps ./anf_test.exe))
