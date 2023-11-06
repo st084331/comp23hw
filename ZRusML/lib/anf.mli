@@ -16,3 +16,6 @@ val exp_to_anf : exp -> exp * (bool * pt * exp) list
 (* Transform a list of bindings into ANF,
    returning the transformed bindings along with any necessary let-bindings. *)
 val bindings_to_anf : binding list -> exp * (bool * pt * exp) list
+
+(** Resets the counter used for generating fresh variables. *)
+val reset_counter : unit -> unit
