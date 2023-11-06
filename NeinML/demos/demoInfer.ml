@@ -1,4 +1,4 @@
-(** Copyright 2023-2024, Mikhail Vyrodov and Vyacheslav Buchin *)
+(** Copyright 2023-2024, Mikhail Vyrodov *)
 
 (** SPDX-License-Identifier: LGPL-3.0-or-later *)
 
