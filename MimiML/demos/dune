@@ -1,8 +1,0 @@
-(executable
- (name demoTypeChecker)
- (modules demoTypeChecker)
- (public_name demoTypeChecker)
- (libraries MimiML_lib stdio))
-
-(cram
- (deps ./demoTypeChecker.exe))
