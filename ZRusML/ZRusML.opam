@@ -18,6 +18,7 @@ depends: [
   "ppx_assert"
   "bisect_ppx"
   "ppx_deriving"
+  "bisect_ppx"
   "odoc" {with-doc}
   "ocamlformat" {build}
   "base"
