@@ -20,3 +20,15 @@
   fack : int -> (int -> 'm) -> 'm
   id : 'n -> 'n
   fac : int -> int
+  $ ./inferencerTests.exe <<-EOF
+  > let id x = x
+  > let sum x y = x + y
+  > let cont_maker helper_ctx n x = helper_ctx (n - 2) (sum x)
+  > let rec helper n cont = if n < 3 then cont 1 else cont (helper (n - 1) (cont_maker helper n))
+  > let fib_cps n = helper n id
+  > EOF
+  id : 'a -> 'a
+  sum : int -> int -> int
+  cont_maker : (int -> (int -> int) -> 'i) -> int -> int -> 'i
+  helper : int -> (int -> int) -> int
+  fib_cps : int -> int

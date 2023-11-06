@@ -689,6 +689,60 @@ let%expect_test _ =
       ] |}]
 ;;
 
+let%expect_test _ =
+  show_parsed_result
+    "let id x = x;;\n\
+    \     let sum x y = x + y;;\n\
+    \     let cont_maker helper_ctx n x = helper_ctx (n - 2) (sum x);;\n\n\
+    \     let rec helper n cont =\n\
+    \     if n < 3 then cont 1 else cont (helper (n - 1) (cont_maker helper n))\n\
+    \     ;;\n\n\
+    \     let fib_cps n = helper n id"
+    pprogram
+    show_program;
+  [%expect
+    {|
+    [(ELet (false, "id", (EFun ((PVar "x"), (EVar "x")))));
+      (ELet (false, "sum",
+         (EFun ((PVar "x"),
+            (EFun ((PVar "y"), (EBinOp (Add, (EVar "x"), (EVar "y")))))))
+         ));
+      (ELet (false, "cont_maker",
+         (EFun ((PVar "helper_ctx"),
+            (EFun ((PVar "n"),
+               (EFun ((PVar "x"),
+                  (EApp (
+                     (EApp ((EVar "helper_ctx"),
+                        (EBinOp (Sub, (EVar "n"), (EConst (CInt 2)))))),
+                     (EApp ((EVar "sum"), (EVar "x")))))
+                  ))
+               ))
+            ))
+         ));
+      (ELet (true, "helper",
+         (EFun ((PVar "n"),
+            (EFun ((PVar "cont"),
+               (EIf ((EBinOp (Less, (EVar "n"), (EConst (CInt 3)))),
+                  (EApp ((EVar "cont"), (EConst (CInt 1)))),
+                  (EApp ((EVar "cont"),
+                     (EApp (
+                        (EApp ((EVar "helper"),
+                           (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
+                        (EApp ((EApp ((EVar "cont_maker"), (EVar "helper"))),
+                           (EVar "n")))
+                        ))
+                     ))
+                  ))
+               ))
+            ))
+         ));
+      (ELet (false, "fib_cps",
+         (EFun ((PVar "n"),
+            (EApp ((EApp ((EVar "helper"), (EVar "n"))), (EVar "id")))))
+         ))
+      ] |}]
+;;
+
 (**  Let in and let rec in *)
 
 let%expect_test _ =

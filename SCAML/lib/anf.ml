@@ -5,6 +5,7 @@
 open RestrictedAst
 open Llast
 open Ast
+open AnfPrinter
 
 (** Counter *)
 let count = ref 0
@@ -35,7 +36,7 @@ let rec anf_expr (e : llexpr) (expr_with_imm_hole : immexpr -> aexpr) : aexpr =
   | LLConst c -> expr_with_imm_hole @@ conv_const c
   | LLVar id -> expr_with_imm_hole @@ ImmId id
   | LLBinOp (op, left, right) ->
-    let varname = gen_var "result_of_bin_op" in
+    let varname = gen_var "b_op" in
     anf_expr left (fun limm ->
       anf_expr right (fun rimm ->
         ALetIn (varname, CBinOp (op, limm, rimm), expr_with_imm_hole @@ ImmId varname)))
@@ -45,7 +46,7 @@ let rec anf_expr (e : llexpr) (expr_with_imm_hole : immexpr -> aexpr) : aexpr =
         anf_expr e (fun eimm ->
           AIf (expr_with_imm_hole cimm, expr_with_imm_hole timm, expr_with_imm_hole eimm))))
   | LLApp (f, arg) ->
-    let varname = gen_var "result_of_app" in
+    let varname = gen_var "app" in
     anf_expr f (fun fimm ->
       anf_expr arg (fun argimm ->
         ALetIn (varname, CApp (fimm, argimm), expr_with_imm_hole @@ ImmId varname)))
@@ -64,29 +65,26 @@ let anf_program (binds : llbinding list) = List.map anf_binding binds
 
 let print_anf_prog llbinds =
   let res = anf_program llbinds in
-  Format.printf "%s" (show_prexpr res)
+  Format.printf "%a" pp_prexpr res
 ;;
 
 let print_anf_bind llbind =
   let res = anf_binding llbind in
-  Format.printf "%s" (show_bexpr res)
+  Format.printf "%a" pp_bexpr res
 ;;
 
 let print_anf_expr llexpr =
   let res = anf_expr llexpr (fun ie -> ACExpr (CImmExpr ie)) in
-  Format.printf "%s" (show_aexpr res)
+  Format.printf "%a" pp_aexpr res
 ;;
 
 let%expect_test _ =
   print_anf_expr
   @@ LLBinOp (Sub, LLBinOp (Add, LLConst (CInt 5), LLConst (CInt 4)), LLConst (CInt 2));
-  [%expect
-    {|
-    (ALetIn ("1_result_of_bin_op", (CBinOp (Add, (ImmNum 5), (ImmNum 4))),
-       (ALetIn ("0_result_of_bin_op",
-          (CBinOp (Sub, (ImmId "1_result_of_bin_op"), (ImmNum 2))),
-          (ACExpr (CImmExpr (ImmId "0_result_of_bin_op")))))
-       )) |}]
+  [%expect {|
+    let 1_b_op = 5 + 4 in
+     let 0_b_op = 1_b_op - 2 in
+     0_b_op |}]
 ;;
 
 let%expect_test _ =
@@ -97,14 +95,10 @@ let%expect_test _ =
        , LLConst (CInt 2) );
   [%expect
     {|
-    (ALetIn ("4_result_of_bin_op", (CBinOp (Sub, (ImmNum 4), (ImmNum 3))),
-       (ALetIn ("3_result_of_bin_op",
-          (CBinOp (Add, (ImmNum 5), (ImmId "4_result_of_bin_op"))),
-          (ALetIn ("2_result_of_bin_op",
-             (CBinOp (Add, (ImmId "3_result_of_bin_op"), (ImmNum 2))),
-             (ACExpr (CImmExpr (ImmId "2_result_of_bin_op")))))
-          ))
-       )) |}]
+    let 4_b_op = 4 - 3 in
+     let 3_b_op = 5 + 4_b_op in
+     let 2_b_op = 3_b_op + 2 in
+     2_b_op |}]
 ;;
 
 let%expect_test _ =
@@ -115,14 +109,10 @@ let%expect_test _ =
        , LLBinOp (Add, LLConst (CInt 3), LLConst (CInt 2)) );
   [%expect
     {|
-    (ALetIn ("6_result_of_bin_op", (CBinOp (Add, (ImmNum 5), (ImmNum 4))),
-       (ALetIn ("7_result_of_bin_op", (CBinOp (Add, (ImmNum 3), (ImmNum 2))),
-          (ALetIn ("5_result_of_bin_op",
-             (CBinOp (Add, (ImmId "6_result_of_bin_op"),
-                (ImmId "7_result_of_bin_op"))),
-             (ACExpr (CImmExpr (ImmId "5_result_of_bin_op")))))
-          ))
-       )) |}]
+    let 6_b_op = 5 + 4 in
+     let 7_b_op = 3 + 2 in
+     let 5_b_op = 6_b_op + 7_b_op in
+     5_b_op |}]
 ;;
 
 let%expect_test _ =
@@ -154,48 +144,84 @@ let%expect_test _ =
      ];
   [%expect
     {|
-    [(ALet (false, "fack1",
-        [(PImmExpr (ImmId "k")); (PImmExpr (ImmId "n")); (PImmExpr (ImmId "m"))],
-        (ALetIn ("9_result_of_bin_op", (CBinOp (Mul, (ImmId "n"), (ImmId "m"))),
-           (ALetIn ("8_result_of_app",
-              (CApp ((ImmId "k"), (ImmId "9_result_of_bin_op"))),
-              (ACExpr (CImmExpr (ImmId "8_result_of_app")))))
-           ))
-        ));
-      (ALet (true, "fack", [(PImmExpr (ImmId "n")); (PImmExpr (ImmId "k"))],
-         (ALetIn ("10_result_of_bin_op", (CBinOp (Leq, (ImmId "n"), (ImmNum 1))),
-            (ALetIn ("11_result_of_app", (CApp ((ImmId "k"), (ImmNum 1))),
-               (ALetIn ("14_result_of_bin_op",
-                  (CBinOp (Sub, (ImmId "n"), (ImmNum 1))),
-                  (ALetIn ("13_result_of_app",
-                     (CApp ((ImmId "fack"), (ImmId "14_result_of_bin_op"))),
-                     (ALetIn ("16_result_of_app",
-                        (CApp ((ImmId "fack1"), (ImmId "k"))),
-                        (ALetIn ("15_result_of_app",
-                           (CApp ((ImmId "16_result_of_app"), (ImmId "n"))),
-                           (ALetIn ("12_result_of_app",
-                              (CApp ((ImmId "13_result_of_app"),
-                                 (ImmId "15_result_of_app"))),
-                              (AIf (
-                                 (ACExpr (CImmExpr (ImmId "10_result_of_bin_op"))),
-                                 (ACExpr (CImmExpr (ImmId "11_result_of_app"))),
-                                 (ACExpr (CImmExpr (ImmId "12_result_of_app")))))
-                              ))
-                           ))
-                        ))
-                     ))
-                  ))
-               ))
-            ))
-         ));
-      (ALet (false, "id", [(PImmExpr (ImmId "x"))],
-         (ACExpr (CImmExpr (ImmId "x")))));
-      (ALet (false, "fac", [(PImmExpr (ImmId "n"))],
-         (ALetIn ("18_result_of_app", (CApp ((ImmId "fack"), (ImmId "n"))),
-            (ALetIn ("17_result_of_app",
-               (CApp ((ImmId "18_result_of_app"), (ImmId "id"))),
-               (ACExpr (CImmExpr (ImmId "17_result_of_app")))))
-            ))
-         ))
-      ] |}]
+    let fack1 k n m = let 9_b_op = n * m in
+     let 8_app = k 9_b_op in
+     8_app;;
+    let rec fack n k = let 10_b_op = n <= 1 in
+     let 11_app = k 1 in
+     let 14_b_op = n - 1 in
+     let 13_app = fack 14_b_op in
+     let 16_app = fack1 k in
+     let 15_app = 16_app n in
+     let 12_app = 13_app 15_app in
+     if 10_b_op then 11_app else 12_app;;
+    let id x = x;;
+    let fac n = let 18_app = fack n in
+     let 17_app = 18_app id in
+     17_app |}]
+;;
+
+let%expect_test _ =
+  (*
+     let id x = x
+     let sum x y = x + y
+     let cont_maker helper_ctx n x = helper_ctx (n - 2) (sum x)
+
+     let rec helper n cont =
+     if n < 3 then cont 1 else cont (helper (n - 1) (cont_maker helper n))
+     ;;
+
+     let fib_cps n = helper n id
+  *)
+  print_anf_prog
+  @@ [ LLLet (false, "id", [ PVar "x" ], LLVar "x")
+     ; LLLet (false, "sum", [ PVar "x"; PVar "y" ], LLBinOp (Add, LLVar "x", LLVar "y"))
+     ; LLLet
+         ( false
+         , "cont_maker"
+         , [ PVar "helper_ctx"; PVar "n"; PVar "x" ]
+         , LLApp
+             ( LLApp (LLVar "helper_ctx", LLBinOp (Sub, LLVar "n", LLConst (CInt 2)))
+             , LLApp (LLVar "sum", LLVar "x") ) )
+     ; LLLet
+         ( true
+         , "helper"
+         , [ PVar "n"; PVar "cont" ]
+         , LLIf
+             ( LLBinOp (Less, LLVar "n", LLConst (CInt 3))
+             , LLApp (LLVar "cont", LLConst (CInt 1))
+             , LLApp
+                 ( LLVar "cont"
+                 , LLApp
+                     ( LLApp (LLVar "helper", LLBinOp (Sub, LLVar "n", LLConst (CInt 1)))
+                     , LLApp (LLApp (LLVar "cont_maker", LLVar "helper"), LLVar "n") ) )
+             ) )
+     ; LLLet
+         ( false
+         , "fib_cps"
+         , [ PVar "n" ]
+         , LLApp (LLApp (LLVar "helper", LLVar "n"), LLVar "id") )
+     ];
+  [%expect
+    {|
+    let id x = x;;
+    let sum x y = let 19_b_op = x + y in
+     19_b_op;;
+    let cont_maker helper_ctx n x = let 22_b_op = n - 2 in
+     let 21_app = helper_ctx 22_b_op in
+     let 23_app = sum x in
+     let 20_app = 21_app 23_app in
+     20_app;;
+    let rec helper n cont = let 24_b_op = n < 3 in
+     let 25_app = cont 1 in
+     let 29_b_op = n - 1 in
+     let 28_app = helper 29_b_op in
+     let 31_app = cont_maker helper in
+     let 30_app = 31_app n in
+     let 27_app = 28_app 30_app in
+     let 26_app = cont 27_app in
+     if 24_b_op then 25_app else 26_app;;
+    let fib_cps n = let 33_app = helper n in
+     let 32_app = 33_app id in
+     32_app |}]
 ;;
