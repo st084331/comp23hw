@@ -9,7 +9,8 @@
   Typing
   Inferencer
   Anf
-  Compare)
+  Compare
+  Closure_conversion)
  (inline_tests)
  (libraries base angstrom core)
  (preprocess
