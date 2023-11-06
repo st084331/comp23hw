@@ -11,7 +11,6 @@ depends: [
   "dune" {>= "3.10"}
   "core"
   "angstrom"
-  "ounit2"
   "ppx_inline_test" {with-test}
   "qcheck-core"
   "ppx_expect"
