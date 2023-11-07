@@ -1,8 +1,9 @@
-(executable
+(library
  (name inferencer_test)
  (modules inferencer_test)
- (public_name inferencer_test)
- (libraries ZRusML.lib stdio stdlib))
-
-(cram
- (deps ./inferencer_test.exe))
+ (libraries ZRusML.lib core)
+ (inline_tests)
+ (preprocess
+  (pps ppx_inline_test ppx_assert ppx_expect))
+ (instrumentation
+  (backend bisect_ppx)))
