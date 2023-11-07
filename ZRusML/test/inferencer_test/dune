@@ -4,6 +4,6 @@
  (libraries ZRusML.lib core)
  (inline_tests)
  (preprocess
-  (pps ppx_inline_test ppx_assert ppx_expect))
+  (pps ppx_inline_test ppx_assert ppx_expect bisect_ppx))
  (instrumentation
   (backend bisect_ppx)))
