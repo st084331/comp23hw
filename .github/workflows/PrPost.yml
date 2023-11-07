@@ -77,7 +77,6 @@ jobs:
           mkdir -p lints
           cp lints.rdjsonl lints/${{ env.LINTS_NAME }}
 
-
       - name: Deploy found lints
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -158,6 +157,49 @@ jobs:
       - name: manual adding of a comment from text.md
         run: opam exec -- ocaml .github/add_comment.ml -file text.md -token ${{ secrets.CLASSIC_TOKEN }} -issue ${{ env.CI_PULL_REQUEST }}
 
+      - shell: bash
+        run: echo "LINTER_RESOLUTION=$(bash .github/check_rdjson.sh lints.rdjsonl)" >> $GITHUB_ENV
+
+      - name: Tag PR as FEW linter complains
+        if: ${{ env.LINTER_RESOLUTION == 'FEW' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.addLabels({
+              issue_number: ${{ env.CI_PULL_REQUEST }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ["FEW"]
+            })
+            github.rest.issues.deleteLabel({
+              issue_number: ${{ env.CI_PULL_REQUEST }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ["TOOMANY"]
+            })
+
+      - name: Tag PR as TOOMANY linter complains
+        if: ${{ env.LINTER_RESOLUTION == 'TOOMANY' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.addLabels({
+              issue_number: ${{ env.CI_PULL_REQUEST }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ["TOOMANY"]
+            })
+            github.rest.issues.deleteLabel({
+              issue_number: ${{ env.CI_PULL_REQUEST }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ["FEW"]
+            })
+
+      # TODO: remove BUG labels too
+      - name: Tag PR as TOOMANY linter complains
+        if: ${{ env.LINTER_RESOLUTION == 'BUG' }}
+        run: echo BUG
 
   ###################################################################################################
   upload_docs:
