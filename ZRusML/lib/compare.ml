@@ -4,40 +4,6 @@
 
 open Ast
 
-(* Define a comparison function for expressions *)
-let rec compare_exp e1 e2 =
-  match e1, e2 with
-  | EConst c1, EConst c2 -> c1 = c2
-  | EVar v1, EVar v2 -> v1 = v2
-  | EUnOp (op1, exp1), EUnOp (op2, exp2) -> op1 = op2 && compare_exp exp1 exp2
-  | EBinOp (op1, exp1a, exp1b), EBinOp (op2, exp2a, exp2b) ->
-    op1 = op2 && compare_exp exp1a exp2a && compare_exp exp1b exp2b
-  | EIf (exp1a, exp1b, exp1c), EIf (exp2a, exp2b, exp2c) ->
-    compare_exp exp1a exp2a && compare_exp exp1b exp2b && compare_exp exp1c exp2c
-  | ELet (binds1, exp1), ELet (binds2, exp2) ->
-    compare_bindings binds1 binds2 && compare_exp exp1 exp2
-  | EFun (pt1, exp1), EFun (pt2, exp2) -> compare_pt pt1 pt2 && compare_exp exp1 exp2
-  | EApp (exp1a, exp1b), EApp (exp2a, exp2b) ->
-    compare_exp exp1a exp2a && compare_exp exp1b exp2b
-  | _, _ -> false
-
-(* Define a comparison function for patterns *)
-and compare_pt pt1 pt2 =
-  match pt1, pt2 with
-  | PtWild, PtWild -> true
-  | PtVar v1, PtVar v2 -> v1 = v2
-  | PtConst c1, PtConst c2 -> c1 = c2
-  | _, _ -> false
-
-(* Define a comparison function for bindings *)
-and compare_bindings b1 b2 =
-  List.length b1 = List.length b2
-  && List.for_all2
-       (fun (r1, p1, e1) (r2, p2, e2) -> r1 = r2 && compare_pt p1 p2 && compare_exp e1 e2)
-       b1
-       b2
-;;
-
 let print_bin_op op =
   match op with
   | And -> "And"
