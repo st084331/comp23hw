@@ -4,8 +4,7 @@
 
 open Ast
 
-let print_bin_op op =
-  match op with
+let print_bin_op = function
   | And -> "And"
   | Or -> "Or"
   | Less -> "Less"
@@ -19,26 +18,22 @@ let print_bin_op op =
   | Mul -> "Mul"
   | Div -> "Div"
 
-and print_un_op op =
-  match op with
+and print_un_op = function
   | Not -> "Not"
   | Minus -> "Minus"
 ;;
 
-let rec print_pt pt =
-  match pt with
+let rec print_pt = function
   | PtWild -> "_"
   | PtVar v -> Printf.sprintf "PtVar(%s)" v
   | PtConst c -> print_const c
 
-and print_const c =
-  match c with
+and print_const = function
   | CInt i -> Printf.sprintf "CInt(%d)" i
   | CBool b -> Printf.sprintf "CBool(%b)" b
 ;;
 
-let rec print_exp exp =
-  match exp with
+let rec print_exp = function
   | EConst c -> print_const c
   | EVar v -> Printf.sprintf "EVar(%s)" v
   | EUnOp (op, e) -> Printf.sprintf "EUnOp(%s, %s)" (print_un_op op) (print_exp e)
