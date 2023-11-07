@@ -22,13 +22,13 @@
   fac : int -> int
   $ ./inferencerTests.exe <<-EOF
   > let id x = x
-  > let sum x y = x + y
-  > let cont_maker helper_ctx n x = helper_ctx (n - 2) (sum x)
-  > let rec helper n cont = if n < 3 then cont 1 else cont (helper (n - 1) (cont_maker helper n))
-  > let fib_cps n = helper n id
+  > let acc1 acc x y = acc (x + y)
+  > let acc2 fib_func n acc x = fib_func (n - 2) (acc1 acc x)
+  > let rec fibo_cps n acc = if n < 3 then acc 1 else fibo_cps (n - 1) (acc2 fibo_cps n acc)
+  > let fibo n = fibo_cps n id
   > EOF
   id : 'a -> 'a
-  sum : int -> int -> int
-  cont_maker : (int -> (int -> int) -> 'i) -> int -> int -> 'i
-  helper : int -> (int -> int) -> int
-  fib_cps : int -> int
+  acc1 : (int -> 'e) -> int -> int -> 'e
+  acc2 : (int -> (int -> 'k) -> 'n) -> int -> (int -> 'k) -> int -> 'n
+  fibo_cps : int -> (int -> 'y) -> 'y
+  fibo : int -> int

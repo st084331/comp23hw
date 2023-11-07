@@ -692,53 +692,59 @@ let%expect_test _ =
 let%expect_test _ =
   show_parsed_result
     "let id x = x;;\n\
-    \     let sum x y = x + y;;\n\
-    \     let cont_maker helper_ctx n x = helper_ctx (n - 2) (sum x);;\n\n\
-    \     let rec helper n cont =\n\
-    \     if n < 3 then cont 1 else cont (helper (n - 1) (cont_maker helper n))\n\
-    \     ;;\n\n\
-    \     let fib_cps n = helper n id"
+    \     let acc1 acc x y = acc (x + y);;\n\
+    \     let acc2 fib_func n acc x = fib_func (n - 2) (acc1 acc x);;\n\
+    \     let rec fibo_cps n acc = if n < 3 then acc 1 else fibo_cps (n - 1) (acc2 \
+     fibo_cps n acc);;\n\
+    \     let fibo n = fibo_cps n id"
     pprogram
     show_program;
   [%expect
     {|
     [(ELet (false, "id", (EFun ((PVar "x"), (EVar "x")))));
-      (ELet (false, "sum",
-         (EFun ((PVar "x"),
-            (EFun ((PVar "y"), (EBinOp (Add, (EVar "x"), (EVar "y")))))))
-         ));
-      (ELet (false, "cont_maker",
-         (EFun ((PVar "helper_ctx"),
-            (EFun ((PVar "n"),
-               (EFun ((PVar "x"),
-                  (EApp (
-                     (EApp ((EVar "helper_ctx"),
-                        (EBinOp (Sub, (EVar "n"), (EConst (CInt 2)))))),
-                     (EApp ((EVar "sum"), (EVar "x")))))
-                  ))
+      (ELet (false, "acc1",
+         (EFun ((PVar "acc"),
+            (EFun ((PVar "x"),
+               (EFun ((PVar "y"),
+                  (EApp ((EVar "acc"), (EBinOp (Add, (EVar "x"), (EVar "y")))))))
                ))
             ))
          ));
-      (ELet (true, "helper",
-         (EFun ((PVar "n"),
-            (EFun ((PVar "cont"),
-               (EIf ((EBinOp (Less, (EVar "n"), (EConst (CInt 3)))),
-                  (EApp ((EVar "cont"), (EConst (CInt 1)))),
-                  (EApp ((EVar "cont"),
+      (ELet (false, "acc2",
+         (EFun ((PVar "fib_func"),
+            (EFun ((PVar "n"),
+               (EFun ((PVar "acc"),
+                  (EFun ((PVar "x"),
                      (EApp (
-                        (EApp ((EVar "helper"),
-                           (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
-                        (EApp ((EApp ((EVar "cont_maker"), (EVar "helper"))),
-                           (EVar "n")))
+                        (EApp ((EVar "fib_func"),
+                           (EBinOp (Sub, (EVar "n"), (EConst (CInt 2)))))),
+                        (EApp ((EApp ((EVar "acc1"), (EVar "acc"))), (EVar "x")))
                         ))
                      ))
                   ))
                ))
             ))
          ));
-      (ELet (false, "fib_cps",
+      (ELet (true, "fibo_cps",
          (EFun ((PVar "n"),
-            (EApp ((EApp ((EVar "helper"), (EVar "n"))), (EVar "id")))))
+            (EFun ((PVar "acc"),
+               (EIf ((EBinOp (Less, (EVar "n"), (EConst (CInt 3)))),
+                  (EApp ((EVar "acc"), (EConst (CInt 1)))),
+                  (EApp (
+                     (EApp ((EVar "fibo_cps"),
+                        (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
+                     (EApp (
+                        (EApp ((EApp ((EVar "acc2"), (EVar "fibo_cps"))),
+                           (EVar "n"))),
+                        (EVar "acc")))
+                     ))
+                  ))
+               ))
+            ))
+         ));
+      (ELet (false, "fibo",
+         (EFun ((PVar "n"),
+            (EApp ((EApp ((EVar "fibo_cps"), (EVar "n"))), (EVar "id")))))
          ))
       ] |}]
 ;;
