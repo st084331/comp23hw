@@ -58,3 +58,13 @@ and print_bindings bindings =
   in
   "[" ^ String.concat "; " (List.map print_binding bindings) ^ "]"
 ;;
+
+let rec print_prog prog =
+  String.concat
+    "\n"
+    (List.map
+       (function
+         | DLet (is_rec, pt, exp) ->
+           Printf.sprintf "DLet(%b, %s, %s)" is_rec (print_pt pt) (print_exp exp))
+       prog)
+;;
