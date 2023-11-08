@@ -52,14 +52,15 @@ let closure_conversion global_env decl =
       constr_eapp e1' [ e2' ]
     | EFun (x, _) as orig ->
       let s = free_vars orig in
+      let s' = Set.diff s global_env in 
       let e' = efun_helper local_env global_env orig in
       (match x with
        | PVar _ ->
          let fun_fold =
-           Set.fold_right ~init:e' ~f:(fun x acc -> constr_efun [ constr_pvar x ] acc) s
+           Set.fold_right ~init:e' ~f:(fun x acc -> constr_efun [ constr_pvar x ] acc) s'
          in
          let app_fold =
-           Set.fold ~init:fun_fold ~f:(fun acc x -> constr_eapp acc [ constr_evar x ]) s
+           Set.fold ~init:fun_fold ~f:(fun acc x -> constr_eapp acc [ constr_evar x ]) s'
          in
          app_fold
        | _ -> e')
@@ -92,9 +93,13 @@ let closure_conversion global_env decl =
     | expr -> expr_closure local_env global_env expr
   in
   let decl_closure global_env = function
-    | ELet (is_rec, id, e) ->
+    | ELet (is_rec, id, (EFun (_, _) as e)) ->
       let global_env' = if is_rec then Set.add global_env id else global_env in
       let e' = efun_helper (Map.empty (module String)) global_env' e in
+      constr_elet is_rec id e'
+    | ELet (is_rec, id, e) ->
+      let global_env' = if is_rec then Set.add global_env id else global_env in
+      let e' = expr_closure (Map.empty (module String)) global_env' e in
       constr_elet is_rec id e'
   in
   decl_closure global_env decl
