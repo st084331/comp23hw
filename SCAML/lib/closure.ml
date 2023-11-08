@@ -93,20 +93,33 @@ let closure_conversion global_env decl =
   in
   let decl_closure global_env = function
     | ELet (is_rec, id, e) ->
-      constr_elet is_rec id (expr_closure (Map.empty (module String)) global_env e)
+      let global_env' = if is_rec then Set.add global_env id else global_env in
+      let e' = efun_helper (Map.empty (module String)) global_env' e in
+      constr_elet is_rec id e'
   in
   decl_closure global_env decl
 ;;
 
-let prog_conversion = List.map ~f:closure_conversion
+let prog_conversion program =
+  let rec helper acc global_env = function
+    | [] -> acc
+    | hd :: tl ->
+      (match hd with
+       | ELet (_, id, _) as orig ->
+         let e' = closure_conversion global_env orig in
+         let global_env' = Set.add global_env id in
+         helper (e' :: acc) global_env' tl)
+  in
+  List.rev (helper [] (Set.empty (module String)) program)
+;;
 
-let print_prog_result decl =
+let print_expr_result decl =
   let buf = closure_conversion (Set.empty (module String)) decl in
   Stdlib.Format.printf "%s" (Ast.show_program [ buf ])
 ;;
 
 let%expect_test _ =
-  print_prog_result
+  print_expr_result
     (ELet
        ( false
        , "fac"
@@ -166,100 +179,4 @@ let%expect_test _ =
              ))
           ))
         ] |}]
-;;
-
-(*
-   let%expect_test _ =
-   print_prog_result
-   (ELet
-   ( false
-   , "a"
-   , EFun
-   ( PVar "c"
-   , ELetIn
-   ( false
-   , "k"
-   , EFun (PVar "m", EBinOp (Add, EVar "m", EVar "c"))
-   , EApp (EVar "k", EConst (CInt 5)) ) ) ));
-   [%expect
-    {|
-      [(ELet (false, "a",
-          (EFun ((PVar "c"),
-             (ELetIn (false, "k",
-                (EFun ((PVar "m"),
-                   (EApp (
-                      (EFun ((PVar "c"), (EBinOp (Add, (EVar "m"), (EVar "c"))))),
-                      (EVar "c")))
-                   )),
-                (EApp ((EVar "k"), (EConst (CInt 5))))))
-             ))
-          ))
-        ]
-     |}]
-   ;; *)
-
-(* let fac n =
-   let rec fack n k =
-   if n <= 1 then k 1 else fack (n - 1) ((fun k n m -> k (m * n)) k n)
-   in
-   fack n (fun x -> x)
-   ;;
-
-   let fac n =
-   let rec fack n k = if n <= 1 then k 1 else fack (n - 1) (fun m -> k (m * n)) in
-   fack n (fun x -> x)
-   ;; *)
-
-(* let fac n =
-   let fack1 k m = k (m * n) in
-   let rec fack n k = if n <= 1 then k 1 else fack (n - 1) (fack1 k ) in
-   fack n (fun x -> x);; *)
-
-let a c d =
-  let m = c + d in
-  let k _ = 1 + m in
-  k (5 + m)
-;;
-
-let k =
-  [ ELet
-      ( false
-      , "fac"
-      , EFun
-          ( PVar "n"
-          , ELetIn
-              ( true
-              , "fack"
-              , EFun
-                  ( PVar "n"
-                  , EFun
-                      ( PVar "n"
-                      , EFun
-                          ( PVar "k"
-                          , EIf
-                              ( EBinOp (Leq, EVar "n", EConst (CInt 1))
-                              , EApp (EVar "k", EConst (CInt 1))
-                              , EApp
-                                  ( EApp
-                                      ( EVar "fack"
-                                      , EBinOp (Sub, EVar "n", EConst (CInt 1)) )
-                                  , EApp
-                                      ( EApp
-                                          ( EFun
-                                              ( PVar "k"
-                                              , EFun
-                                                  ( PVar "n"
-                                                  , EFun
-                                                      ( PVar "m"
-                                                      , EApp
-                                                          ( EVar "k"
-                                                          , EBinOp
-                                                              (Mul, EVar "m", EVar "n") )
-                                                      ) ) )
-                                          , EVar "k" )
-                                      , EVar "n" ) ) ) ) ) )
-              , EApp
-                  ( EApp (EApp (EVar "fack", EVar "n"), EVar "n")
-                  , EFun (PVar "x", EVar "x") ) ) ) )
-  ]
 ;;
