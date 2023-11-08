@@ -10,6 +10,9 @@ module type STATE = sig
 
   include MONAD
 
+    module Syntax : sig
+    val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
+  end
   val get : state t
   val put : state -> unit t
   val runState : 'a t -> init:state -> state * 'a
@@ -27,6 +30,10 @@ module State (S : sig
     let s', a = m s in
     k a s'
   ;;
+
+  module Syntax = struct
+    let ( let* ) x f = x >>= f
+  end
 
   let get s = s, s
   let put s' _ = s', ()
