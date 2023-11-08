@@ -40,4 +40,12 @@
   > s3
   > EOF
   let  s1 x  = let  s2  = (x + 5) in let  s3  = (s2 + 5) in s3
+  $ ./closureTests.exe <<-EOF
+  > let fibo n =
+  > let rec fibo_cps n acc =
+  > if n < 3 then acc 1 else fibo_cps (n - 1) (fun x ->  fibo_cps (n - 2) (fun y -> acc (x + y)))
+  > in
+  > fibo_cps n (fun x -> x)
+  > EOF
+  let  fibo n  = let rec fibo_cps n acc  = if (n < 3) then acc 1 else fibo_cps (n - 1) (fun acc -> (fun fibo_cps -> (fun n -> (fun x -> fibo_cps (n - 2) (fun acc -> (fun x -> (fun y -> acc (x + y)))) acc x)))) acc fibo_cps n in fibo_cps n (fun x -> x)
 
