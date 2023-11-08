@@ -140,3 +140,45 @@ let%expect_test "closure multi depth test" =
     let rec f = (fun f f_wrapper n -> f_wrapper f n) f f_wrapper;;
 |}]
 ;;
+
+let%test "closure_convert_prog with multiple declarations" =
+  let prog =
+    [ DLet (false, PtVar "x", EVar "y")
+    ; DLet (true, PtVar "f", EFun (PtVar "z", EVar "x"))
+    ; DLet (false, PtVar "y", EConst (CInt 5))
+    ]
+  in
+  let converted_prog = closure_convert_prog prog in
+  match converted_prog with
+  | [ DLet (false, PtVar "x", EApp (EVar "closure", EVar "y"))
+    ; DLet
+        ( true
+        , PtVar "f"
+        , EFun
+            ( PtVar "closure"
+            , EFun
+                ( PtVar "z"
+                , ELet ([ (false, PtVar "x", EApp (EVar "closure", EVar "x")) ], EVar "x")
+                ) ) )
+    ; DLet (false, PtVar "y", EConst (CInt 5))
+    ] -> true
+  | _ ->
+    Printf.printf
+      "Expected: %s\n"
+      (print_prog
+         [ DLet (false, PtVar "x", EApp (EVar "closure", EVar "y"))
+         ; DLet
+             ( true
+             , PtVar "f"
+             , EFun
+                 ( PtVar "closure"
+                 , EFun
+                     ( PtVar "z"
+                     , ELet
+                         ([ false, PtVar "x", EApp (EVar "closure", EVar "x") ], EVar "x")
+                     ) ) )
+         ; DLet (false, PtVar "y", EConst (CInt 5))
+         ]);
+    Printf.printf "Actual: %s\n" (print_prog converted_prog);
+    false
+;;
