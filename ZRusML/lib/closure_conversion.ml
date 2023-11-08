@@ -43,15 +43,17 @@ and pattern_to_id = function
 
 let rec closure_convert_exp env exp =
   match exp with
-  | EVar id as v -> if Set.mem env id then EApp (EVar "closure", v) else v
+  | EVar id as v -> if Set.mem env id then v else EApp (EVar "closure", v)
   | EFun (pat, e) ->
-    let new_env = Set.add env (pattern_to_id pat) in
+    let pat_id = pattern_to_id pat in
+    let new_env = Set.add env pat_id in
     let free_vars = find_free_vars e new_env in
-    if Set.is_empty free_vars
-    then EFun (pat, e)
+    let closure_vars = Set.diff free_vars (StringSet.singleton pat_id) in
+    if Set.is_empty closure_vars
+    then EFun (pat, closure_convert_exp new_env e)
     else (
-      let closure_vars = Set.diff free_vars env in
-      let body = closure_convert_exp new_env e in
+      let new_env_with_closures = Set.union env closure_vars in
+      let body = closure_convert_exp new_env_with_closures e in
       let body_with_bindings =
         Set.fold
           ~init:body
@@ -65,8 +67,10 @@ let rec closure_convert_exp env exp =
   | ELet (bindings, e) ->
     let new_env, new_bindings =
       List.fold_right bindings ~init:(env, []) ~f:(fun (is_rec, pat, exp) (env, acc) ->
-        let new_env = if is_rec then Set.add env (pattern_to_id pat) else env in
+        let pat_id = pattern_to_id pat in
+        let new_env = if is_rec then Set.add env pat_id else env in
         let new_exp = closure_convert_exp new_env exp in
+        let new_env = Set.add env pat_id in
         new_env, (is_rec, pat, new_exp) :: acc)
     in
     ELet (new_bindings, closure_convert_exp new_env e)
