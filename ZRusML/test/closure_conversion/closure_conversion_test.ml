@@ -7,20 +7,6 @@ open ZRusML_lib.Closure_conversion
 open ZRusML_lib.Compare
 open Core
 
-let rec exp_equal e1 e2 =
-  match e1, e2 with
-  | EVar id1, EVar id2 -> String.equal id1 id2
-  | EFun (pat1, exp1), EFun (pat2, exp2) -> pattern_equal pat1 pat2 && exp_equal exp1 exp2
-  | EApp (exp1a, exp1b), EApp (exp2a, exp2b) ->
-    exp_equal exp1a exp2a && exp_equal exp1b exp2b
-  | _, _ -> false
-
-and pattern_equal pat1 pat2 =
-  match pat1, pat2 with
-  | PtVar id1, PtVar id2 -> String.equal id1 id2
-  | _, _ -> false
-;;
-
 let%test "pattern_to_id extracts id from PtVar" =
   let pattern = PtVar "test_id" in
   String.(pattern_to_id pattern = "test_id")
@@ -41,15 +27,14 @@ let%test "find_free_vars with EVar in bound_vars" =
 ;;
 
 let%test "closure_convert_exp with no free variables" =
-  let exp = EFun (PtVar "x", EVar "x") in
   let env = StringSet.empty in
-  let converted_exp = closure_convert_exp env exp in
-  if exp_equal exp converted_exp
-  then true
-  else (
-    Printf.printf "Expected: %s\n" (print_exp exp);
+  let converted_exp = closure_convert_exp env (EFun (PtVar "x", EVar "x")) in
+  match converted_exp with
+  | EFun (PtVar "x", EVar "x") -> true
+  | _ ->
+    Printf.printf "Expected: %s\n" (print_exp (EFun (PtVar "x", EVar "x")));
     Printf.printf "Actual: %s\n" (print_exp converted_exp);
-    false)
+    false
 ;;
 
 let%test "closure_convert_exp with free variables" =
@@ -63,5 +48,47 @@ let%test "closure_convert_exp with free variables" =
       ) -> true
   | _ ->
     Printf.printf "Unexpected structure: %s\n" (print_exp converted_exp);
+    false
+;;
+
+let%test "closure_convert_prog with multiple declarations" =
+  let prog =
+    [ DLet (false, PtVar "x", EVar "y")
+    ; DLet (true, PtVar "f", EFun (PtVar "z", EVar "x"))
+    ; DLet (false, PtVar "y", EConst (CInt 5))
+    ]
+  in
+  let converted_prog = closure_convert_prog prog in
+  match converted_prog with
+  | [ DLet (false, PtVar "x", EApp (EVar "closure", EVar "y"))
+    ; DLet
+        ( true
+        , PtVar "f"
+        , EFun
+            ( PtVar "closure"
+            , EFun
+                ( PtVar "z"
+                , ELet ([ (false, PtVar "x", EApp (EVar "closure", EVar "x")) ], EVar "x")
+                ) ) )
+    ; DLet (false, PtVar "y", EConst (CInt 5))
+    ] -> true
+  | _ ->
+    Printf.printf
+      "Expected: %s\n"
+      (print_prog
+         [ DLet (false, PtVar "x", EApp (EVar "closure", EVar "y"))
+         ; DLet
+             ( true
+             , PtVar "f"
+             , EFun
+                 ( PtVar "closure"
+                 , EFun
+                     ( PtVar "z"
+                     , ELet
+                         ([ false, PtVar "x", EApp (EVar "closure", EVar "x") ], EVar "x")
+                     ) ) )
+         ; DLet (false, PtVar "y", EConst (CInt 5))
+         ]);
+    Printf.printf "Actual: %s\n" (print_prog converted_prog);
     false
 ;;
