@@ -92,3 +92,12 @@ let transform_decls bindings =
   in
   List.map (fun elem -> DLet elem) new_bindings
 ;;
+
+let closure_convert_prog prog =
+  let env = StringSet.empty in
+  List.map prog ~f:(function DLet (is_rec, pat, exp) ->
+    let exp' = closure_convert_exp env exp in
+    DLet (is_rec, pat, exp'))
+;;
+
+let closure_convert ast = closure_convert_prog ast
