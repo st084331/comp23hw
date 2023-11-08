@@ -2,22 +2,31 @@ open Ast
 open Base
 open Parser
 
-let rec free_vars = function
-  | EConst _ -> Set.empty (module String)
-  | EVar x -> Set.singleton (module String) x
-  | EBinOp (_, e1, e2) -> Set.union (free_vars e1) (free_vars e2)
-  | EIf (e1, e2, e3) -> Set.union (Set.union (free_vars e1) (free_vars e2)) (free_vars e3)
-  | EApp (e1, e2) -> Set.union (free_vars e1) (free_vars e2)
-  | EFun (x, e) ->
-    let free = free_vars e in
-    (match x with
-     | PVar id -> Set.remove free id
-     | _ -> free)
-  | ELetIn (b, x, e1, e2) ->
-    let free1 = free_vars e1 in
-    let free2 = free_vars e2 in
-    let free1' = if b then Set.remove free1 x else free1 in
-    Set.union free1' (Set.remove free2 x)
+let free_vars expr =
+  let rec efun_helper set = function
+    | EFun (PVar x, e) -> efun_helper (Set.add set x) e
+    | EFun (_, e) -> efun_helper set e
+    | _ -> set
+  in
+  let rec helper = function
+    | EConst _ -> Set.empty (module String)
+    | EVar x -> Set.singleton (module String) x
+    | EBinOp (_, e1, e2) -> Set.union (helper e1) (helper e2)
+    | EIf (e1, e2, e3) -> Set.union (Set.union (helper e1) (helper e2)) (helper e3)
+    | EApp (e1, e2) -> Set.union (helper e1) (helper e2)
+    | EFun (x, e) ->
+      (match x with
+       | PVar x -> Set.remove (helper e) x
+       | _ -> helper e)
+    | ELetIn (b, x, e1, e2) ->
+      let free1 = helper e1 in
+      let free1' = if b then Set.remove free1 x else free1 in
+      let e1_pat = efun_helper (Set.empty (module String)) e1 in
+      let free2 = Set.diff (helper e2) e1_pat in
+      let free2' = Set.remove free2 x in
+      Set.union free1' free2'
+  in
+  helper expr
 ;;
 
 let closure_conversion global_env decl =
@@ -26,10 +35,7 @@ let closure_conversion global_env decl =
     | EVar x as orig ->
       (match Map.find local_env x with
        | Some free ->
-         Set.fold
-           ~init:orig
-           ~f:(fun expr x -> constr_eapp expr [ constr_evar x ])
-           free
+         Set.fold ~init:orig ~f:(fun expr x -> constr_eapp expr [ constr_evar x ]) free
        | None -> orig)
     | EBinOp (op, e1, e2) ->
       let e1' = expr_closure local_env global_env e1 in
@@ -57,13 +63,19 @@ let closure_conversion global_env decl =
          in
          app_fold
        | _ -> e')
-    | ELetIn (b, x, (EFun _ as e1), e2) as orig ->
+    | ELetIn (b, x, (EFun (_, _) as e1), e2) as orig ->
       let free = free_vars orig in
       let free' = Set.diff free global_env in
       let e1' = efun_helper local_env global_env e1 in
+      let e1_closure =
+        Set.fold_right
+          ~init:e1'
+          ~f:(fun x expr -> constr_efun [ constr_pvar x ] expr)
+          free'
+      in
       let local_env' = Map.set local_env ~key:x ~data:free' in
       let e2' = expr_closure local_env' (Set.add global_env x) e2 in
-      constr_eletin b x e1' e2'
+      constr_eletin b x e1_closure e2'
     | ELetIn (b, x, e1, e2) ->
       let e1' = expr_closure local_env global_env e1 in
       let e2' = expr_closure local_env global_env e2 in
@@ -81,7 +93,7 @@ let closure_conversion global_env decl =
   in
   let decl_closure global_env = function
     | ELet (is_rec, id, e) ->
-      constr_elet is_rec id (expr_closure (Map.empty (module Base.String)) global_env e)
+      constr_elet is_rec id (expr_closure (Map.empty (module String)) global_env e)
   in
   decl_closure global_env decl
 ;;
@@ -89,7 +101,7 @@ let closure_conversion global_env decl =
 let prog_conversion = List.map ~f:closure_conversion
 
 let print_prog_result decl =
-  let buf = closure_conversion (Set.empty (module Base.String)) decl in
+  let buf = closure_conversion (Set.empty (module String)) decl in
   Stdlib.Format.printf "%s" (Ast.show_program [ buf ])
 ;;
 
@@ -207,4 +219,47 @@ let a c d =
   let m = c + d in
   let k _ = 1 + m in
   k (5 + m)
+;;
+
+let k =
+  [ ELet
+      ( false
+      , "fac"
+      , EFun
+          ( PVar "n"
+          , ELetIn
+              ( true
+              , "fack"
+              , EFun
+                  ( PVar "n"
+                  , EFun
+                      ( PVar "n"
+                      , EFun
+                          ( PVar "k"
+                          , EIf
+                              ( EBinOp (Leq, EVar "n", EConst (CInt 1))
+                              , EApp (EVar "k", EConst (CInt 1))
+                              , EApp
+                                  ( EApp
+                                      ( EVar "fack"
+                                      , EBinOp (Sub, EVar "n", EConst (CInt 1)) )
+                                  , EApp
+                                      ( EApp
+                                          ( EFun
+                                              ( PVar "k"
+                                              , EFun
+                                                  ( PVar "n"
+                                                  , EFun
+                                                      ( PVar "m"
+                                                      , EApp
+                                                          ( EVar "k"
+                                                          , EBinOp
+                                                              (Mul, EVar "m", EVar "n") )
+                                                      ) ) )
+                                          , EVar "k" )
+                                      , EVar "n" ) ) ) ) ) )
+              , EApp
+                  ( EApp (EApp (EVar "fack", EVar "n"), EVar "n")
+                  , EFun (PVar "x", EVar "x") ) ) ) )
+  ]
 ;;
