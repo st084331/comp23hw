@@ -1,3 +1,7 @@
+(** Copyright 2023-2024, Grigory Aseev and Matvey Kalashnikov *)
+
+(** SPDX-License-Identifier: LGPL-3.0 *)
+
 open Ast
 open Llast
 open Counter
