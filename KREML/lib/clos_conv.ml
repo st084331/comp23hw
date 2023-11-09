@@ -53,12 +53,7 @@ let apply_closure closure args =
     match closure with
     | CFun (varname, _, _) | CVal (varname, _) -> varname
   in
-  let rec rev_partial_app = function
-    | [ a ] -> CIdentifier a
-    | h :: t -> CApp (rev_partial_app t, CIdentifier h)
-    | [] -> CIdentifier id
-  in
-  rev_partial_app (List.rev (id :: args))
+  List.fold_left args ~f:(fun l r -> CApp (l, CIdentifier r)) ~init:(CIdentifier id)
 ;;
 
 let get_function_names env =
