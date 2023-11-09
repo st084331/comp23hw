@@ -10,9 +10,10 @@ module type STATE = sig
 
   include MONAD
 
-    module Syntax : sig
+  module Syntax : sig
     val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
   end
+
   val get : state t
   val put : state -> unit t
   val runState : 'a t -> init:state -> state * 'a

@@ -52,7 +52,7 @@ let closure_conversion global_env decl =
       constr_eapp e1' [ e2' ]
     | EFun (x, _) as orig ->
       let s = free_vars orig in
-      let s' = Set.diff s global_env in 
+      let s' = Set.diff s global_env in
       let e' = efun_helper local_env global_env orig in
       (match x with
        | PVar _ ->

@@ -7,7 +7,7 @@ open IState.Syntax
 
 let rec get_args acc = function
   | EFun (p, e) -> get_args (p :: acc) e
-  | e -> (List.rev acc), e
+  | e -> List.rev acc, e
 ;;
 
 let rec get_global_scope prog global =
@@ -72,7 +72,7 @@ let prog_lift prog =
   in
   let decl_ll global = function
     | ELet (is_rec, id, e) ->
-      let p,expr = get_args [] e in
+      let p, expr = get_args [] e in
       let* l1, ll_list = lift_expr (Map.empty (module String)) [] global expr in
       let ll_list = LLLet (is_rec, id, p, l1) :: ll_list in
       return ll_list

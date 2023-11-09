@@ -32,8 +32,9 @@ let pp_pattern fmt = function
 ;;
 
 let rec pp_patterns fmt = function
-|[] -> fprintf fmt ""
-|p::tl -> fprintf fmt "%a %a" pp_pattern p pp_patterns tl
+  | [] -> fprintf fmt ""
+  | p :: tl -> fprintf fmt "%a %a" pp_pattern p pp_patterns tl
+;;
 
 let pp_rec_flag fmt = function
   | true -> fprintf fmt "rec"
@@ -72,11 +73,13 @@ and efun_helper fmt = function
   | other -> fprintf fmt "%a" pp_expr other
 
 and pp_binding fmt = function
-| ELet (rec_flag, x, e) ->
-  fprintf fmt "let %a %s %a = %a" pp_rec_flag rec_flag x eletin_helper e efun_helper e
+  | ELet (rec_flag, x, e) ->
+    fprintf fmt "let %a %s %a = %a" pp_rec_flag rec_flag x eletin_helper e efun_helper e
+;;
 
 let%expect_test _ =
-printf "%a" pp_binding @@ (ELet
+  printf "%a" pp_binding
+  @@ ELet
        ( false
        , "fac"
        , EFun
@@ -98,6 +101,7 @@ printf "%a" pp_binding @@ (ELet
                                    ( PVar "m"
                                    , EApp (EVar "k", EBinOp (Mul, EVar "m", EVar "n")) )
                                ) ) ) )
-               , EApp (EApp (EVar "fack", EVar "n"), EFun (PVar "x", EVar "x")) ) ) ));
-[%expect
-  {| let  fac n  = let rec fack n k  = if (n <= 1) then k 1 else fack (n - 1) (fun m -> k (m * n)) in fack n (fun x -> x) |}]
+               , EApp (EApp (EVar "fack", EVar "n"), EFun (PVar "x", EVar "x")) ) ) );
+  [%expect
+    {| let  fac n  = let rec fack n k  = if (n <= 1) then k 1 else fack (n - 1) (fun m -> k (m * n)) in fack n (fun x -> x) |}]
+;;
