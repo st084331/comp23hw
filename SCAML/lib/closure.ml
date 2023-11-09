@@ -97,13 +97,9 @@ let closure_conversion global_env decl =
     | expr -> expr_closure local_env global_env expr
   in
   let decl_closure global_env = function
-    | ELet (is_rec, id, (EFun (_, _) as e)) ->
-      let global_env' = if is_rec then Set.add global_env id else global_env in
-      let e' = efun_helper (Map.empty (module String)) global_env' e in
-      constr_elet is_rec id e'
     | ELet (is_rec, id, e) ->
       let global_env' = if is_rec then Set.add global_env id else global_env in
-      let e' = expr_closure (Map.empty (module String)) global_env' e in
+      let e' = efun_helper (Map.empty (module String)) global_env' e in
       constr_elet is_rec id e'
   in
   decl_closure global_env decl
