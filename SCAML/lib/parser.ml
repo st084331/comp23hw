@@ -652,6 +652,103 @@ let%expect_test _ =
       ] |}]
 ;;
 
+let%expect_test _ =
+  show_parsed_result
+    "let fack1 k n m = k (n * m);; let rec fack n k = if n <= 1 then k 1 else fack (n-1) \
+     (fack1 k n);; let id x = x;; let fac n = fack n id"
+    pprogram
+    show_program;
+  [%expect
+    {|
+    [(ELet (false, "fack1",
+        (EFun ((PVar "k"),
+           (EFun ((PVar "n"),
+              (EFun ((PVar "m"),
+                 (EApp ((EVar "k"), (EBinOp (Mul, (EVar "n"), (EVar "m")))))))
+              ))
+           ))
+        ));
+      (ELet (true, "fack",
+         (EFun ((PVar "n"),
+            (EFun ((PVar "k"),
+               (EIf ((EBinOp (Leq, (EVar "n"), (EConst (CInt 1)))),
+                  (EApp ((EVar "k"), (EConst (CInt 1)))),
+                  (EApp (
+                     (EApp ((EVar "fack"),
+                        (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
+                     (EApp ((EApp ((EVar "fack1"), (EVar "k"))), (EVar "n")))))
+                  ))
+               ))
+            ))
+         ));
+      (ELet (false, "id", (EFun ((PVar "x"), (EVar "x")))));
+      (ELet (false, "fac",
+         (EFun ((PVar "n"),
+            (EApp ((EApp ((EVar "fack"), (EVar "n"))), (EVar "id")))))
+         ))
+      ] |}]
+;;
+
+let%expect_test _ =
+  show_parsed_result
+    "let id x = x;;\n\
+    \     let acc1 acc x y = acc (x + y);;\n\
+    \     let acc2 fib_func n acc x = fib_func (n - 2) (acc1 acc x);;\n\
+    \     let rec fibo_cps n acc = if n < 3 then acc 1 else fibo_cps (n - 1) (acc2 \
+     fibo_cps n acc);;\n\
+    \     let fibo n = fibo_cps n id"
+    pprogram
+    show_program;
+  [%expect
+    {|
+    [(ELet (false, "id", (EFun ((PVar "x"), (EVar "x")))));
+      (ELet (false, "acc1",
+         (EFun ((PVar "acc"),
+            (EFun ((PVar "x"),
+               (EFun ((PVar "y"),
+                  (EApp ((EVar "acc"), (EBinOp (Add, (EVar "x"), (EVar "y")))))))
+               ))
+            ))
+         ));
+      (ELet (false, "acc2",
+         (EFun ((PVar "fib_func"),
+            (EFun ((PVar "n"),
+               (EFun ((PVar "acc"),
+                  (EFun ((PVar "x"),
+                     (EApp (
+                        (EApp ((EVar "fib_func"),
+                           (EBinOp (Sub, (EVar "n"), (EConst (CInt 2)))))),
+                        (EApp ((EApp ((EVar "acc1"), (EVar "acc"))), (EVar "x")))
+                        ))
+                     ))
+                  ))
+               ))
+            ))
+         ));
+      (ELet (true, "fibo_cps",
+         (EFun ((PVar "n"),
+            (EFun ((PVar "acc"),
+               (EIf ((EBinOp (Less, (EVar "n"), (EConst (CInt 3)))),
+                  (EApp ((EVar "acc"), (EConst (CInt 1)))),
+                  (EApp (
+                     (EApp ((EVar "fibo_cps"),
+                        (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
+                     (EApp (
+                        (EApp ((EApp ((EVar "acc2"), (EVar "fibo_cps"))),
+                           (EVar "n"))),
+                        (EVar "acc")))
+                     ))
+                  ))
+               ))
+            ))
+         ));
+      (ELet (false, "fibo",
+         (EFun ((PVar "n"),
+            (EApp ((EApp ((EVar "fibo_cps"), (EVar "n"))), (EVar "id")))))
+         ))
+      ] |}]
+;;
+
 (**  Let in and let rec in *)
 
 let%expect_test _ =

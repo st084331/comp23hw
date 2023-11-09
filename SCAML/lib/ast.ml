@@ -46,4 +46,4 @@ type binding = ELet of bool * id * expr (** let [rec] f x = e *)
 [@@deriving show { with_path = false }]
 
 (** e1 ;; e2 ;; ... ;; en;; *)
-type program = binding list [@@deriving show { with_path = false }]
+  type program = binding list [@@deriving show { with_path = false }]
