@@ -39,7 +39,8 @@ let closure_conversion global_env decl =
     | EVar x as orig ->
       (match Map.find local_env x with
        | Some free ->
-         Set.fold ~init:orig ~f:(fun expr x -> constr_eapp expr [ constr_evar x ]) free
+         let ids = List.map (Set.to_list free) ~f:(fun x -> constr_evar x) in
+         constr_eapp orig ids
        | None -> orig)
     | EBinOp (op, e1, e2) ->
       let e1' = expr_closure local_env global_env e1 in
@@ -61,22 +62,16 @@ let closure_conversion global_env decl =
       (match x with
        | PVar _ ->
          let fun_fold =
-           Set.fold_right ~init:e' ~f:(fun x acc -> constr_efun [ constr_pvar x ] acc) s'
+           constr_efun (List.map (Set.to_list s') ~f:(fun x -> constr_pvar x)) e'
          in
-         let app_fold =
-           Set.fold ~init:fun_fold ~f:(fun acc x -> constr_eapp acc [ constr_evar x ]) s'
-         in
-         app_fold
+         constr_eapp fun_fold (List.map (Set.to_list s') ~f:(fun x -> constr_evar x))
        | _ -> e')
     | ELetIn (b, x, (EFun (_, _) as e1), e2) as orig ->
       let free = free_vars orig in
       let free' = Set.diff free global_env in
       let e1' = efun_helper local_env global_env e1 in
       let e1_closure =
-        Set.fold_right
-          ~init:e1'
-          ~f:(fun x expr -> constr_efun [ constr_pvar x ] expr)
-          free'
+        constr_efun (List.map (Set.to_list free') ~f:(fun x -> constr_pvar x)) e1'
       in
       let local_env' = Map.set local_env ~key:x ~data:free' in
       let e2' = expr_closure local_env' (Set.add global_env x) e2 in
@@ -86,14 +81,12 @@ let closure_conversion global_env decl =
       let e2' = expr_closure local_env global_env e2 in
       constr_eletin b x e1' e2'
   and efun_helper local_env global_env = function
-    | EFun (x, e) ->
-      (match x with
-       | PVar _ as orig ->
-         let e' = efun_helper local_env global_env e in
-         constr_efun [ orig ] e'
-       | p ->
-         let e' = efun_helper local_env global_env e in
-         constr_efun [ p ] e')
+    | EFun ((PVar _ as orig), e) ->
+      let e' = efun_helper local_env global_env e in
+      constr_efun [ orig ] e'
+    | EFun (p, e) ->
+      let e' = efun_helper local_env global_env e in
+      constr_efun [ p ] e'
     | expr -> expr_closure local_env global_env expr
   in
   let decl_closure global_env = function
@@ -106,21 +99,23 @@ let closure_conversion global_env decl =
 ;;
 
 let prog_conversion program =
-  let rec helper acc global_env = function
-    | [] -> acc
-    | hd :: tl ->
-      (match hd with
-       | ELet (_, id, _) as orig ->
-         let e' = closure_conversion global_env orig in
-         let global_env' = Set.add global_env id in
-         helper (e' :: acc) global_env' tl)
+  let closured prog =
+    List.fold
+      ~init:([], Set.empty (module String))
+      ~f:(fun (acc, global) e ->
+        match e with
+        | ELet (_, id, _) as orig ->
+          let e' = closure_conversion global orig in
+          let global' = Set.add global id in
+          e' :: acc, global')
+      prog
   in
-  List.rev (helper [] (Set.empty (module String)) program)
+  List.rev (fst @@ closured program)
 ;;
 
 let print_expr_result decl =
   let buf = closure_conversion (Set.empty (module String)) decl in
-  Stdlib.Format.printf "%s" (Ast.show_program [ buf ])
+  Stdlib.Format.printf "%s" (Ast.show_binding buf)
 ;;
 
 let%expect_test _ =
@@ -150,38 +145,37 @@ let%expect_test _ =
                , EApp (EApp (EVar "fack", EVar "n"), EFun (PVar "x", EVar "x")) ) ) ));
   [%expect
     {|
-      [(ELet (false, "fac",
-          (EFun ((PVar "n"),
-             (ELetIn (true, "fack",
-                (EFun ((PVar "n"),
-                   (EFun ((PVar "k"),
-                      (EIf ((EBinOp (Leq, (EVar "n"), (EConst (CInt 1)))),
-                         (EApp ((EVar "k"), (EConst (CInt 1)))),
-                         (EApp (
-                            (EApp ((EVar "fack"),
-                               (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
-                            (EApp (
-                               (EApp (
-                                  (EFun ((PVar "k"),
-                                     (EFun ((PVar "n"),
-                                        (EFun ((PVar "m"),
-                                           (EApp ((EVar "k"),
-                                              (EBinOp (Mul, (EVar "m"), (EVar "n")
-                                                 ))
-                                              ))
-                                           ))
-                                        ))
-                                     )),
-                                  (EVar "k"))),
-                               (EVar "n")))
-                            ))
-                         ))
-                      ))
-                   )),
-                (EApp ((EApp ((EVar "fack"), (EVar "n"))),
-                   (EFun ((PVar "x"), (EVar "x")))))
-                ))
-             ))
-          ))
-        ] |}]
+      (ELet (false, "fac",
+         (EFun ((PVar "n"),
+            (ELetIn (true, "fack",
+               (EFun ((PVar "n"),
+                  (EFun ((PVar "k"),
+                     (EIf ((EBinOp (Leq, (EVar "n"), (EConst (CInt 1)))),
+                        (EApp ((EVar "k"), (EConst (CInt 1)))),
+                        (EApp (
+                           (EApp ((EVar "fack"),
+                              (EBinOp (Sub, (EVar "n"), (EConst (CInt 1)))))),
+                           (EApp (
+                              (EApp (
+                                 (EFun ((PVar "k"),
+                                    (EFun ((PVar "n"),
+                                       (EFun ((PVar "m"),
+                                          (EApp ((EVar "k"),
+                                             (EBinOp (Mul, (EVar "m"), (EVar "n")))
+                                             ))
+                                          ))
+                                       ))
+                                    )),
+                                 (EVar "k"))),
+                              (EVar "n")))
+                           ))
+                        ))
+                     ))
+                  )),
+               (EApp ((EApp ((EVar "fack"), (EVar "n"))),
+                  (EFun ((PVar "x"), (EVar "x")))))
+               ))
+            ))
+         ))
+         |}]
 ;;
