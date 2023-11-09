@@ -9,7 +9,7 @@ type cc_expr =
   | CUnaryOp of unary_op * cc_expr
   | CBinaryOp of binary_op * cc_expr * cc_expr
   | CApp of cc_expr * cc_expr
-  | CAbs of identifier * cc_expr
+  | CAbs of identifier list * cc_expr
   | CIfThenElse of cc_expr * cc_expr * cc_expr
   | CLetIn of cc_binding * cc_expr
 
