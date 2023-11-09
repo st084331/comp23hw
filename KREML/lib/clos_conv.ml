@@ -20,11 +20,10 @@ let simplify program =
     | EApp (l, r) -> CApp (decompose_letin_expr l, decompose_letin_expr r)
     | EAbs (arg, body) -> uncurry [ arg ] body
     | ELetIn (bindings, body) ->
-      (match bindings with
-       | [ b ] -> CLetIn (decompose_letin_bind b, decompose_letin_expr body)
-       | h :: tl ->
-         CLetIn (decompose_letin_bind h, decompose_letin_expr (e_let_in tl body))
-       | [] -> failwith "Unreachable")
+      List.fold_right
+        bindings
+        ~f:(fun b1 b2 -> CLetIn (decompose_letin_bind b1, b2))
+        ~init:(decompose_letin_expr body)
   and decompose_letin_bind = function
     | BVal (name, body) -> CVal (name, decompose_letin_expr body)
     | BFun (name, args, body) -> CFun (name, args, decompose_letin_expr body)
