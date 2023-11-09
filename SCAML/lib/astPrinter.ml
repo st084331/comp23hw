@@ -31,6 +31,10 @@ let pp_pattern fmt = function
   | PWild -> fprintf fmt "_"
 ;;
 
+let rec pp_patterns fmt = function
+|[] -> fprintf fmt ""
+|p::tl -> fprintf fmt "%a %a" pp_pattern p pp_patterns tl
+
 let pp_rec_flag fmt = function
   | true -> fprintf fmt "rec"
   | false -> fprintf fmt ""

@@ -12,7 +12,9 @@
   AnfPrinter
   Counter
   Closure
-  AstPrinter)
+  AstPrinter
+  LlastPrinter
+  Lambda_lifting)
  (libraries base angstrom)
  (instrumentation
   (backend bisect_ppx))
