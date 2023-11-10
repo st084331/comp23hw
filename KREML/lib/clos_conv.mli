@@ -1,0 +1,1 @@
+val cc_program : Ast.binding list -> Cc_ast.cc_binding list
