@@ -1,4 +1,8 @@
+(** Copyright 2023-2024, Anton Kraev and Polina Badreeva *)
+
+(** SPDX-License-Identifier: LGPL-3.0-or-later *)
 open Base
+
 open Ast
 open Cc_ast
 open Counter
@@ -152,6 +156,7 @@ let get_name = function
 ;;
 
 let cc_program program =
+  let () = reset () in
   let rec helper acc parent_scope = function
     | [] -> acc
     | CVal (id, body) :: tl ->
@@ -171,8 +176,9 @@ let cc_program program =
   List.rev (helper [] [] (simplify program))
 ;;
 
-(*
-   let%test _ =
+let compare anf_program1 cc_program2 = Base.Poly.equal anf_program1 cc_program2
+
+let%test _ =
   let ast =
     [ BVal
         ( "x"
@@ -185,24 +191,22 @@ let cc_program program =
   let cc =
     [ CVal
         ( "x"
-        , CIfThenElse
-            ( CBinaryOp (GtOrEq, CIdentifier "y", CLiteral (LInt 4))
-            , CAbs ([ "z" ], CBinaryOp (Add, CIdentifier "z", CLiteral (LInt 1)))
-            , CIdentifier "f" ) )
+        , CLetIn
+            ( CFun ("cc_1", [ "z" ], CBinaryOp (Add, CIdentifier "z", CLiteral (LInt 1)))
+            , CIfThenElse
+                ( CBinaryOp (GtOrEq, CIdentifier "y", CLiteral (LInt 4))
+                , CApp (CIdentifier "cc_1", CIdentifier "z")
+                , CIdentifier "f" ) ) )
     ]
   in
-  compare (сс_program ast) сс
+  compare (cc_program ast) cc
 ;;
 
 let%test _ =
-  let ast =
-    [ BVal ("y", ELetIn ([ BVal ("x", ELiteral (LInt 5)) ], EIdentifier "x")) ]
-  in
+  let ast = [ BVal ("y", ELetIn ([ BVal ("x", ELiteral (LInt 5)) ], EIdentifier "x")) ] in
   let cc = [ CVal ("y", CLetIn (CVal ("x", CLiteral (LInt 5)), CIdentifier "x")) ] in
-  compare (сс_program ast) сс
+  compare (cc_program ast) cc
 ;;
-
-6.
 
 let%test _ =
   let ast =
@@ -217,16 +221,17 @@ let%test _ =
   let cc =
     [ CVal
         ( "x"
-        , CIfThenElse
-            ( CBinaryOp (LtOrEq, CIdentifier "y", CLiteral (LInt 4))
-            , CAbs ([ "z" ], CBinaryOp (Add, CIdentifier "z", CLiteral (LInt 1)))
-            , CIdentifier "f" ) )
+        , CLetIn
+            ( CFun
+                ("cc_1", [ "z" ], CBinaryOp (Add, CIdentifier "z", CLiteral (LInt 1)))
+            , CIfThenElse
+                ( CBinaryOp (LtOrEq, CIdentifier "y", CLiteral (LInt 4))
+                , CApp (CIdentifier "cc_1", CIdentifier "z")
+                , CIdentifier "f" ) ) )
     ]
   in
-  compare (сс_program ast) сс
+  compare (cc_program ast) cc
 ;;
-
-10.
 
 let%test _ =
   let ast =
@@ -243,7 +248,7 @@ let%test _ =
             (And, CBinaryOp (Or, CIdentifier "a", CIdentifier "b"), CIdentifier "c") )
     ]
   in
-  compare (сс_program ast) сс
+  compare (cc_program ast) cc
 ;;
 
 let%test _ =
@@ -253,7 +258,7 @@ let%test _ =
   let cc =
     [ CVal ("x", CApp (CApp (CIdentifier "f", CIdentifier "a"), CIdentifier "b")) ]
   in
-  compare (сс_program ast) сс
+  compare (cc_program ast) cc
 ;;
 
 let%test _ =
@@ -275,95 +280,88 @@ let%test _ =
             , CIdentifier "d" ) )
     ]
   in
-  compare (сс_program ast) сс
+  compare (cc_program ast) cc
 ;;
 
+(*
+   fun fac n =
+   let fun fack n k =
+   if n <= 1 then k 1
+   else fack (n-1) (fn m => k (m * n))
+   in
+   fack n (fn x => x)
+   end
 
+   -> cc ->
 
-(*   
- fun fac n =
-      let fun fack n k =
-        if n <= 1 then k 1
-        else fack (n-1) (fn m => k (m * n))
-      in
-        fack n (fn x => x)
-      end
-
-    -> cc ->
-
-    fun fac n =
-      let fun fack1 k n m = k (m * n) 
-      in
-      let fun fack n k =
-        if n <= 1 then k 1
-        else fack (n-1) (fack1 k n)
-      in
-        fack n (fn x => x)
-      end
-      end
+   fun fac n =
+   let fun fack1 k n m = k (m * n)
+   in
+   let fun fack n k =
+   if n <= 1 then k 1
+   else fack (n-1) (fack1 k n)
+   in
+   fack n (fn x => x)
+   end
+   end
 *)
-let%test _ = 
-let ast = 
-  [
-    BFun(
-      "fac",
-      ["n"],
-      ELetIn(
-        [
-          BFun(
-            "fack",
-            ["n"; "k"],
-            EIfThenElse(
-              EBinaryOp(LtOrEq, EIdentifier("n"), ELiteral(LInt(1))),
-              EApp(EIdentifier("k"), ELiteral(LInt(1))),
-              EApp(
-                EApp(
-                  EIdentifier("fack"),
-                  EBinaryOp(Sub, EIdentifier("n"), ELiteral(LInt(1)))
-                ),
-                EAbs(
-                  "m",
-                  EApp(EIdentifier("k"),
-                    EBinaryOp(Mult, EIdentifier("m"), EIdentifier("n"))
-                  )
-                )
-              )
-            )
-          )
-        ],
-        EApp(EIdentifier("fack"),
-          EApp (EIdentifier "n", EAbs ("x", EIdentifier "x"))
-        )
-      )
-    )] in
-let cc =   [ CFun
-( "fac"
-, [ "n" ]
-, CLetIn
-    ( CFun
-        ( "fack1"
-        , [ "k"; "n"; "m" ]
-        , CApp
-            (CIdentifier "k", CBinaryOp (Mult, CIdentifier "m", CIdentifier "n"))
-        )
+let%test _ =
+  let ast =
+    [ BFun
+        ( "fac"
+        , [ "n" ]
+        , ELetIn
+            ( [ BFun
+                  ( "fack"
+                  , [ "n"; "k" ]
+                  , EIfThenElse
+                      ( EBinaryOp (LtOrEq, EIdentifier "n", ELiteral (LInt 1))
+                      , EApp (EIdentifier "k", ELiteral (LInt 1))
+                      , EApp
+                          ( EApp
+                              ( EIdentifier "fack"
+                              , EBinaryOp (Sub, EIdentifier "n", ELiteral (LInt 1)) )
+                          , EAbs
+                              ( "m"
+                              , EApp
+                                  ( EIdentifier "k"
+                                  , EBinaryOp (Mult, EIdentifier "m", EIdentifier "n") )
+                              ) ) ) )
+              ]
+            , EApp
+                (EIdentifier "fack", EApp (EIdentifier "n", EAbs ("x", EIdentifier "x")))
+            ) )
+    ]
+  in
+  let cc =
+    [ CFun
+    ( "fac"
+    , [ "n" ]
     , CLetIn
         ( CFun
-            ( "fack"
-            , [ "n"; "k" ]
-            , CIfThenElse
-                ( CBinaryOp (LtOrEq, CIdentifier "n", CLiteral (LInt 1))
-                , CApp (CIdentifier "k", CLiteral (LInt 1))
-                , CApp
-                    ( CApp
-                        ( CIdentifier "fack"
-                        , CBinaryOp (Sub, CIdentifier "n", CLiteral (LInt 1)) )
+            ( "cc_1"
+            , [ "k"; "n"; "m" ]
+            , CApp
+                (CIdentifier "k", CBinaryOp (Mult, CIdentifier "m", CIdentifier "n"))
+            )
+        , CLetIn
+            ( CFun
+                ( "fack"
+                , [ "n"; "k" ]
+                , CIfThenElse
+                    ( CBinaryOp (LtOrEq, CIdentifier "n", CLiteral (LInt 1))
+                    , CApp (CIdentifier "k", CLiteral (LInt 1))
                     , CApp
-                        ( CApp (CIdentifier "fack1", CIdentifier "k")
-                        , CIdentifier "n" ) ) ) )
-        , CApp
-            ( CApp (CIdentifier "fack", CIdentifier "n")
-            , CAbs ([ "x" ], CIdentifier "x") ) ) ) )
+                        ( CApp
+                            ( CIdentifier "fack"
+                            , CBinaryOp (Sub, CIdentifier "n", CLiteral (LInt 1)) )
+                        , CApp
+                            ( CApp (CIdentifier "cc_1", CIdentifier "k")
+                            , CIdentifier "n" ) ) ) )
+            , CApp
+                ( CApp (CIdentifier "fack", CIdentifier "n")
+                , CAbs ([ "x" ], CIdentifier "x") ) ) ) )
 ]
-in compare (сс_program ast) сс
-
-*)
+  in
+  compare (cc_program ast) cc
+;;
