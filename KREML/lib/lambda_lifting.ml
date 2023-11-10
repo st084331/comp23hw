@@ -1,6 +1,6 @@
 open Ll_ast
 open Cc_ast
-open Gen_var
+open Counter
 open Base
 
 let compare ll_program1 ll_program2 = Base.Poly.equal ll_program1 ll_program2

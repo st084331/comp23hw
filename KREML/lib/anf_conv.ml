@@ -1,6 +1,6 @@
 open Ll_ast
 open Anf
-open Gen_var
+open Counter
 
 let gen_var = gen_var "anf"
 
