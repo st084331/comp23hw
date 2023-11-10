@@ -151,7 +151,7 @@ let get_name = function
   | CVal (id, _) | CFun (id, _, _) -> id
 ;;
 
-let clos_conv_program program =
+let cc_program program =
   let rec helper acc parent_scope = function
     | [] -> acc
     | CVal (id, body) :: tl ->
