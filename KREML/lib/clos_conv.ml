@@ -60,19 +60,6 @@ let apply_closure closure args =
   List.fold_left args ~f:(fun l r -> CApp (l, CIdentifier r)) ~init:(CIdentifier id)
 ;;
 
-let get_function_names env =
-  let get_name = function
-    | CFun (varname, _, _) | CVal (varname, _) -> varname
-  in
-  Set.of_list (module String) (List.map env ~f:get_name)
-;;
-
-let replace_id_by_expr where id expr =
-  match where with
-  | CIdentifier x when id == x -> expr
-  | e -> e
-;;
-
 let rec clos_conv env parent_scope = function
   | CIdentifier x -> CIdentifier x, env
   | CLiteral x -> CLiteral x, env
@@ -94,7 +81,7 @@ let rec clos_conv env parent_scope = function
     CApp (cc_left, cc_right), env''
   | CAbs (args, body) ->
     let cc_body, env' = clos_conv env parent_scope body in
-    let closed_args = Set.diff (free_vars cc_body) (get_function_names env') in
+    let closed_args = Set.diff (free_vars cc_body) (Set.of_list (module String) args) in
     let cc_abs, env'' =
       match Set.to_list closed_args with
       | [] -> CAbs (args, cc_body), env'
@@ -107,48 +94,12 @@ let rec clos_conv env parent_scope = function
     (match binding with
      | CVal (id, body) ->
        let cc_body, env' = clos_conv env parent_scope body in
-       let closed_args =
-         Set.diff
-           (free_vars cc_body)
-           (Set.union
-              (Set.of_list (module String) parent_scope)
-              (get_function_names env'))
-       in
-       (match Set.to_list closed_args with
-        | [] ->
-          let cc_letin_body, env'' = clos_conv env' (id :: parent_scope) letin_body in
-          CLetIn (CVal (id, cc_body), cc_letin_body), env''
-        | closed_args ->
-          let closure = create_closure closed_args [] cc_body in
-          let applied_closure = apply_closure closure closed_args in
-          let cc_body = replace_id_by_expr cc_body id applied_closure in
-          let cc_letin_body, env'' =
-            clos_conv (closure :: env') (id :: parent_scope) letin_body
-          in
-          let cc_letin_body = replace_id_by_expr cc_letin_body id applied_closure in
-          CLetIn (CFun (id, closed_args, cc_body), cc_letin_body), env'')
+       let cc_letin_body, env'' = clos_conv env' (id :: parent_scope) letin_body in
+       CLetIn (CVal (id, cc_body), cc_letin_body), env''
      | CFun (id, args, body) ->
        let cc_body, env' = clos_conv env parent_scope body in
-       let closed_args =
-         Set.diff
-           (free_vars cc_body)
-           (Set.union
-              (Set.of_list (module String) parent_scope)
-              (Set.add (get_function_names env') id))
-       in
-       (match Set.to_list closed_args with
-        | [] ->
-          let cc_letin_body, env'' = clos_conv env' (id :: parent_scope) letin_body in
-          CLetIn (CFun (id, args, cc_body), cc_letin_body), env''
-        | closed_args ->
-          let closure = create_closure closed_args args cc_body in
-          let applied_closure = apply_closure closure closed_args in
-          let cc_body = replace_id_by_expr cc_body id applied_closure in
-          let cc_letin_body, env'' =
-            clos_conv (closure :: env') (id :: parent_scope) letin_body
-          in
-          let cc_letin_body = replace_id_by_expr cc_letin_body id applied_closure in
-          CLetIn (CFun (id, List.append closed_args args, cc_body), cc_letin_body), env''))
+       let cc_letin_body, env'' = clos_conv env' (id :: parent_scope) letin_body in
+       CLetIn (CFun (id, args, cc_body), cc_letin_body), env'')
 ;;
 
 let get_name = function
@@ -191,12 +142,10 @@ let%test _ =
   let cc =
     [ CVal
         ( "x"
-        , CLetIn
-            ( CFun ("cc_1", [ "z" ], CBinaryOp (Add, CIdentifier "z", CLiteral (LInt 1)))
-            , CIfThenElse
-                ( CBinaryOp (GtOrEq, CIdentifier "y", CLiteral (LInt 4))
-                , CApp (CIdentifier "cc_1", CIdentifier "z")
-                , CIdentifier "f" ) ) )
+        , CIfThenElse
+            ( CBinaryOp (GtOrEq, CIdentifier "y", CLiteral (LInt 4))
+            , CAbs ([ "z" ], CBinaryOp (Add, CIdentifier "z", CLiteral (LInt 1)))
+            , CIdentifier "f" ) )
     ]
   in
   compare (cc_program ast) cc
@@ -221,13 +170,10 @@ let%test _ =
   let cc =
     [ CVal
         ( "x"
-        , CLetIn
-            ( CFun
-                ("cc_1", [ "z" ], CBinaryOp (Add, CIdentifier "z", CLiteral (LInt 1)))
-            , CIfThenElse
-                ( CBinaryOp (LtOrEq, CIdentifier "y", CLiteral (LInt 4))
-                , CApp (CIdentifier "cc_1", CIdentifier "z")
-                , CIdentifier "f" ) ) )
+        , CIfThenElse
+            ( CBinaryOp (LtOrEq, CIdentifier "y", CLiteral (LInt 4))
+            , CAbs ([ "z" ], CBinaryOp (Add, CIdentifier "z", CLiteral (LInt 1)))
+            , CIdentifier "f" ) )
     ]
   in
   compare (cc_program ast) cc
@@ -329,39 +275,39 @@ let%test _ =
                               ) ) ) )
               ]
             , EApp
-                (EIdentifier "fack", EApp (EIdentifier "n", EAbs ("x", EIdentifier "x")))
+                (EApp (EIdentifier "fack", EIdentifier "n"), EAbs ("x", EIdentifier "x"))
             ) )
     ]
   in
   let cc =
     [ CFun
-    ( "fac"
-    , [ "n" ]
-    , CLetIn
-        ( CFun
-            ( "cc_1"
-            , [ "k"; "n"; "m" ]
-            , CApp
-                (CIdentifier "k", CBinaryOp (Mult, CIdentifier "m", CIdentifier "n"))
-            )
+        ( "fac"
+        , [ "n" ]
         , CLetIn
             ( CFun
-                ( "fack"
-                , [ "n"; "k" ]
-                , CIfThenElse
-                    ( CBinaryOp (LtOrEq, CIdentifier "n", CLiteral (LInt 1))
-                    , CApp (CIdentifier "k", CLiteral (LInt 1))
-                    , CApp
-                        ( CApp
-                            ( CIdentifier "fack"
-                            , CBinaryOp (Sub, CIdentifier "n", CLiteral (LInt 1)) )
+                ( "cc_1"
+                , [ "k"; "n"; "m" ]
+                , CApp
+                    (CIdentifier "k", CBinaryOp (Mult, CIdentifier "m", CIdentifier "n"))
+                )
+            , CLetIn
+                ( CFun
+                    ( "fack"
+                    , [ "n"; "k" ]
+                    , CIfThenElse
+                        ( CBinaryOp (LtOrEq, CIdentifier "n", CLiteral (LInt 1))
+                        , CApp (CIdentifier "k", CLiteral (LInt 1))
                         , CApp
-                            ( CApp (CIdentifier "cc_1", CIdentifier "k")
-                            , CIdentifier "n" ) ) ) )
-            , CApp
-                ( CApp (CIdentifier "fack", CIdentifier "n")
-                , CAbs ([ "x" ], CIdentifier "x") ) ) ) )
-]
+                            ( CApp
+                                ( CIdentifier "fack"
+                                , CBinaryOp (Sub, CIdentifier "n", CLiteral (LInt 1)) )
+                            , CApp
+                                ( CApp (CIdentifier "cc_1", CIdentifier "k")
+                                , CIdentifier "n" ) ) ) )
+                , CApp
+                    ( CApp (CIdentifier "fack", CIdentifier "n")
+                    , CAbs ([ "x" ], CIdentifier "x") ) ) ) )
+    ]
   in
   compare (cc_program ast) cc
 ;;
