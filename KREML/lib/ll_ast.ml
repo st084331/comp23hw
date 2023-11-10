@@ -1,8 +1,7 @@
 open Ast
 
 (** Simplified ast representation which is the result of lambda lifting stage.
-    The difference with cc_expr is that there are no nested functions (fun in let-in expr) and anonymous functions *)
-
+ The difference with cc_expr is that there are no nested and anonymous functions *)
 
 type ll_expr =
   | LLiteral of literal
@@ -15,6 +14,6 @@ type ll_expr =
 [@@deriving show { with_path = false }]
 
 type ll_binding =
-  | LVal of identifier * ll_expr (* val x = 88 *)
-  | LFun of identifier * identifier list * ll_expr (* fun sqr x = x * x *)
+  | LVal of identifier * ll_expr
+  | LFun of identifier * identifier list * ll_expr
 [@@deriving show { with_path = false }]
