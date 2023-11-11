@@ -12,7 +12,9 @@ let parse_to_anf program =
     |> Lambda_lifting.ll_program
     |> Anf_conv.anf_program
   in
-  let anf_string = anf_conv |> List.map Anf.show_abinding |> String.concat "\n" in
+  let anf_string =
+    anf_conv |> List.map Pretty_printer.string_of_abinding |> String.concat "\n"
+  in
   print_endline anf_string
 ;;
 
