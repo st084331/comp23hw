@@ -14,13 +14,13 @@ let rec anf (e : ll_expr) (expr_with_hole : immexpr -> aexpr) =
   | LLiteral (LBool n) -> expr_with_hole (ImmBool n)
   | LIdentifier x -> expr_with_hole (ImmIdentifier x)
   | LUnaryOp (op, body) ->
-    let varname = gen_var () in
     anf body (fun imm ->
+      let varname = gen_var () in
       ALet (varname, CUnaryOp (op, imm), expr_with_hole (ImmIdentifier varname)))
   | LBinaryOp (op, left, right) ->
-    let varname = gen_var () in
     anf left (fun limm ->
       anf right (fun rimm ->
+        let varname = gen_var () in
         ALet (varname, CBinaryOp (op, limm, rimm), expr_with_hole (ImmIdentifier varname))))
   | LApp (left, right) ->
     anf left (fun limm ->
@@ -30,7 +30,12 @@ let rec anf (e : ll_expr) (expr_with_hole : immexpr -> aexpr) =
   | LIfThenElse (condition, true_branch, false_branch) ->
     anf condition (fun cond ->
       anf true_branch (fun t_branch ->
-        anf false_branch (fun f_branch -> ACExpr (CIfThenElse (cond, t_branch, f_branch)))))
+        anf false_branch (fun f_branch ->
+          let varname = gen_var () in
+          ALet
+            ( varname
+            , CIfThenElse (cond, t_branch, f_branch)
+            , expr_with_hole (ImmIdentifier varname) ))))
   | LLetIn (id, left, right) ->
     anf left (fun limm ->
       anf right (fun rimm -> ALet (id, CImmExpr limm, expr_with_hole rimm)))
@@ -103,12 +108,12 @@ let%test _ =
         ( "add"
         , [ "a"; "b" ]
         , ALet
-            ( "anf_2"
+            ( "anf_1"
             , CUnaryOp (Neg, ImmIdentifier "a")
             , ALet
-                ( "anf_1"
-                , CBinaryOp (Add, ImmIdentifier "anf_2", ImmIdentifier "b")
-                , ACExpr (CImmExpr (ImmIdentifier "anf_1")) ) ) )
+                ( "anf_2"
+                , CBinaryOp (Add, ImmIdentifier "anf_1", ImmIdentifier "b")
+                , ACExpr (CImmExpr (ImmIdentifier "anf_2")) ) ) )
     ]
   in
   equal (anf_program ll) anf
@@ -270,22 +275,38 @@ let%test _ =
                                 , ALet
                                     ( "anf_9"
                                     , CApp (ImmIdentifier "anf_6", ImmIdentifier "anf_8")
-                                    , ACExpr
-                                        (CIfThenElse
-                                           ( ImmIdentifier "anf_3"
-                                           , ImmIdentifier "anf_4"
-                                           , ImmIdentifier "anf_9" )) ) ) ) ) ) ) ) )
+                                    , ALet
+                                        ( "anf_10"
+                                        , CIfThenElse
+                                            ( ImmIdentifier "anf_3"
+                                            , ImmIdentifier "anf_4"
+                                            , ImmIdentifier "anf_9" )
+                                        , ACExpr (CImmExpr (ImmIdentifier "anf_10")) ) )
+                                ) ) ) ) ) ) )
     ; AFun ("ll_1", [ "x" ], ACExpr (CImmExpr (ImmIdentifier "x")))
     ; AFun
         ( "fac"
         , [ "n" ]
         , ALet
-            ( "anf_10"
+            ( "anf_11"
             , CApp (ImmIdentifier "fack", ImmIdentifier "n")
             , ALet
-                ( "anf_11"
-                , CApp (ImmIdentifier "anf_10", ImmIdentifier "ll_1")
-                , ACExpr (CImmExpr (ImmIdentifier "anf_11")) ) ) )
+                ( "anf_12"
+                , CApp (ImmIdentifier "anf_11", ImmIdentifier "ll_1")
+                , ACExpr (CImmExpr (ImmIdentifier "anf_12")) ) ) )
+    ]
+  in
+  equal (anf_program ll) anf
+;;
+
+let%test _ =
+  let ll = [ LFun ("f", [ "x" ], LLetIn ("y", LIdentifier "x", LIdentifier "y")) ] in
+  let anf =
+    [ AFun
+        ( "f"
+        , [ "x" ]
+        , ALet ("y", CImmExpr (ImmIdentifier "x"), ACExpr (CImmExpr (ImmIdentifier "y")))
+        )
     ]
   in
   equal (anf_program ll) anf

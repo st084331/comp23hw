@@ -67,9 +67,10 @@ let get_function_names env =
   Set.of_list (module String) (List.map env ~f:get_name)
 ;;
 
+
 let replace_id_by_expr where id expr =
   let rec helper = function
-    | CIdentifier x when id == x -> expr
+    | CIdentifier x when equal_string id x -> expr
     | CUnaryOp (op, b) -> CUnaryOp (op, helper b)
     | CBinaryOp (op, l, r) -> CBinaryOp (op, helper l, helper r)
     | CAbs (l, r) -> CAbs (l, helper r)

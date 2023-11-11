@@ -23,4 +23,3 @@ type abinding =
   | AFun of Ast.identifier * Ast.identifier list * aexpr
 
 val show_abinding : abinding -> string
-

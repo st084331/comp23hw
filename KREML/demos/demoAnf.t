@@ -13,11 +13,12 @@
   let anf_7 = cc_1 k in
   let anf_8 = anf_7 n in
   let anf_9 = anf_6 anf_8 in
-  if anf_3 then anf_4 else anf_9
+  let anf_10 = if anf_3 then anf_4 else anf_9 in
+  anf_10
   fun ll_1 x = 
   x
   fun fac n = 
-  let anf_10 = fack n in
-  let anf_11 = anf_10 ll_1 in
-  anf_11
+  let anf_11 = fack n in
+  let anf_12 = anf_11 ll_1 in
+  anf_12
   int -> int
