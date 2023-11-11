@@ -47,10 +47,8 @@ let chainl1 e op =
   e >>= fun init -> go init
 ;;
 
-let rec chainr1 e op = e >>= fun a -> op >>= (fun f -> chainr1 e op >>| f a) <|> return a
 let empty = take_while is_whitespace
 let empty1 = take_while1 is_whitespace
-let trim s = empty *> s <* empty
 let token s = empty *> s
 let token1 s = empty1 *> s
 let str_token s = empty *> string s
@@ -59,11 +57,6 @@ let pparens p = str_token "(" *> p <* str_token ")"
 let parrow = str_token "->"
 let pbinding = str_token "let"
 let pwild = str_token "_"
-
-(**  Const constructors *)
-let constr_cint n = CInt n
-
-let constr_cbool b = CBool b
 
 (**  Const parsers *)
 let pcint =
@@ -101,19 +94,6 @@ let pident =
   ident is_entry
 ;;
 
-let pident_constr =
-  let is_constr_entry = function
-    | c -> is_cletter c
-  in
-  ident is_constr_entry
-;;
-
-(**  Pattern constructors *)
-
-let constr_pwild _ = PWild
-let constr_pconst c = PConst c
-let constr_pvar id = PVar id
-
 (**  Pattern parsers *)
 
 let ppwild = constr_pwild <$> pwild
@@ -121,28 +101,15 @@ let ppconst = constr_pconst <$> pconst
 let ppvar = constr_pvar <$> pident
 let pattern = fix @@ fun m -> choice [ ppwild; ppconst; ppvar ] <|> pparens @@ m
 
-(**  Operation constructor *)
-let ebinop binary_op expr1 expr2 = EBinOp (binary_op, expr1, expr2)
-
 (**  Operation parsers *)
 
-let pop ch op = str_token ch *> return (ebinop op)
+let pop ch op = str_token ch *> return (constr_ebinop op)
 let pmulti = choice [ pop "*" Mul; pop "/" Div; pop "%" Mod ]
 let padd = pop "+" Add <|> pop "-" Sub
 let pcomp = choice [ pop ">=" Geq; pop ">" Gre; pop "<=" Leq; pop "<" Less ]
 let peq = pop "=" Eq <|> pop "<>" Neq
 let pconj = pop "&&" And
 let pdisj = pop "||" Or
-
-(**  Expr constructors *)
-
-let constr_econst e = EConst e
-let constr_ebinop op e1 e2 = EBinOp (op, e1, e2)
-let constr_evar id = EVar id
-let constr_eif e1 e2 e3 = EIf (e1, e2, e3)
-let constr_efun pl e = List.fold_right ~init:e ~f:(fun p e -> EFun (p, e)) pl
-let constr_eletin b id e1 e2 = ELetIn (b, id, e1, e2)
-let constr_eapp f args = List.fold_left ~init:f ~f:(fun f arg -> EApp (f, arg)) args
 
 (** Expr parsers *)
 
@@ -276,9 +243,6 @@ let pack =
 ;;
 
 let expr = pack.expr pack
-
-(**  Binding constructor *)
-let constr_elet b id e = ELet (b, id, e)
 
 (**  Binding parser *)
 let bind =

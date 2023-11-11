@@ -4,7 +4,6 @@
 
 open Ast
 open Base
-open Parser
 
 let free_vars expr =
   let rec efun_helper set = function
