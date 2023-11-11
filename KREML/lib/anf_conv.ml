@@ -41,49 +41,15 @@ let anf_binding = function
   | LFun (id, args, body) -> AFun (id, args, anf body (fun imm -> ACExpr (CImmExpr imm)))
 ;;
 
-let compare anf_program1 cc_program2 = Base.Poly.equal anf_program1 cc_program2
-
 let anf_program program =
-  let () = reset () in
+  reset ();
   List.map anf_binding program
 ;;
 
-let%test _ =
-  let ll =
-    [ LFun
-        ( "fack1"
-        , [ "k"; "n"; "m" ]
-        , LApp (LIdentifier "k", LBinaryOp (Mult, LIdentifier "m", LIdentifier "n")) )
-    ; LFun ("ll_1", [ "x" ], LIdentifier "x")
-    ; LFun ("fac", [ "n" ], LApp (LIdentifier "n", LIdentifier "ll_1"))
-    ]
-  in
-  let anf =
-    [ AFun
-        ( "fack1"
-        , [ "k"; "n"; "m" ]
-        , ALet
-            ( "anf_1"
-            , CBinaryOp (Mult, ImmIdentifier "m", ImmIdentifier "n")
-            , ALet
-                ( "anf_2"
-                , CApp (ImmIdentifier "k", ImmIdentifier "anf_1")
-                , ACExpr (CImmExpr (ImmIdentifier "anf_2")) ) ) )
-    ; AFun ("ll_1", [ "x" ], ACExpr (CImmExpr (ImmIdentifier "x")))
-    ; AFun
-        ( "fac"
-        , [ "n" ]
-        , ALet
-            ( "anf_3"
-            , CApp (ImmIdentifier "n", ImmIdentifier "ll_1")
-            , ACExpr (CImmExpr (ImmIdentifier "anf_3")) ) )
-    ]
-  in
-  compare (anf_program ll) anf
-;;
+(* tests *)
+let equal anf_program1 cc_program2 = Base.Poly.equal anf_program1 cc_program2
 
 (* fack1 k n m = k (m * n)
-
    fack1 k n m =
    let anf_1 = m * n in
    let anf_2 = k anf_1
@@ -95,30 +61,6 @@ let%test _ =
         ( "fack1"
         , [ "k"; "n"; "m" ]
         , LApp (LIdentifier "k", LBinaryOp (Mult, LIdentifier "m", LIdentifier "n")) )
-    ]
-  in
-  let anf =
-    [ AFun
-        ( "fack1"
-        , [ "k"; "n"; "m" ]
-        , ALet
-            ( "anf_1"
-            , CBinaryOp (Mult, ImmIdentifier "m", ImmIdentifier "n")
-            , ALet
-                ( "anf_2"
-                , CApp (ImmIdentifier "k", ImmIdentifier "anf_1")
-                , ACExpr (CImmExpr (ImmIdentifier "anf_2")) ) ) )
-    ]
-  in
-  compare (anf_program ll) anf
-;;
-
-let%test _ =
-  let ll =
-    [ LFun
-        ( "fack1"
-        , [ "k"; "n"; "m" ]
-        , LApp (LIdentifier "k", LBinaryOp (Mult, LIdentifier "m", LIdentifier "n")) )
     ; LFun ("ll_1", [ "x" ], LIdentifier "x")
     ; LFun ("fac", [ "n" ], LApp (LIdentifier "n", LIdentifier "ll_1"))
     ]
@@ -144,10 +86,10 @@ let%test _ =
             , ACExpr (CImmExpr (ImmIdentifier "anf_3")) ) )
     ]
   in
-  compare (anf_program ll) anf
+  equal (anf_program ll) anf
 ;;
 
-(*add a b = let anf_2 = not a in let anf_1 = anf_2 + b in anf_1*)
+(*add a b = let anf_2 = ~a in let anf_1 = anf_2 + b in anf_1*)
 let%test _ =
   let ll =
     [ LFun
@@ -169,7 +111,7 @@ let%test _ =
                 , ACExpr (CImmExpr (ImmIdentifier "anf_1")) ) ) )
     ]
   in
-  compare (anf_program ll) anf
+  equal (anf_program ll) anf
 ;;
 
 let%test _ =
@@ -186,7 +128,7 @@ let%test _ =
             , ACExpr (CImmExpr (ImmIdentifier "anf_1")) ) )
     ]
   in
-  compare (anf_program ll) anf
+  equal (anf_program ll) anf
 ;;
 
 let%test _ =
@@ -201,7 +143,7 @@ let%test _ =
             , ACExpr (CImmExpr (ImmIdentifier "anf_1")) ) )
     ]
   in
-  compare (anf_program ll) anf
+  equal (anf_program ll) anf
 ;;
 
 let%test _ =
@@ -233,7 +175,7 @@ let%test _ =
                 , ACExpr (CImmExpr (ImmIdentifier "anf_3")) ) ) )
     ]
   in
-  compare (anf_program ll) anf
+  equal (anf_program ll) anf
 ;;
 
 (*
@@ -268,7 +210,6 @@ let%test _ =
    let anf_11 = anf_10 ll_1
    in anf_11
 *)
-
 let%test _ =
   let ll =
     [ LFun
@@ -347,5 +288,5 @@ let%test _ =
                 , ACExpr (CImmExpr (ImmIdentifier "anf_11")) ) ) )
     ]
   in
-  compare (anf_program ll) anf
+  equal (anf_program ll) anf
 ;;

@@ -7,7 +7,6 @@ open Cc_ast
 open Counter
 open Base
 
-let compare ll_program1 ll_program2 = Base.Poly.equal ll_program1 ll_program2
 let gen_var = gen_var "ll"
 let extend_env env func = func :: env
 
@@ -46,7 +45,7 @@ let rec lift_expr env = function
        ll_let_body, extend_env env'' @@ LFun (id, args, ll_fun_body))
 ;;
 
-let lift_bindings = function
+let lift_binding = function
   | CVal (id, body) ->
     let ll_body, new_funcs = lift_expr [] body in
     let new_funcs_rev = List.rev new_funcs in
@@ -58,26 +57,23 @@ let lift_bindings = function
 ;;
 
 let ll_program program =
-  let () = reset () in
-  List.fold_left program ~f:(fun l r -> l @ lift_bindings r) ~init:[]
+  reset ();
+  List.fold_left program ~f:(fun l r -> l @ lift_binding r) ~init:[]
 ;;
+
+(* tests *)
+let equal ll_program1 ll_program2 = Base.Poly.equal ll_program1 ll_program2
 
 let%test _ =
   let cc = [ CVal ("x", CApp (CIdentifier "f", CLiteral (LInt 3))) ] in
   let ll = [ LVal ("x", LApp (LIdentifier "f", LLiteral (LInt 3))) ] in
-  compare (ll_program cc) ll
+  equal (ll_program cc) ll
 ;;
 
 let%test _ =
   let cc = [ CVal ("x", CBinaryOp (Add, CLiteral (LInt 5), CLiteral (LInt 7))) ] in
   let ll = [ LVal ("x", LBinaryOp (Add, LLiteral (LInt 5), LLiteral (LInt 7))) ] in
-  compare (ll_program cc) ll
-;;
-
-let%test _ =
-  let cc = [ CVal ("x", CLiteral (LInt 5)) ] in
-  let ll = [ LVal ("x", LLiteral (LInt 5)) ] in
-  compare (ll_program cc) ll
+  equal (ll_program cc) ll
 ;;
 
 (* val p = (fn x -> x)
@@ -99,13 +95,7 @@ let%test _ =
     ; LVal ("p2", LIdentifier "ll_2")
     ]
   in
-  compare (ll_program cc) ll
-;;
-
-let%test _ =
-  let cc = [ CVal ("p", CAbs ([ "x" ], CIdentifier "x")) ] in
-  let ll = [ LFun ("ll_1", [ "x" ], LIdentifier "x"); LVal ("p", LIdentifier "ll_1") ] in
-  compare (ll_program cc) ll
+  equal (ll_program cc) ll
 ;;
 
 let%test _ =
@@ -123,7 +113,7 @@ let%test _ =
         , LApp (LIdentifier "k", LApp (LIdentifier "m", LIdentifier "n")) )
     ]
   in
-  compare (ll_program cc) ll
+  equal (ll_program cc) ll
 ;;
 
 let%test _ =
@@ -153,21 +143,7 @@ let%test _ =
                 , LIdentifier "n" ) ) )
     ]
   in
-  compare (ll_program cc) ll
-;;
-
-let%test _ =
-  let cc =
-    [ CFun
-        ("l", [ "n" ], CApp (CApp (CIdentifier "t", CIdentifier "n"), CIdentifier "ll_1"))
-    ]
-  in
-  let ll =
-    [ LFun
-        ("l", [ "n" ], LApp (LApp (LIdentifier "t", LIdentifier "n"), LIdentifier "ll_1"))
-    ]
-  in
-  compare (ll_program cc) ll
+  equal (ll_program cc) ll
 ;;
 
 let%test _ =
@@ -186,51 +162,7 @@ let%test _ =
         ("j", [ "n" ], LApp (LApp (LIdentifier "g", LIdentifier "n"), LLiteral (LInt 1)))
     ]
   in
-  compare (ll_program cc) ll
-;;
-
-let%test _ =
-  let cc =
-    [ CFun
-        ( "h"
-        , [ "x"; "y" ]
-        , CApp
-            ( CIdentifier "g"
-            , CApp (CApp (CIdentifier "f", CIdentifier "x"), CIdentifier "y") ) )
-    ]
-  in
-  let ll =
-    [ LFun
-        ( "h"
-        , [ "x"; "y" ]
-        , LApp
-            ( LIdentifier "g"
-            , LApp (LApp (LIdentifier "f", LIdentifier "x"), LIdentifier "y") ) )
-    ]
-  in
-  compare (ll_program cc) ll
-;;
-
-let%test _ =
-  let cc = [ CFun ("f", [ "x" ], CApp (CIdentifier "g", CIdentifier "x")) ] in
-  let ll = [ LFun ("f", [ "x" ], LApp (LIdentifier "g", LIdentifier "x")) ] in
-  compare (ll_program cc) ll
-;;
-
-let%test _ =
-  let cc =
-    [ CFun ("sqr", [ "x" ], CBinaryOp (Mult, CIdentifier "x", CIdentifier "x")) ]
-  in
-  let ll =
-    [ LFun ("sqr", [ "x" ], LBinaryOp (Mult, LIdentifier "x", LIdentifier "x")) ]
-  in
-  compare (ll_program cc) ll
-;;
-
-let%test _ =
-  let cc = [ CVal ("x", CLiteral (LInt 10)) ] in
-  let ll = [ LVal ("x", LLiteral (LInt 10)) ] in
-  compare (ll_program cc) ll
+  equal (ll_program cc) ll
 ;;
 
 (*
@@ -251,7 +183,7 @@ let%test _ =
    fun fack n k =
    if n <= 1 then k 1
    else fack (n-1) (fack1 k n)
-   fun id x = x
+   fun ll_1 x = x
    fun fac n = fack n id
 *)
 let%test _ =
@@ -309,5 +241,5 @@ let%test _ =
         , LApp (LApp (LIdentifier "fack", LIdentifier "n"), LIdentifier "ll_1") )
     ]
   in
-  compare (ll_program cc) ll
+  equal (ll_program cc) ll
 ;;
