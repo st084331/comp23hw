@@ -5,6 +5,7 @@
   let anf_1 = (m * n) in
   let anf_2 = k anf_1 in
   anf_2
+  
   fun fack n k = 
   let anf_3 = (n <= 1) in
   let anf_4 = k 1 in
@@ -15,10 +16,13 @@
   let anf_9 = anf_6 anf_8 in
   let anf_10 = if anf_3 then anf_4 else anf_9 in
   anf_10
+  
   fun ll_1 x = 
   x
+  
   fun fac n = 
   let anf_11 = fack n in
   let anf_12 = anf_11 ll_1 in
   anf_12
+  
   int -> int
