@@ -14,13 +14,13 @@ let rec anf (e : ll_expr) (expr_with_hole : immexpr -> aexpr) =
   | LLiteral (LBool n) -> expr_with_hole (ImmBool n)
   | LIdentifier x -> expr_with_hole (ImmIdentifier x)
   | LUnaryOp (op, body) ->
-    let varname = gen_var () in
     anf body (fun imm ->
+      let varname = gen_var () in
       ALet (varname, CUnaryOp (op, imm), expr_with_hole (ImmIdentifier varname)))
   | LBinaryOp (op, left, right) ->
-    let varname = gen_var () in
     anf left (fun limm ->
       anf right (fun rimm ->
+        let varname = gen_var () in
         ALet (varname, CBinaryOp (op, limm, rimm), expr_with_hole (ImmIdentifier varname))))
   | LApp (left, right) ->
     anf left (fun limm ->
@@ -30,7 +30,12 @@ let rec anf (e : ll_expr) (expr_with_hole : immexpr -> aexpr) =
   | LIfThenElse (condition, true_branch, false_branch) ->
     anf condition (fun cond ->
       anf true_branch (fun t_branch ->
-        anf false_branch (fun f_branch -> ACExpr (CIfThenElse (cond, t_branch, f_branch)))))
+        anf false_branch (fun f_branch ->
+          let varname = gen_var () in
+          ALet
+            ( varname
+            , CIfThenElse (cond, t_branch, f_branch)
+            , expr_with_hole (ImmIdentifier varname) ))))
   | LLetIn (id, left, right) ->
     anf left (fun limm ->
       anf right (fun rimm -> ALet (id, CImmExpr limm, expr_with_hole rimm)))
