@@ -1,7 +1,11 @@
+(** Copyright 2023-2024, Anton Kraev and Polina Badreeva *)
+
+(** SPDX-License-Identifier: LGPL-3.0-or-later *)
+
 open Ast
 
 (** Simplified ast representation which is the result of lambda lifting stage.
-    The difference with cc_expr is that there are no nested and anonymous functions *)
+ The difference with cc_expr is that there are no nested and anonymous functions *)
 
 type ll_expr =
   | LLiteral of literal
