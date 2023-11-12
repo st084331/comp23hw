@@ -12,7 +12,7 @@
   Compare
   Closure_conversion)
  (inline_tests)
- (libraries base angstrom core)
+ (libraries base angstrom core stdlib)
  (preprocess
   (pps ppx_expect ppx_deriving.show ppx_deriving.eq))
  (instrumentation

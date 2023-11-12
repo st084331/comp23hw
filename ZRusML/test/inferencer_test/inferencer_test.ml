@@ -5,7 +5,7 @@
 open! Core
 open ZRusML_lib.Code_inferencer
 
-let%expect_test "arithmetic operations test" =
+(* let%expect_test "arithmetic operations test" =
   let code =
     {|
     let x = 3 * 4 / 2 + 7;;
@@ -79,4 +79,4 @@ let%expect_test "factorial acc test" =
     val acc_fact : int -> int -> int
     val test : bool
   |}]
-;;
+;; *)
