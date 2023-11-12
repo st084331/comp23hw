@@ -49,7 +49,7 @@ let rec transform_exp exp env exp_name =
     let body_vars, new_body = transform_exp body args exp_name in
     let body_vars = StringSet.remove exp_name body_vars in
     let body_vars_lst = List.of_seq (StringSet.to_seq body_vars) in
-    let pt_vars = List.map (fun elem -> PtVar elem) body_vars_lst @ vars in
+    let pt_vars = List.map (fun elem -> PtVar elem) body_vars_lst @ List.rev vars in
     let rec helper_efun = function
       | hd :: tl -> EFun (hd, helper_efun tl)
       | _ -> new_body
@@ -101,41 +101,4 @@ let transform_decls bindings =
       bindings
   in
   List.map (fun elem -> DLet elem) new_bindings
-;;
-
-let%test _ =
-  let code =
-    {|
-    let a c d =
-      let m = c + d in
-      let k l = 
-        let x = l * 2 in
-        let y t = m + t in
-        y x
-      in
-      k (5 + m)
-    ;;
-  |}
-  in
-  match parse prog code with
-  | Error _ ->
-    Printf.printf "PARSER ERROR";
-    false
-  | Result.Ok res ->
-    pp_prog Format.std_formatter res;
-    Printf.printf "\n------------------------------------------\n";
-    pp_prog Format.std_formatter (transform_decls res);
-    false
-;;
-
-let a d c =
-  let m = c + d in
-  let k =
-    (fun m l ->
-      let x = l * 2 in
-      let y = (fun m t -> m + t) m in
-      y x)
-      m
-  in
-  k (5 + m)
 ;;

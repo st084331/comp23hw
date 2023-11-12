@@ -39,7 +39,7 @@ let pp_pt fmt = function
 ;;
 
 let print_tabs fmt cnt =
-  fprintf fmt "%s" (String.concat "" (List.init cnt (fun _ -> "\t")))
+  fprintf fmt "%s" (String.concat "" (List.init cnt (fun _ -> "    ")))
 ;;
 
 let rec pp_exp fmt cnt = function
@@ -58,7 +58,7 @@ let rec pp_exp fmt cnt = function
   | EBinOp (op, e1, e2) ->
     let start, stop =
       match op with
-      | Sub | Add -> "(", ")"
+      | Sub | Add | Mul -> "(", ")"
       | _ -> "", ""
     in
     fprintf fmt "%s" start;
@@ -100,9 +100,16 @@ let rec pp_exp fmt cnt = function
     print_tabs fmt (cnt - 1);
     fprintf fmt ") "
   | EApp (e1, e2) ->
+    let start, stop =
+      match e2 with
+      | EApp (_, _) -> "(", ")"
+      | _ -> "", ""
+    in
     pp_exp fmt cnt e1;
     fprintf fmt " ";
-    pp_exp fmt cnt e2
+    fprintf fmt "%s" start;
+    pp_exp fmt cnt e2;
+    fprintf fmt "%s" stop
 ;;
 
 let pp_binding fmt cnt (is_rec, pt, exp) =
