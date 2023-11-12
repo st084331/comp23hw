@@ -1,6 +1,6 @@
 (library
- (name inferencer_test)
- (modules inferencer_test)
+ (name closure_conversion_test)
+ (modules closure_conversion_test)
  (libraries ZRusML.lib stdlib)
  (inline_tests)
  (preprocess
