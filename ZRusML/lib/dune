@@ -4,7 +4,6 @@
  (modules
   Ast
   Parser
-  Parser_test
   Code_inferencer
   Typing
   Inferencer
