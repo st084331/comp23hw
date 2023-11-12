@@ -241,7 +241,20 @@ let%test _ =
     Printf.printf "PARSER ERROR";
     false
   | Result.Ok res ->
-    Printf.printf "-------------\n%s\n----------------" (show_prog res);
-    Printf.printf "-------------\n%s\n----------------" (show_prog (transform_decls res));
+    pp_prog Format.std_formatter res;
+    Printf.printf "\n------------------------------------------\n";
+    pp_prog Format.std_formatter (transform_decls res);
     false
+;;
+
+let a d c =
+  let m = c + d in
+  let k =
+    (fun m l ->
+      let x = l * 2 in
+      let y = (fun m t -> m + t) m in
+      y x)
+      m
+  in
+  k (5 + m)
 ;;
