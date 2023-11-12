@@ -10,9 +10,10 @@
   Inferencer
   Anf
   Compare
-  Closure_conversion)
+  Closure_conversion
+  Pretty_printer)
  (inline_tests)
- (libraries base angstrom core stdlib)
+ (libraries base angstrom stdlib)
  (preprocess
   (pps ppx_expect ppx_deriving.show ppx_deriving.eq))
  (instrumentation
