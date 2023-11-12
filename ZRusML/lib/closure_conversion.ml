@@ -4,147 +4,9 @@
 
 open Ast
 open Parser
+open Pretty_printer
 module StringMap = Map.Make (String)
 module StringSet = Set.Make (String)
-
-(* let rec find_ids exp =
-  match exp with
-  | EVar name -> StringSet.singleton name
-  | EUnOp (_, e) | EFun (_, e) -> find_ids e
-  | ELet (bindings, e) ->
-    let acc = find_ids e in
-    List.fold_left
-      (fun accum (_, _, elem) -> StringSet.union accum (find_ids elem))
-      acc
-      bindings
-  | EIf (e1, e2, e3) ->
-    StringSet.union (StringSet.union (find_ids e1) (find_ids e2)) (find_ids e3)
-  | EBinOp (_, e1, e2) | EApp (e1, e2) -> StringSet.union (find_ids e1) (find_ids e2)
-  | _ -> StringSet.empty
-;;
-
-let rec closure_exp exp replace_map global_env =
-  let conversion_exp e = closure_exp e replace_map global_env in
-  match exp with
-  | EVar name ->
-    (match StringMap.find_opt name replace_map with
-     | Some v -> find_ids v, v
-     | None -> StringSet.singleton name, EVar name)
-  | EUnOp (op, e) ->
-    let st, ex = conversion_exp e in
-    st, EUnOp (op, ex)
-  | EIf (e1, e2, e3) ->
-    let st1, ex1 = conversion_exp e1 in
-    let st2, ex2 = conversion_exp e2 in
-    let st3, ex3 = conversion_exp e3 in
-    StringSet.union (StringSet.union st1 st2) st3, EIf (ex1, ex2, ex3)
-  | EBinOp (op, e1, e2) ->
-    let st1, ex1 = conversion_exp e1 in
-    let st2, ex2 = conversion_exp e2 in
-    StringSet.union st1 st2, EBinOp (op, ex1, ex2)
-  | EApp (e1, e2) ->
-    let st1, ex1 = conversion_exp e1 in
-    let st2, ex2 = conversion_exp e2 in
-    StringSet.union st1 st2, EApp (ex1, ex2)
-  | EFun (_, _) ->
-    let vars_list, body = decompose_fun [] exp in
-    let vars_list = List.rev vars_list in
-    let vars = StringSet.of_list vars_list in
-    let body_vars, new_body = conversion_exp body in
-    let add_vars = StringSet.diff body_vars (StringSet.union vars global_env) in
-    let new_vars = List.of_seq (StringSet.to_seq add_vars) @ vars_list in
-    let rec compose_fun ebody = function
-      | hd :: tail -> EFun (PtVar hd, compose_fun ebody tail)
-      | _ -> ebody
-    in
-    let new_exp = compose_fun new_body new_vars in
-    let rec compose_app = function
-      | hd :: tl -> EApp (compose_app tl, EVar hd)
-      | _ -> new_exp
-    in
-    add_vars, new_exp (* compose_app (List.of_seq (StringSet.to_rev_seq add_vars)) *)
-  | ELet (bindings, e) ->
-    let (new_map, _, ids), new_bindings =
-      List.fold_left_map
-        (fun (acc, local, ids) (is_rec, t, elem) ->
-          let t_name =
-            match t with
-            | PtVar nm -> nm
-            | _ -> "_"
-          in
-          let vars, new_acc, new_elem =
-            match elem with
-            | EFun (_, _) ->
-              let vars, _ = decompose_fun [] elem in
-              let vars = StringSet.of_list vars in
-              let global_env_tmp =
-                if is_rec then StringSet.add t_name global_env else global_env
-              in
-              let add_vars, new_body = closure_exp elem acc global_env_tmp in
-              let vars_list = List.of_seq (StringSet.to_rev_seq add_vars) in
-              let rec construct_app = function
-                | hd :: tl -> EApp (construct_app tl, EVar hd)
-                | _ -> EVar t_name
-              in
-              let new_name = construct_app vars_list in
-              let new_acc =
-                match t with
-                | PtVar pt_name -> StringMap.add pt_name new_name replace_map
-                | _ -> acc
-              in
-              let _ =
-                Printf.printf "%STTTTTTTTTT%sTTTTTTTTTTTTTT" t_name (show_exp new_body)
-              in
-              let _, new_body = closure_exp new_body new_acc global_env_tmp in
-              vars, new_acc, new_body
-            | _ ->
-              let _, new_body = closure_exp elem acc global_env in
-              find_ids elem, acc, new_body
-          in
-          let local = StringSet.add t_name local in
-          let new_ids = StringSet.diff (find_ids elem) (StringSet.union local vars) in
-          (new_acc, local, StringSet.union new_ids ids), (is_rec, t, new_elem))
-        (replace_map, StringSet.empty, StringSet.empty)
-        bindings
-    in
-    let _, new_e = closure_exp e new_map global_env in
-    ids, ELet (new_bindings, new_e)
-  | _ -> StringSet.empty, exp
-;;
-
-let closure_transform prog =
-  let get_env env is_rec t =
-    match t with
-    | PtVar name when is_rec -> StringSet.add name env
-    | _ -> env
-  in
-  let _, bindings =
-    List.fold_left_map
-      (fun (map, env) (DLet (is_rec, t, elem)) ->
-        let env = get_env env is_rec t in
-        let new_map, new_elem =
-          match elem with
-          | EFun (PtVar name, _) ->
-            let add_vars, new_body = closure_exp elem map env in
-            let vars_list = List.of_seq (StringSet.to_rev_seq add_vars) in
-            let rec construct_app = function
-              | hd :: tl -> EApp (construct_app tl, EVar hd)
-              | _ -> EVar name
-            in
-            let new_name = construct_app vars_list in
-            let new_acc = StringMap.add name new_name map in
-            new_acc, new_body
-          | _ ->
-            let _, new_body = closure_exp elem map env in
-            map, new_body
-        in
-        let new_env = get_env env true t in
-        (new_map, new_env), DLet (is_rec, t, new_elem))
-      (StringMap.empty, StringSet.empty)
-      prog
-  in
-  bindings
-;; *)
 
 let rec decompose_fun pts = function
   | EFun (p, e) -> decompose_fun (p :: pts) e
@@ -260,7 +122,20 @@ let%test _ =
     Printf.printf "PARSER ERROR";
     false
   | Result.Ok res ->
-    Printf.printf "-------------\n%s\n----------------" (show_prog res);
-    Printf.printf "-------------\n%s\n----------------" (show_prog (transform_decls res));
+    pp_prog Format.std_formatter res;
+    Printf.printf "\n------------------------------------------\n";
+    pp_prog Format.std_formatter (transform_decls res);
     false
+;;
+
+let a d c =
+  let m = c + d in
+  let k =
+    (fun m l ->
+      let x = l * 2 in
+      let y = (fun m t -> m + t) m in
+      y x)
+      m
+  in
+  k (5 + m)
 ;;
