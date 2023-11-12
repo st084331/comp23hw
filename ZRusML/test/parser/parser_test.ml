@@ -2,8 +2,8 @@
 
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
-open Ast
-open Parser
+open ZRusML_lib.Ast
+open ZRusML_lib.Parser
 
 let test_parse ~label ~code ~expected =
   match parse prog code with

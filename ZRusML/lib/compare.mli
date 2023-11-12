@@ -11,3 +11,4 @@ val print_const : const -> string
 val print_exp : exp -> string
 val print_let : bool * pt * exp -> string
 val print_bindings : (bool * pt * exp) list -> string
+val print_prog : decl list -> string

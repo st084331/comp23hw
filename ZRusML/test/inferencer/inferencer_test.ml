@@ -2,7 +2,6 @@
 
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
-open! Core
 open ZRusML_lib.Code_inferencer
 
 let%expect_test "arithmetic operations test" =

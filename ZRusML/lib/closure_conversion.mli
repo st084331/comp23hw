@@ -2,13 +2,9 @@
 
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
-open Ast
+(** Decompose fun to fun args list and fun body *)
+val decompose_fun : Ast.pt list -> Ast.exp -> Ast.pt list * Ast.exp
 
-(* Helper function to collect all free variables in an expression *)
-val free_vars : exp -> string list -> string list
+(** Transform decls to decls without closures *)
+val transform_decls : Ast.decl list -> Ast.decl list
 
-(* Closure conversion for expressions *)
-val convert_exp : exp -> string list -> exp
-
-(* Closure conversion for a program *)
-val closure_convert_program : decl list -> decl list
