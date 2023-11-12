@@ -159,8 +159,7 @@ let rec transform_exp exp env exp_name =
     let args =
       StringSet.of_list
         (List.filter_map
-           (fun elem ->
-             match elem with
+           (function
              | PtVar name -> Some name
              | _ -> None)
            vars)
