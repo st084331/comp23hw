@@ -73,15 +73,15 @@ let%test "test update_function_calls" =
   | _ -> false
 ;;
 
-(** let%test "test lambda_lift" =
-    let nested_func = EFun (PtVar "g", EBinOp (Add, EVar "g", EVar "x")) in
-    let program_expr = EFun (PtVar "f", EApp (nested_func, EConst (CInt 1))) in
-    let program = DLet (false, PtWild, program_expr) in
-    let lifted_program = lambda_lift program in
-    match lifted_program with
-    | [ DLet (_, _, EFun (_, EApp (EVar lifted_name, _)))
+let%test "test lambda_lift" =
+  let nested_func = EFun (PtVar "g", EBinOp (Add, EVar "g", EVar "x")) in
+  let program_expr = EFun (PtVar "f", EApp (nested_func, EConst (CInt 1))) in
+  let program = DLet (false, PtWild, program_expr) in
+  let lifted_program = lambda_lift program in
+  match lifted_program with
+  | [ DLet (_, _, EFun (_, EApp (EVar lifted_name, _)))
     ; DLet (_, _, EFun (_, EFun (_, EBinOp (Add, EVar "g", EVar "x"))))
     ]
     when String.is_substring lifted_name ~substring:"lifted_g" -> true
-    | _ -> false
-    ;; *)
+  | _ -> false
+;;
