@@ -108,13 +108,14 @@ let rec update_function_calls lifted_functions expr =
     let free_vars = List.assoc id lifted_functions in
     let updated_arg = update_function_calls lifted_functions arg in
     let new_call =
-      List.fold_right (fun var acc -> EApp (EVar var, acc)) free_vars (EVar id)
+      List.fold_right (fun var acc -> EApp (acc, EVar var)) free_vars (EVar id)
     in
     EApp (new_call, updated_arg)
   | ELet (bindings, body) ->
-    ELet
-      ( List.map (fun (b, p, e) -> b, p, update_function_calls lifted_functions e) bindings
-      , update_function_calls lifted_functions body )
+    let updated_bindings =
+      List.map (fun (b, p, e) -> b, p, update_function_calls lifted_functions e) bindings
+    in
+    ELet (updated_bindings, update_function_calls lifted_functions body)
   | EIf (cond, then_branch, else_branch) ->
     EIf
       ( update_function_calls lifted_functions cond
