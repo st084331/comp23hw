@@ -110,6 +110,7 @@ let move_to_top_level program nested_func_expr nested_func_name counter =
 ;;
 
 let rec update_function_calls lifted_functions expr =
+  Printf.printf "Current Expr: %s\n" (print_exp expr);
   match expr with
   | EApp (EVar id, arg) when List.mem_assoc id lifted_functions ->
     let free_vars = List.assoc id lifted_functions in
@@ -118,11 +119,13 @@ let rec update_function_calls lifted_functions expr =
       List.fold_left (fun acc var -> EApp (acc, EVar var)) (EVar id) free_vars
     in
     let result_expr = EApp (new_call, updated_arg) in
+    Printf.printf "Modified Expr: %s\n" (print_exp result_expr);
     result_expr
   | ELet (bindings, body) ->
-    ELet
-      ( List.map (fun (b, p, e) -> b, p, update_function_calls lifted_functions e) bindings
-      , update_function_calls lifted_functions body )
+    let updated_bindings =
+      List.map (fun (b, p, e) -> b, p, update_function_calls lifted_functions e) bindings
+    in
+    ELet (updated_bindings, update_function_calls lifted_functions body)
   | EIf (cond, then_branch, else_branch) ->
     EIf
       ( update_function_calls lifted_functions cond
