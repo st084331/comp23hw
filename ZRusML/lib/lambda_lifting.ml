@@ -34,43 +34,49 @@ let rec find_nested_functions = function
 let rec find_free_vars expr bound_vars =
   match expr with
   | EVar id -> if List.mem id bound_vars then [] else [ id ]
-  | EFun (pt, body) ->
-    let new_bound_vars =
-      (match pt with
-       | PtVar id -> id
-       | _ -> "")
-      :: bound_vars
-    in
-    find_free_vars body new_bound_vars
-  | ELet (bindings, body) ->
-    let new_bound_vars =
+  | EConst _ -> []
+  | EUnOp (_, e) -> find_free_vars e bound_vars
+  | EBinOp (_, e1, e2) -> find_free_vars e1 bound_vars @ find_free_vars e2 bound_vars
+  | EIf (e1, e2, e3) ->
+    find_free_vars e1 bound_vars
+    @ find_free_vars e2 bound_vars
+    @ find_free_vars e3 bound_vars
+  | ELet (bindings, e) ->
+    let bound_in_let =
       List.fold_left
-        (fun acc (is_recursive, pt, _) ->
+        (fun acc (_, pt, _) ->
           match pt with
-          | PtVar id when not is_recursive -> id :: acc
+          | PtVar id -> id :: acc
           | _ -> acc)
-        bound_vars
+        []
         bindings
     in
-    List.concat (List.map (fun (_, _, e) -> find_free_vars e bound_vars) bindings)
-    @ find_free_vars body new_bound_vars
-  | EIf (cond, then_branch, else_branch) ->
-    find_free_vars cond bound_vars
-    @ find_free_vars then_branch bound_vars
-    @ find_free_vars else_branch bound_vars
-  | EBinOp (_, left, right) ->
-    find_free_vars left bound_vars @ find_free_vars right bound_vars
-  | EUnOp (_, expr) -> find_free_vars expr bound_vars
-  | EApp (func, arg) -> find_free_vars func bound_vars @ find_free_vars arg bound_vars
-  | _ -> []
+    let vars_in_let =
+      List.fold_left (fun acc (_, _, e) -> find_free_vars e bound_vars @ acc) [] bindings
+    in
+    vars_in_let @ find_free_vars e (bound_in_let @ bound_vars)
+  | EFun (pt, e) ->
+    let new_bound_vars =
+      match pt with
+      | PtVar id -> id :: bound_vars
+      | _ -> bound_vars
+    in
+    find_free_vars e new_bound_vars
+  | EApp (e1, e2) -> find_free_vars e1 bound_vars @ find_free_vars e2 bound_vars
 ;;
 
 let parameterize_function expr =
   match expr with
   | EFun (pt, body) ->
     let free_vars = find_free_vars body [] in
+    let new_params = List.map (fun var -> PtVar var) free_vars in
+    let combined_params =
+      match pt with
+      | PtVar _ as original_pt -> original_pt :: new_params
+      | PtWild | PtConst _ -> new_params
+    in
     let updated_body =
-      List.fold_right (fun var acc -> EFun (PtVar var, acc)) free_vars body
+      List.fold_right (fun param acc -> EFun (param, acc)) combined_params body
     in
     EFun (pt, updated_body)
   | _ -> expr
@@ -78,7 +84,8 @@ let parameterize_function expr =
 
 let move_to_top_level program nested_func_expr nested_func_name counter =
   let unique_name, new_counter = generate_unique_name nested_func_name counter in
-  let rec replace_nested_func = function
+  let rec replace_nested_func expr =
+    match expr with
     | EFun (pt, body) as func ->
       if func_name func = nested_func_name
       then EVar unique_name
