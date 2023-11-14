@@ -17,7 +17,7 @@ let%expect_test "function test" =
 |} in
   helper code;
   [%expect {|
-  let f = (fun x -> (x + y));;
+  let f x = (x + y);;
 |}]
 ;;
 
@@ -34,11 +34,11 @@ let%expect_test "let in, apps, operators test" =
   helper code;
   [%expect
     {|
-let a = (fun c d -> (
+let a c d = (
     let m = (c + d) in
-    let k = (fun l -> (l + m)) in
+    let k l = (l + m) in
     k (5 + m)
-) );;
+) ;;
 |}]
 ;;
 
@@ -59,15 +59,15 @@ let%expect_test "let in depth 2, apps, operators" =
   helper code;
   [%expect
     {|
-  let a = (fun c d -> (
+  let a c d = (
       let m = (c + d) in
-      let k = (fun l -> (
+      let k l = (
           let x = (l * 2) in
-          let y = (fun t -> (m + t)) in
+          let y t = (m + t) in
           y x
-      ) ) in
+      )  in
       k (5 + m)
-  ) );;
+  ) ;;
 |}]
 ;;
 
@@ -86,10 +86,10 @@ let%expect_test "factorial cps test" =
   helper code;
   [%expect
     {|
-let fac = (fun n -> (
-    let rec fack = (fun n k -> if n <= 1 then 1 else fack (n - 1) (fun m -> k (m * n))) in
+let fac n = (
+    let rec fack n k = if n <= 1 then 1 else fack (n - 1) (fun m -> k (m * n)) in
     fack n (fun x -> x)
-) );;
+) ;;
 |}]
 ;;
 
@@ -109,13 +109,13 @@ let%expect_test "let ins test" =
   helper code;
   [%expect
     {|
-let f = (fun a b -> (
-    let x = (fun y -> (y + z)) in
+let f a b = (
+    let x y = (y + z) in
     let t = (
-        let g = (fun s -> (m * s)) in
+        let g s = (m * s) in
         g 15
     )  in
     x 1337
-) );;
+) ;;
 |}]
 ;;
