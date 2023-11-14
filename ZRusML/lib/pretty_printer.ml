@@ -42,6 +42,7 @@ let print_tabs fmt cnt =
   fprintf fmt "%s" (String.concat "" (List.init cnt (fun _ -> "    ")))
 ;;
 
+(* Pretty in result of work, not pretty in code. Fix code style soon... *)
 let rec pp_exp fmt cnt = function
   | EConst x -> pp_const fmt x
   | EUnOp (o, e) ->
@@ -68,7 +69,7 @@ let rec pp_exp fmt cnt = function
     fprintf fmt " ";
     pp_exp fmt cnt e2;
     fprintf fmt "%s" stop
-  | EFun (_, _) as orig ->
+  | EFun _ as orig ->
     let rec helper = function
       | EFun (a, b) ->
         pp_pt fmt a;
@@ -90,8 +91,17 @@ let rec pp_exp fmt cnt = function
         fprintf fmt "let ";
         fprintf fmt (if is_rec then "rec " else "");
         pp_pt fmt pt;
-        fprintf fmt " = ";
-        pp_exp fmt cnt exp;
+        fprintf fmt " ";
+        let rec helper = function
+          | EFun (a, b) ->
+            pp_pt fmt a;
+            fprintf fmt " ";
+            helper b
+          | exp ->
+            fprintf fmt "= ";
+            pp_exp fmt cnt exp
+        in
+        helper exp;
         fprintf fmt " in\n")
       bindings;
     print_tabs fmt cnt;
@@ -102,7 +112,7 @@ let rec pp_exp fmt cnt = function
   | EApp (e1, e2) ->
     let start, stop =
       match e2 with
-      | EApp (_, _) -> "(", ")"
+      | EApp _ -> "(", ")"
       | _ -> "", ""
     in
     pp_exp fmt cnt e1;
@@ -117,8 +127,17 @@ let pp_binding fmt cnt (is_rec, pt, exp) =
   fprintf fmt "let ";
   fprintf fmt (if is_rec then "rec " else "");
   pp_pt fmt pt;
-  fprintf fmt " = ";
-  pp_exp fmt cnt exp
+  fprintf fmt " ";
+  let rec helper = function
+    | EFun (a, b) ->
+      pp_pt fmt a;
+      fprintf fmt " ";
+      helper b
+    | exp ->
+      fprintf fmt "= ";
+      pp_exp fmt cnt exp
+  in
+  helper exp
 ;;
 
 let pp_decl fmt (DLet (is_rec, pt, exp)) =
@@ -126,4 +145,4 @@ let pp_decl fmt (DLet (is_rec, pt, exp)) =
   fprintf fmt ";;\n"
 ;;
 
-let pp_prog fmt prog = List.iter (fun elem -> pp_decl fmt elem) prog
+let pp_prog fmt prog = List.iter (pp_decl fmt) prog

@@ -35,11 +35,11 @@ let%expect_test "closure depth 1" =
   helper code;
   [%expect
     {|
-let a = (fun c d -> (
+let a c d = (
     let m = (c + d) in
     let k = (fun m l -> (l + m)) m in
     k (5 + m)
-) );;
+) ;;
 |}]
 ;;
 
@@ -60,7 +60,7 @@ let%expect_test "closure depth 2" =
   helper code;
   [%expect
     {|
-  let a = (fun c d -> (
+  let a c d = (
       let m = (c + d) in
       let k = (fun m l -> (
           let x = (l * 2) in
@@ -68,7 +68,7 @@ let%expect_test "closure depth 2" =
           y x
       ) ) m in
       k (5 + m)
-  ) );;
+  ) ;;
 |}]
 ;;
 
@@ -87,10 +87,10 @@ let%expect_test "factorial cps test" =
   helper code;
   [%expect
     {|
-let fac = (fun n -> (
-    let rec fack = (fun n k -> if n <= 1 then 1 else fack (n - 1) ((fun k n m -> k (m * n)) k n)) in
+let fac n = (
+    let rec fack n k = if n <= 1 then 1 else fack (n - 1) ((fun k n m -> k (m * n)) k n) in
     fack n (fun x -> x)
-) );;
+) ;;
 |}]
 ;;
 
