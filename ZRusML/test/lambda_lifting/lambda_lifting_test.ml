@@ -70,8 +70,8 @@ let%expect_test _ =
   helper code;
   [%expect
     {|
-let rec 0lambda x y = (x + f y);;
-let rec 1lambda x y = (f x + (f y + 3));;
+let rec 0lambda x y = (x + 0lambda y);;
+let rec 1lambda x y = (1lambda x + (1lambda y + 3));;
 let 2lambda b c = (
     let t = 15 in
     let rec f = 1lambda in
@@ -98,7 +98,7 @@ let%expect_test _ =
   [%expect
     {|
 let 0lambda m = k (m * n);;
-let rec 1lambda n k = if n <= 1 then 1 else fack (n - 1) 0lambda;;
+let rec 1lambda n k = if n <= 1 then 1 else 1lambda (n - 1) 0lambda;;
 let 2lambda x = x;;
 let 3lambda n = (
     let rec fack = 1lambda in
