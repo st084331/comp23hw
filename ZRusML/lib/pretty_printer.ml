@@ -90,8 +90,17 @@ let rec pp_exp fmt cnt = function
         fprintf fmt "let ";
         fprintf fmt (if is_rec then "rec " else "");
         pp_pt fmt pt;
-        fprintf fmt " = ";
-        pp_exp fmt cnt exp;
+        fprintf fmt " ";
+        let rec helper = function
+          | EFun (a, b) ->
+            pp_pt fmt a;
+            fprintf fmt " ";
+            helper b
+          | exp ->
+            fprintf fmt "= ";
+            pp_exp fmt cnt exp
+        in
+        helper exp;
         fprintf fmt " in\n")
       bindings;
     print_tabs fmt cnt;
@@ -117,8 +126,17 @@ let pp_binding fmt cnt (is_rec, pt, exp) =
   fprintf fmt "let ";
   fprintf fmt (if is_rec then "rec " else "");
   pp_pt fmt pt;
-  fprintf fmt " = ";
-  pp_exp fmt cnt exp
+  fprintf fmt " ";
+  let rec helper = function
+    | EFun (a, b) ->
+      pp_pt fmt a;
+      fprintf fmt " ";
+      helper b
+    | exp ->
+      fprintf fmt "= ";
+      pp_exp fmt cnt exp
+  in
+  helper exp
 ;;
 
 let pp_decl fmt (DLet (is_rec, pt, exp)) =
