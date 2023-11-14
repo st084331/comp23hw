@@ -10,7 +10,8 @@
   Anf
   Compare
   Closure_conversion
-  Pretty_printer)
+  Pretty_printer
+  Lambda_lifting)
  (inline_tests)
  (libraries base angstrom stdlib)
  (preprocess
