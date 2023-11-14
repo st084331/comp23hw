@@ -121,8 +121,6 @@ let lift_prog prog =
       (StringMap.empty, 0)
       prog
   in
-  let new_bindings =
-    List.map (fun (_, e) -> e) @@ List.of_seq @@ StringMap.to_seq new_bindings
-  in
+  let new_bindings = List.map snd @@ List.of_seq @@ StringMap.to_seq new_bindings in
   new_bindings @ new_prog
 ;;
