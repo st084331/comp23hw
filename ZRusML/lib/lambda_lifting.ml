@@ -17,6 +17,17 @@ let rec lift_exp map cnt exp =
       List.fold_left_map
         (fun (acc_map, acc_cnt) (is_rec, pt, elem) ->
           let next_map, next_cnt, new_elem = lift_exp acc_map acc_cnt elem in
+          let next_map =
+            match elem with
+            | EFun _ when is_rec ->
+              let last_name = string_of_int (next_cnt - 1) ^ "lambda" in
+              let (DLet (_, p, e)) = StringMap.find last_name next_map in
+              StringMap.add
+                last_name
+                (DLet (true, p, e))
+                (StringMap.remove last_name next_map)
+            | _ -> next_map
+          in
           (next_map, next_cnt), (is_rec, pt, new_elem))
         (map, cnt)
         bindings
@@ -36,7 +47,7 @@ let rec lift_exp map cnt exp =
       | _ -> new_e
     in
     let new_efun = helper_result exp in
-    let new_map = StringMap.add name new_efun map in
+    let new_map = StringMap.add name (DLet (false, PtVar name, new_efun)) map in
     new_map, cnt + 1, EVar name
   | EIf (e1, e2, e3) ->
     let map1, cnt1, exp1 = lift_exp map cnt e1 in
@@ -64,14 +75,23 @@ let lift_prog prog =
     List.fold_left_map
       (fun (acc_map, acc_cnt) (DLet (is_rec, pt, elem)) ->
         let next_map, next_cnt, new_elem = lift_exp acc_map acc_cnt elem in
+        let next_map =
+          match elem with
+          | EFun _ when is_rec ->
+            let last_name = string_of_int (next_cnt - 1) ^ "lambda" in
+            let (DLet (_, p, e)) = StringMap.find last_name next_map in
+            StringMap.add
+              last_name
+              (DLet (true, p, e))
+              (StringMap.remove last_name next_map)
+          | _ -> next_map
+        in
         (next_map, next_cnt), DLet (is_rec, pt, new_elem))
       (StringMap.empty, 0)
       prog
   in
   let new_bindings =
-    List.map (fun (name, e) -> DLet (true, PtVar name, e))
-    @@ List.of_seq
-    @@ StringMap.to_seq new_bindings
+    List.map (fun (_, e) -> e) @@ List.of_seq @@ StringMap.to_seq new_bindings
   in
   new_bindings @ new_prog
 ;;
