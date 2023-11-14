@@ -7,6 +7,27 @@ open Parser
 open Pretty_printer
 module StringMap = Map.Make (String)
 
+let rec replace_vars old_name new_name = function
+  | EVar t when t = old_name -> EVar new_name
+  | EUnOp (op, e) -> EUnOp (op, replace_vars old_name new_name e)
+  | ELet (bindings, e) ->
+    let new_bindings =
+      List.map (fun (r, p, exp) -> r, p, replace_vars old_name new_name exp) bindings
+    in
+    ELet (new_bindings, replace_vars old_name new_name e)
+  | EFun (p, e) -> EFun (p, replace_vars old_name new_name e)
+  | EIf (e1, e2, e3) ->
+    EIf
+      ( replace_vars old_name new_name e1
+      , replace_vars old_name new_name e2
+      , replace_vars old_name new_name e3 )
+  | EBinOp (op, e1, e2) ->
+    EBinOp (op, replace_vars old_name new_name e1, replace_vars old_name new_name e2)
+  | EApp (e1, e2) ->
+    EApp (replace_vars old_name new_name e1, replace_vars old_name new_name e2)
+  | _ as original -> original
+;;
+
 let rec lift_exp map cnt exp =
   match exp with
   | EUnOp (op, e) ->
@@ -22,9 +43,14 @@ let rec lift_exp map cnt exp =
             | EFun _ when is_rec ->
               let last_name = string_of_int (next_cnt - 1) ^ "lambda" in
               let (DLet (_, p, e)) = StringMap.find last_name next_map in
+              let new_e =
+                match pt with
+                | PtVar old_name -> replace_vars old_name last_name e
+                | _ -> e
+              in
               StringMap.add
                 last_name
-                (DLet (true, p, e))
+                (DLet (true, p, new_e))
                 (StringMap.remove last_name next_map)
             | _ -> next_map
           in
@@ -80,9 +106,14 @@ let lift_prog prog =
           | EFun _ when is_rec ->
             let last_name = string_of_int (next_cnt - 1) ^ "lambda" in
             let (DLet (_, p, e)) = StringMap.find last_name next_map in
+            let new_e =
+              match pt with
+              | PtVar old_name -> replace_vars old_name last_name e
+              | _ -> e
+            in
             StringMap.add
               last_name
-              (DLet (true, p, e))
+              (DLet (true, p, new_e))
               (StringMap.remove last_name next_map)
           | _ -> next_map
         in
