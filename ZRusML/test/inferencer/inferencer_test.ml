@@ -79,3 +79,40 @@ let%expect_test "factorial acc test" =
     val test : bool
   |}]
 ;;
+
+let%expect_test "unbound value test" =
+  let code = {|
+    let rec x y = x (y - 1);;
+    let z = y;;
+  |} in
+  Format.printf "%a" inference code;
+  [%expect
+    {|
+Error in №2 declaration:
+Elaboration failed: Unbound value identifier y
+  |}]
+;;
+
+let%expect_test "unifaction error test" =
+  let code = {|
+    let y = 4;;
+    let x = true;;
+    let z = x = y;;
+  |} in
+  Format.printf "%a" inference code;
+  [%expect
+    {|
+Error in №3 declaration:
+Elaboration failed: Rules disagree on type: Cannot merge int and bool
+  |}]
+;;
+
+let%expect_test "parse error test" =
+  let code = {|
+    let x
+  |} in
+  Format.printf "%a" inference code;
+  [%expect {|
+Parse error
+  |}]
+;;
