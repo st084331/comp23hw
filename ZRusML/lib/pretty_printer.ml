@@ -46,7 +46,6 @@ let pp_pt fmt pt = fprintf fmt "%s" (show_pt pt)
 let sprintf_tabs cnt = sprintf "%s" (String.concat "" (List.init cnt (fun _ -> "    ")))
 let print_tabs fmt cnt = fprintf fmt "%s" (sprintf_tabs cnt)
 
-(* Pretty in result of work, not pretty in code. Fix code style soon... *)
 let rec show_exp_helper cnt = function
   | EConst x -> sprintf "%s" (show_const x)
   | EUnOp (o, e) -> sprintf "%s%s" (show_un_op o) (show_exp_helper cnt e)
