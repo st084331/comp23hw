@@ -25,7 +25,7 @@ let%expect_test _ =
         m
     in
     k (5 + m)
-  ;;
+;;
   |}
   in
   helper code;
@@ -36,12 +36,12 @@ let 1lambda m l = (
     let x = (l * 2) in
     let y = 0lambda m in
     y x
-) ;;
+);;
 let a = (
     let m = (c + d) in
     let k = 1lambda m in
     k (5 + m)
-) ;;
+);;
   |}]
 ;;
 
@@ -64,7 +64,7 @@ let%expect_test _ =
       let t = 15 in
       let rec f x y = f x + f y + 3 in
       f (f x) y
-    ;;
+;;
   |}
   in
   helper code;
@@ -76,7 +76,7 @@ let 2lambda b c = (
     let t = 15 in
     let rec f = 1lambda in
     f (f x) y
-) ;;
+);;
 let rec f = 0lambda;;
 let a = 2lambda;;
   |}]
@@ -91,7 +91,7 @@ let%expect_test _ =
         else fack (n - 1) (fun m -> k (m * n))
       in
       fack n (fun x -> x)
-    ;;
+;;
 |}
   in
   helper code;
@@ -103,7 +103,7 @@ let 2lambda x = x;;
 let 3lambda n = (
     let rec fack = 1lambda in
     fack n 2lambda
-) ;;
+);;
 let fac = 3lambda;;
 |}]
 ;;

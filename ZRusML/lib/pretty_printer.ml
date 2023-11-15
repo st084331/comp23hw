@@ -5,144 +5,133 @@
 open Ast
 open Format
 
-let pp_const fmt = function
-  | CInt x -> fprintf fmt "%d" x
-  | CBool x -> fprintf fmt "%b" x
+let show_const = function
+  | CInt x -> sprintf "%d" x
+  | CBool x -> sprintf "%b" x
 ;;
 
-let pp_bin_op fmt =
-  let printer = fprintf fmt in
-  function
-  | And -> printer "+"
-  | Or -> printer "or"
-  | Less -> printer "<"
-  | Leq -> printer "<="
-  | Gre -> printer ">"
-  | Geq -> printer ">="
-  | Eq -> printer "="
-  | Neq -> printer "<>"
-  | Add -> printer "+"
-  | Sub -> printer "-"
-  | Mul -> printer "*"
-  | Div -> printer "/"
+let pp_const fmt cnst = fprintf fmt "%s" (show_const cnst)
+
+let show_bin_op = function
+  | And -> sprintf "and"
+  | Or -> sprintf "or"
+  | Less -> sprintf "<"
+  | Leq -> sprintf "<="
+  | Gre -> sprintf ">"
+  | Geq -> sprintf ">="
+  | Eq -> sprintf "="
+  | Neq -> sprintf "<>"
+  | Add -> sprintf "+"
+  | Sub -> sprintf "-"
+  | Mul -> sprintf "*"
+  | Div -> sprintf "/"
 ;;
 
-let pp_un_op fmt = function
-  | Not -> fprintf fmt "not"
-  | Minus -> fprintf fmt "-"
+let pp_bin_op fmt op = fprintf fmt "%s" (show_bin_op op)
+
+let show_un_op = function
+  | Not -> sprintf "not"
+  | Minus -> sprintf "-"
 ;;
 
-let pp_pt fmt = function
-  | PtWild -> fprintf fmt "_"
-  | PtVar x -> fprintf fmt "%s" x
-  | PtConst x -> pp_const fmt x
+let pp_un_op fmt op = fprintf fmt "%s" (show_un_op op)
+
+let show_pt = function
+  | PtWild -> sprintf "_"
+  | PtVar x -> sprintf "%s" x
+  | PtConst x -> sprintf "%s" (show_const x)
 ;;
 
-let print_tabs fmt cnt =
-  fprintf fmt "%s" (String.concat "" (List.init cnt (fun _ -> "    ")))
-;;
+let pp_pt fmt pt = fprintf fmt "%s" (show_pt pt)
+let sprintf_tabs cnt = sprintf "%s" (String.concat "" (List.init cnt (fun _ -> "    ")))
+let print_tabs fmt cnt = fprintf fmt "%s" (sprintf_tabs cnt)
 
-(* Pretty in result of work, not pretty in code. Fix code style soon... *)
-let rec pp_exp fmt cnt = function
-  | EConst x -> pp_const fmt x
-  | EUnOp (o, e) ->
-    pp_un_op fmt o;
-    pp_exp fmt cnt e
-  | EVar id -> fprintf fmt "%s" id
+let rec show_exp_helper cnt = function
+  | EConst x -> sprintf "%s" (show_const x)
+  | EUnOp (o, e) -> sprintf "%s%s" (show_un_op o) (show_exp_helper cnt e)
+  | EVar id -> sprintf "%s" id
   | EIf (predicate, true_branch, false_branch) ->
-    fprintf fmt "if ";
-    pp_exp fmt cnt predicate;
-    fprintf fmt " then ";
-    pp_exp fmt cnt true_branch;
-    fprintf fmt " else ";
-    pp_exp fmt cnt false_branch
+    sprintf
+      "if %s then %s else %s"
+      (show_exp_helper cnt predicate)
+      (show_exp_helper cnt true_branch)
+      (show_exp_helper cnt false_branch)
   | EBinOp (op, e1, e2) ->
-    let start, stop =
+    let s, e =
       match op with
       | Sub | Add | Mul -> "(", ")"
       | _ -> "", ""
     in
-    fprintf fmt "%s" start;
-    pp_exp fmt cnt e1;
-    fprintf fmt " ";
-    pp_bin_op fmt op;
-    fprintf fmt " ";
-    pp_exp fmt cnt e2;
-    fprintf fmt "%s" stop
+    sprintf
+      "%s%s %s %s%s"
+      s
+      (show_exp_helper cnt e1)
+      (show_bin_op op)
+      (show_exp_helper cnt e2)
+      e
   | EFun _ as orig ->
     let rec helper = function
-      | EFun (a, b) ->
-        pp_pt fmt a;
-        fprintf fmt " ";
-        helper b
-      | exp ->
-        fprintf fmt "-> ";
-        pp_exp fmt cnt exp
+      | EFun (a, b) -> sprintf "%s %s" (show_pt a) (helper b)
+      | exp -> sprintf "-> %s" (show_exp_helper cnt exp)
     in
-    fprintf fmt "(fun ";
-    helper orig;
-    fprintf fmt ")"
+    sprintf "(fun %s)" (helper orig)
   | ELet (bindings, e) ->
     let cnt = cnt + 1 in
-    fprintf fmt "(\n";
-    List.iter
-      (fun (is_rec, pt, exp) ->
-        print_tabs fmt cnt;
-        fprintf fmt "let ";
-        fprintf fmt (if is_rec then "rec " else "");
-        pp_pt fmt pt;
-        fprintf fmt " ";
-        let rec helper = function
-          | EFun (a, b) ->
-            pp_pt fmt a;
-            fprintf fmt " ";
-            helper b
-          | exp ->
-            fprintf fmt "= ";
-            pp_exp fmt cnt exp
-        in
-        helper exp;
-        fprintf fmt " in\n")
-      bindings;
-    print_tabs fmt cnt;
-    pp_exp fmt cnt e;
-    fprintf fmt "\n";
-    print_tabs fmt (cnt - 1);
-    fprintf fmt ") "
+    let binds =
+      List.fold_left
+        (fun acc (is_rec, pt, exp) ->
+          let rec helper = function
+            | EFun (a, b) -> sprintf "%s %s" (show_pt a) (helper b)
+            | exp -> sprintf "= %s" (show_exp_helper cnt exp)
+          in
+          let bind =
+            sprintf
+              "%slet %s%s %s in\n"
+              (sprintf_tabs cnt)
+              (if is_rec then "rec " else "")
+              (show_pt pt)
+              (helper exp)
+          in
+          let acc = acc ^ bind in
+          acc)
+        String.empty
+        bindings
+    in
+    sprintf
+      "(\n%s%s%s\n%s)"
+      binds
+      (sprintf_tabs cnt)
+      (show_exp_helper cnt e)
+      (sprintf_tabs (cnt - 1))
   | EApp (e1, e2) ->
-    let start, stop =
+    let s, e =
       match e2 with
       | EApp _ -> "(", ")"
       | _ -> "", ""
     in
-    pp_exp fmt cnt e1;
-    fprintf fmt " ";
-    fprintf fmt "%s" start;
-    pp_exp fmt cnt e2;
-    fprintf fmt "%s" stop
+    sprintf "%s %s%s%s" (show_exp_helper cnt e1) s (show_exp_helper cnt e2) e
 ;;
 
-let pp_binding fmt cnt (is_rec, pt, exp) =
-  print_tabs fmt cnt;
-  fprintf fmt "let ";
-  fprintf fmt (if is_rec then "rec " else "");
-  pp_pt fmt pt;
-  fprintf fmt " ";
+let show_exp exp = sprintf "%s" (show_exp_helper 0 exp)
+let pp_exp fmt exp = fprintf fmt "%s" (show_exp exp)
+
+let show_binding_helper cnt (is_rec, pt, exp) =
   let rec helper = function
-    | EFun (a, b) ->
-      pp_pt fmt a;
-      fprintf fmt " ";
-      helper b
-    | exp ->
-      fprintf fmt "= ";
-      pp_exp fmt cnt exp
+    | EFun (a, b) -> sprintf "%s %s" (show_pt a) (helper b)
+    | e -> sprintf "= %s" (show_exp_helper cnt e)
   in
-  helper exp
+  sprintf
+    "%slet %s%s %s"
+    (sprintf_tabs cnt)
+    (if is_rec then "rec " else "")
+    (show_pt pt)
+    (helper exp)
 ;;
 
-let pp_decl fmt (DLet (is_rec, pt, exp)) =
-  pp_binding fmt 0 (is_rec, pt, exp);
-  fprintf fmt ";;\n"
-;;
-
-let pp_prog fmt prog = List.iter (pp_decl fmt) prog
+let show_binding = show_binding_helper 0
+let pp_binding_helper fmt cnt x = fprintf fmt "%s" (show_binding_helper cnt x)
+let pp_binding fmt = pp_binding_helper fmt 0
+let show_decl (DLet t) = sprintf "%s;;\n" (show_binding t)
+let pp_decl fmt x = fprintf fmt "%s" (show_decl x)
+let show_prog = List.fold_left (fun acc decl -> acc ^ show_decl decl) ""
+let pp_prog fmt prog = fprintf fmt "%s" (show_prog prog)
