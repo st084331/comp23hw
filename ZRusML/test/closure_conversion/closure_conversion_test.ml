@@ -39,7 +39,7 @@ let a c d = (
     let m = (c + d) in
     let k = (fun m l -> (l + m)) m in
     k (5 + m)
-) ;;
+);;
 |}]
 ;;
 
@@ -66,9 +66,9 @@ let%expect_test "closure depth 2" =
           let x = (l * 2) in
           let y = (fun m t -> (m + t)) m in
           y x
-      ) ) m in
+      )) m in
       k (5 + m)
-  ) ;;
+  );;
 |}]
 ;;
 
@@ -90,7 +90,7 @@ let%expect_test "factorial cps test" =
 let fac n = (
     let rec fack n k = if n <= 1 then 1 else fack (n - 1) ((fun k n m -> k (m * n)) k n) in
     fack n (fun x -> x)
-) ;;
+);;
 |}]
 ;;
 
@@ -115,8 +115,8 @@ let f = (fun m z a b -> (
     let t = (
         let g = (fun m s -> (m * s)) m in
         g 15
-    )  in
+    ) in
     x 1337
-) ) m z;;
+)) m z;;
 |}]
 ;;
