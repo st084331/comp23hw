@@ -8,36 +8,43 @@ open ZRusML_lib.Anf
 open ZRusML_lib.Compare
 
 (* Helper function to convert the ANF result to a string for comparison *)
-let anf_to_string (exp, lets) =
-  let exp_str = print_exp exp in
-  match lets with
-  | [] -> exp_str
-  | _ ->
-    let lets_str = List.map lets ~f:print_let |> String.concat ~sep:", " in
-    exp_str ^ " with lets: " ^ lets_str
+let anf_to_string = function
+  | Ok (exp, lets) ->
+    let exp_str = print_exp exp in
+    (match lets with
+     | [] -> exp_str
+     | _ ->
+       let lets_str = List.map lets ~f:print_let |> String.concat ~sep:", " in
+       exp_str ^ " with lets: " ^ lets_str)
+  | Error err ->
+    "Error: "
+    ^
+      (match err with
+      | NotImplemented -> "Not implemented"
+      | OtherError msg -> msg)
 ;;
 
 let%test_unit "ANF transformation of EConst" =
   reset_counter ();
   let exp = EConst (CInt 42) in
-  let anf, _ = exp_to_anf exp in
-  [%test_eq: string] "CInt(42)" (anf_to_string (anf, []))
+  let result = exp_to_anf exp in
+  [%test_eq: string] "CInt(42)" (anf_to_string result)
 ;;
 
 let%test_unit "ANF transformation of EUnOp" =
   reset_counter ();
   let exp = EUnOp (Minus, EConst (CInt 42)) in
-  let anf, lets = exp_to_anf exp in
+  let result = exp_to_anf exp in
   [%test_result: string]
     ~expect:"EVar(v0) with lets: (false, PtVar(v0), EUnOp(Minus, CInt(42)))"
-    (anf_to_string (anf, lets))
+    (anf_to_string result)
 ;;
 
 let%test_unit "ANF transformation of EBinOp" =
   reset_counter ();
   let exp = EBinOp (Add, EConst (CInt 2), EConst (CInt 2)) in
-  let anf, lets = exp_to_anf exp in
+  let result = exp_to_anf exp in
   [%test_result: string]
     ~expect:"EVar(v0) with lets: (false, PtVar(v0), EBinOp(Add, CInt(2), CInt(2)))"
-    (anf_to_string (anf, lets))
+    (anf_to_string result)
 ;;
