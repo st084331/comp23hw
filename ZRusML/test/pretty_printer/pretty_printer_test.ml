@@ -38,7 +38,7 @@ let a c d = (
     let m = (c + d) in
     let k l = (l + m) in
     k (5 + m)
-) ;;
+);;
 |}]
 ;;
 
@@ -65,9 +65,9 @@ let%expect_test "let in depth 2, apps, operators" =
           let x = (l * 2) in
           let y t = (m + t) in
           y x
-      )  in
+      ) in
       k (5 + m)
-  ) ;;
+  );;
 |}]
 ;;
 
@@ -89,7 +89,7 @@ let%expect_test "factorial cps test" =
 let fac n = (
     let rec fack n k = if n <= 1 then 1 else fack (n - 1) (fun m -> k (m * n)) in
     fack n (fun x -> x)
-) ;;
+);;
 |}]
 ;;
 
@@ -114,8 +114,8 @@ let f a b = (
     let t = (
         let g s = (m * s) in
         g 15
-    )  in
+    ) in
     x 1337
-) ;;
+);;
 |}]
 ;;
