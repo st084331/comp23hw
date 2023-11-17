@@ -25,7 +25,9 @@ let%expect_test "let in, apps, operators test" =
   let code =
     {|
     let a c d =
-      let m = c + d in
+      let m = (c + d = 4) || (d = -7) in
+      let z = ((m < 5) >= true) <> (4 / 5 > 0) in
+      let abcdef = (c < d) || 5 + 4 in
       let k l = l + m in
       k (5 + m)
     ;;
@@ -34,11 +36,13 @@ let%expect_test "let in, apps, operators test" =
   helper code;
   [%expect
     {|
-let a c d = (
-    let m = (c + d) in
+let a c d = 
+    let m = ((c + d) = 4) || (d = -7) in
+    let z = ((m < 5) >= true) <> (4 / 5 > 0) in
+    let abcdef = (c < d) || (5 + 4) in
     let k l = (l + m) in
     k (5 + m)
-);;
+;;
 |}]
 ;;
 
@@ -59,15 +63,15 @@ let%expect_test "let in depth 2, apps, operators" =
   helper code;
   [%expect
     {|
-  let a c d = (
+  let a c d =
       let m = (c + d) in
-      let k l = (
+      let k l = 
           let x = (l * 2) in
           let y t = (m + t) in
           y x
-      ) in
+       in
       k (5 + m)
-  );;
+  ;;
 |}]
 ;;
 
@@ -86,10 +90,10 @@ let%expect_test "factorial cps test" =
   helper code;
   [%expect
     {|
-let fac n = (
-    let rec fack n k = if n <= 1 then 1 else fack (n - 1) (fun m -> k (m * n)) in
+let fac n = 
+    let rec fack n k = if (n <= 1) then 1 else fack (n - 1) (fun m -> k (m * n)) in
     fack n (fun x -> x)
-);;
+;;
 |}]
 ;;
 
@@ -97,7 +101,7 @@ let%expect_test "let ins test" =
   let code =
     {|
     let f a b = 
-      let x y = y + z in
+      let x y = y + z = 1337 && y = 15 in
       let t = 
         let g s = m * s in
         g 15
@@ -109,13 +113,13 @@ let%expect_test "let ins test" =
   helper code;
   [%expect
     {|
-let f a b = (
-    let x y = (y + z) in
-    let t = (
+let f a b = 
+    let x y = ((y + z) = 1337) && (y = 15) in
+    let t =
         let g s = (m * s) in
         g 15
-    ) in
+     in
     x 1337
-);;
+;;
 |}]
 ;;
