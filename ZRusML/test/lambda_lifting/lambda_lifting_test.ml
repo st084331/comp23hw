@@ -32,16 +32,16 @@ let%expect_test _ =
   [%expect
     {|
 let 0lambda m t = (m + t);;
-let 1lambda m l = (
+let 1lambda m l = 
     let x = (l * 2) in
     let y = 0lambda m in
     y x
-);;
-let a = (
+;;
+let a = 
     let m = (c + d) in
     let k = 1lambda m in
     k (5 + m)
-);;
+;;
   |}]
 ;;
 
@@ -72,11 +72,11 @@ let%expect_test _ =
     {|
 let rec 0lambda x y = (x + 0lambda y);;
 let rec 1lambda x y = (1lambda x + (1lambda y + 3));;
-let 2lambda b c = (
+let 2lambda b c = 
     let t = 15 in
     let rec f = 1lambda in
     f (f x) y
-);;
+;;
 let rec f = 0lambda;;
 let a = 2lambda;;
   |}]
@@ -98,12 +98,12 @@ let%expect_test _ =
   [%expect
     {|
 let 0lambda m = k (m * n);;
-let rec 1lambda n k = if n <= 1 then 1 else 1lambda (n - 1) 0lambda;;
+let rec 1lambda n k = if (n <= 1) then 1 else 1lambda (n - 1) 0lambda;;
 let 2lambda x = x;;
-let 3lambda n = (
+let 3lambda n = 
     let rec fack = 1lambda in
     fack n 2lambda
-);;
+;;
 let fac = 3lambda;;
 |}]
 ;;
