@@ -13,31 +13,31 @@ let show_const = function
 let pp_const fmt cnst = fprintf fmt "%s" (show_const cnst)
 
 let show_bin_op = function
-  | And -> sprintf "and"
-  | Or -> sprintf "or"
-  | Less -> sprintf "<"
-  | Leq -> sprintf "<="
-  | Gre -> sprintf ">"
-  | Geq -> sprintf ">="
-  | Eq -> sprintf "="
-  | Neq -> sprintf "<>"
-  | Add -> sprintf "+"
-  | Sub -> sprintf "-"
-  | Mul -> sprintf "*"
-  | Div -> sprintf "/"
+  | And -> "&&"
+  | Or -> "||"
+  | Less -> "<"
+  | Leq -> "<="
+  | Gre -> ">"
+  | Geq -> ">="
+  | Eq -> "="
+  | Neq -> "<>"
+  | Add -> "+"
+  | Sub -> "-"
+  | Mul -> "*"
+  | Div -> "/"
 ;;
 
 let pp_bin_op fmt op = fprintf fmt "%s" (show_bin_op op)
 
 let show_un_op = function
-  | Not -> sprintf "not"
-  | Minus -> sprintf "-"
+  | Not -> "not"
+  | Minus -> "-"
 ;;
 
 let pp_un_op fmt op = fprintf fmt "%s" (show_un_op op)
 
 let show_pt = function
-  | PtWild -> sprintf "_"
+  | PtWild -> "_"
   | PtVar x -> sprintf "%s" x
   | PtConst x -> sprintf "%s" (show_const x)
 ;;
