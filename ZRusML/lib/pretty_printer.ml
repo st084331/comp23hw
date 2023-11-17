@@ -59,7 +59,7 @@ let rec show_exp_helper cnt = function
   | EBinOp (op, e1, e2) ->
     let s, e =
       match op with
-      | Sub | Add | Mul -> "(", ")"
+      | Sub | Add | Mul | Eq | Geq | Leq | Gre | Less -> "(", ")"
       | _ -> "", ""
     in
     sprintf
@@ -98,7 +98,7 @@ let rec show_exp_helper cnt = function
         bindings
     in
     sprintf
-      "(\n%s%s%s\n%s)"
+      "\n%s%s%s\n%s"
       binds
       (sprintf_tabs cnt)
       (show_exp_helper cnt e)
