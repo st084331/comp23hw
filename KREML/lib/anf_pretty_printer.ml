@@ -52,14 +52,14 @@ let string_of_cexpr = function
       (string_of_immexpr ie3)
 ;;
 
-let rec string_of_aexpr' depth = function
+let rec string_of_aexpr depth = function
   | ALet (id, ce, ae) ->
     Printf.sprintf
       "%slet %s = %s in\n%s"
       (string_of_indents depth)
       id
       (string_of_cexpr ce)
-      (string_of_aexpr' depth ae)
+      (string_of_aexpr depth ae)
   | ACExpr ce -> string_of_cexpr ce
 ;;
 
@@ -69,14 +69,17 @@ let string_of_abinding' depth = function
       "%sval %s = %s\n"
       (string_of_indents depth)
       id
-      (string_of_aexpr' (depth + 1) ae)
+      (string_of_aexpr (depth + 1) ae)
   | AFun (id, id_list, ae) ->
     Printf.sprintf
-      "%sfun %s %s = \n%s\n"
+      "%sfun %s %s = %s%s\n"
       (string_of_indents depth)
       id
       (String.concat " " id_list)
-      (string_of_aexpr' (depth + 1) ae)
+      (match ae with
+       | ALet _ -> "\n"
+       | _ -> "")
+      (string_of_aexpr (depth + 1) ae)
 ;;
 
 let string_of_abinding ab = string_of_abinding' 0 ab

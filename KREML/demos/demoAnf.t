@@ -17,8 +17,7 @@
     let Anf_10 = if Anf_3 then Anf_4 else Anf_9 in
   Anf_10
   
-  fun Ll_1 x = 
-  x
+  fun Ll_1 x = x
   
   fun fac n = 
     let Anf_11 = fack n in
