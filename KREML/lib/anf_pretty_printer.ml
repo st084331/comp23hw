@@ -8,6 +8,7 @@ open Ast
 let string_of_unary_op = function
   | Neg -> "neg"
   | Not -> "not"
+;;
 
 let string_of_binary_op = function
   | Add -> "+"
@@ -22,6 +23,8 @@ let string_of_binary_op = function
   | And -> "and"
   | Or -> "or"
 ;;
+
+let string_of_indents n = String.make (n * 2) ' '
 
 let string_of_immexpr = function
   | ImmInt n -> string_of_int n
@@ -47,13 +50,36 @@ let string_of_cexpr = function
       (string_of_immexpr ie1)
       (string_of_immexpr ie2)
       (string_of_immexpr ie3)
+;;
 
-let rec string_of_aexpr = function
+let rec string_of_aexpr depth = function
   | ALet (id, ce, ae) ->
-    Printf.sprintf "let %s = %s in\n%s" id (string_of_cexpr ce) (string_of_aexpr ae)
+    Printf.sprintf
+      "%slet %s = %s in\n%s"
+      (string_of_indents depth)
+      id
+      (string_of_cexpr ce)
+      (string_of_aexpr depth ae)
   | ACExpr ce -> string_of_cexpr ce
+;;
 
-let string_of_abinding = function
-  | AVal (id, ae) -> Printf.sprintf "val %s = %s\n" id (string_of_aexpr ae)
+let string_of_abinding' depth = function
+  | AVal (id, ae) ->
+    Printf.sprintf
+      "%sval %s = %s\n"
+      (string_of_indents depth)
+      id
+      (string_of_aexpr (depth + 1) ae)
   | AFun (id, id_list, ae) ->
-    Printf.sprintf "fun %s %s = \n%s\n" id (String.concat " " id_list) (string_of_aexpr ae)
+    Printf.sprintf
+      "%sfun %s %s = %s%s\n"
+      (string_of_indents depth)
+      id
+      (String.concat " " id_list)
+      (match ae with
+       | ALet _ -> "\n"
+       | _ -> "")
+      (string_of_aexpr (depth + 1) ae)
+;;
+
+let string_of_abinding ab = string_of_abinding' 0 ab
