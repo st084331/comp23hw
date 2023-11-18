@@ -7,7 +7,7 @@ open Cc_ast
 open Counter
 open Base
 
-let gen_var = gen_var "ll"
+let gen_var = gen_var "Ll"
 let extend_env env func = func :: env
 
 let rec lift_expr env = function
@@ -89,10 +89,10 @@ let%test _ =
     ]
   in
   let ll =
-    [ LFun ("ll_1", [ "x" ], LIdentifier "x")
-    ; LVal ("p", LIdentifier "ll_1")
-    ; LFun ("ll_2", [ "x2" ], LIdentifier "x2")
-    ; LVal ("p2", LIdentifier "ll_2")
+    [ LFun ("Ll_1", [ "x" ], LIdentifier "x")
+    ; LVal ("p", LIdentifier "Ll_1")
+    ; LFun ("Ll_2", [ "x2" ], LIdentifier "x2")
+    ; LVal ("p2", LIdentifier "Ll_2")
     ]
   in
   equal (ll_program cc) ll
@@ -234,11 +234,11 @@ let%test _ =
                     , LBinaryOp (Sub, LIdentifier "n", LLiteral (LInt 1)) )
                 , LApp (LApp (LIdentifier "fack1", LIdentifier "k"), LIdentifier "n") ) )
         )
-    ; LFun ("ll_1", [ "x" ], LIdentifier "x")
+    ; LFun ("Ll_1", [ "x" ], LIdentifier "x")
     ; LFun
         ( "fac"
         , [ "n" ]
-        , LApp (LApp (LIdentifier "fack", LIdentifier "n"), LIdentifier "ll_1") )
+        , LApp (LApp (LIdentifier "fack", LIdentifier "n"), LIdentifier "Ll_1") )
     ]
   in
   equal (ll_program cc) ll
