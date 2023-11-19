@@ -2,5 +2,4 @@
 
 (** SPDX-License-Identifier: LGPL-3.0-or-later *)
 
-val infer : Ast.binding list -> unit
-val parse_and_infer : string -> unit
+val ll_program : Cc_ast.cc_binding list -> Ll_ast.ll_binding list
