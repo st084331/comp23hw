@@ -2,15 +2,27 @@
 
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
-(* ANF Transformation Interface *)
-
 open Ast
 
-type error =
-  | NotImplemented
-  | OtherError of string
+type immexpr =
+  | ImmInt of int
+  | ImmBool of bool
+  | ImmIdentifier of string
 
-val fresh_var : unit -> string
-val exp_to_anf : exp -> (exp * (bool * pt * exp) list, error) result
-val bindings_to_anf : binding list -> (exp * (bool * pt * exp) list, error) result
-val reset_counter : unit -> unit
+type cexpr =
+  | CImmExpr of immexpr
+  | CUnaryOp of un_op * immexpr
+  | CBinaryOp of bin_op * immexpr * immexpr
+  | CApp of immexpr * immexpr
+  | CIfThenElse of immexpr * immexpr * immexpr
+
+type aexpr =
+  | ALet of string * cexpr * aexpr
+  | ACExpr of cexpr
+
+type abinding =
+  | AVal of string * aexpr
+  | AFun of string * string list * aexpr
+
+val anf : exp -> (immexpr -> aexpr) -> aexpr
+val anf_program : prog -> abinding list
