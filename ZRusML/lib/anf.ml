@@ -16,7 +16,7 @@ type cexpr =
   | CUnaryOp of un_op * immexpr
   | CBinaryOp of bin_op * immexpr * immexpr
   | CApp of immexpr * immexpr
-  | CIfThenElse of immexpr * immexpr * immexpr
+  | CIf of immexpr * immexpr * immexpr
 [@@deriving show { with_path = false }]
 
 type aexpr =
@@ -56,9 +56,7 @@ let rec anf (e : exp) (expr_with_hole : immexpr -> aexpr) : aexpr =
         anf e2 (fun e2imm ->
           let varname = fresh_var () in
           ALet
-            ( varname
-            , CIfThenElse (condimm, e1imm, e2imm)
-            , expr_with_hole (ImmIdentifier varname) ))))
+            (varname, CIf (condimm, e1imm, e2imm), expr_with_hole (ImmIdentifier varname)))))
   | ELet (bindings, body) -> anf_let_bindings bindings body expr_with_hole
   | EFun (pt, body) -> anf_fun pt body expr_with_hole
 
@@ -132,9 +130,9 @@ and anf_fun pt body expr_with_hole =
     let check_const =
       match const with
       | CInt n ->
-        CIfThenElse (ImmInt n, ImmIdentifier varname, ImmInt 0)
+        CIf (ImmInt n, ImmIdentifier varname, ImmInt 0)
         (* 0 could represent false or null *)
-      | CBool b -> CIfThenElse (ImmBool b, ImmIdentifier varname, ImmBool false)
+      | CBool b -> CIf (ImmBool b, ImmIdentifier varname, ImmBool false)
     in
     ALet (varname, check_const, anf_body)
 ;;
@@ -213,10 +211,8 @@ let%test "anf_conditional_expression" =
   (* Expected ANF form: let varname = if true then 1 else 0 in varname *)
   debug_print_aexpr result;
   match result with
-  | ALet
-      ( _
-      , CIfThenElse (ImmBool true, ImmInt 1, ImmInt 0)
-      , ACExpr (CImmExpr (ImmIdentifier _)) ) -> true
+  | ALet (_, CIf (ImmBool true, ImmInt 1, ImmInt 0), ACExpr (CImmExpr (ImmIdentifier _)))
+    -> true
   | _ -> false
 ;;
 
