@@ -3,6 +3,7 @@
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
 open Ast
+open Var_counter
 
 type immexpr =
   | ImmInt of int
