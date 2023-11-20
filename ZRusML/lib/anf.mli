@@ -14,7 +14,7 @@ type cexpr =
   | CUnaryOp of un_op * immexpr
   | CBinaryOp of bin_op * immexpr * immexpr
   | CApp of immexpr * immexpr
-  | CIfThenElse of immexpr * immexpr * immexpr
+  | CIf of immexpr * immexpr * immexpr
 
 type aexpr =
   | ALet of string * cexpr * aexpr
