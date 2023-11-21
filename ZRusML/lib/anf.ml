@@ -24,10 +24,7 @@ type aexpr =
   | ACExpr of cexpr
 [@@deriving show { with_path = false }]
 
-type abinding =
-  | AVal of string * aexpr
-  | AFun of string * string list * aexpr
-[@@deriving show { with_path = false }]
+type abinding = AVal of string * aexpr [@@deriving show { with_path = false }]
 
 let fresh_var = fresh_var "anf"
 
@@ -58,7 +55,10 @@ let rec anf (e : exp) (expr_with_hole : immexpr -> aexpr) : aexpr =
           ALet
             (varname, CIf (condimm, e1imm, e2imm), expr_with_hole (ImmIdentifier varname)))))
   | ELet (bindings, body) -> anf_let_bindings bindings body expr_with_hole
-  | EFun (pt, body) -> anf_fun pt body expr_with_hole
+  | EFun (pt, body) ->
+    let varname = fresh_var () in
+    let anf_body = anf body (fun imm -> ACExpr (CImmExpr imm)) in
+    ALet (varname, CImmExpr (ImmIdentifier "_"), anf_body)
 
 (* Implementing the handling of let bindings *)
 and anf_let_bindings bindings body expr_with_hole =
@@ -107,8 +107,7 @@ and substitute old_id new_id expr =
 (* Substitute in bindings *)
 and substitute_in_binding old_id new_id (is_rec, pt, exp) =
   match pt with
-  | PtVar id when id = old_id && not is_rec ->
-    is_rec, pt, exp (* Do not substitute shadowed variables in non-recursive case *)
+  | PtVar id when id = old_id && not is_rec -> is_rec, pt, exp
   | _ -> is_rec, pt, substitute old_id new_id exp
 
 and anf_fun pt body expr_with_hole =
@@ -139,48 +138,20 @@ and anf_fun pt body expr_with_hole =
 
 let anf_program (program : prog) : abinding list =
   reset_counter ();
-  Printf.printf "Starting ANF transformation...\n";
-  (* Debugging start *)
-  let result =
-    List.fold_right
-      (fun decl acc ->
-        Printf.printf "Processing declaration...\n";
-        (* Debugging each declaration *)
-        match decl with
-        | DLet (is_rec, pt, exp) ->
-          Printf.printf "Found DLet...\n";
-          (* Debugging DLet *)
-          (match pt with
-           | PtWild ->
-             Printf.printf "Pattern is PtWild, skipping...\n";
-             (* Debugging PtWild *)
-             acc
-           | PtVar id ->
-             Printf.printf "Pattern is PtVar with id: %s\n" id;
-             (* Debugging PtVar *)
-             let anf_exp = anf exp (fun imm -> ACExpr (CImmExpr imm)) in
-             let new_acc = AVal (id, anf_exp) :: acc in
-             Printf.printf "ANF Expression for %s added.\n" id;
-             (* Debugging ANF expression added *)
-             new_acc
-           | PtConst const ->
-             Printf.printf "Pattern is PtConst, transforming...\n";
-             (* Debugging PtConst *)
-             let anf_exp = anf exp (fun imm -> ACExpr (CImmExpr imm)) in
-             let const_immexpr = const_to_immexpr const in
-             let varname = fresh_var () in
-             let new_acc =
-               AVal (varname, ALet (varname, CImmExpr const_immexpr, anf_exp)) :: acc
-             in
-             Printf.printf "ANF Expression with constant pattern added.\n";
-             (* Debugging ANF expression added *)
-             new_acc))
-      program
-      []
-  in
-  Printf.printf "ANF transformation complete. Result length: %d\n" (List.length result);
-  (* Debugging end *)
-  result
+  List.fold_right
+    (fun decl acc ->
+      match decl with
+      | DLet (is_rec, pt, exp) ->
+        let anf_exp = anf exp (fun imm -> ACExpr (CImmExpr imm)) in
+        let id =
+          match pt with
+          | PtVar id -> id
+          | PtWild -> fresh_var ()
+          | PtConst _ -> fresh_var ()
+        in
+        AVal (id, anf_exp) :: acc)
+    program
+    []
 ;;
 
 (* Debugging function to print an expression *)
@@ -228,8 +199,26 @@ and compare_aexpr a1 a2 =
 let compare_abinding b1 b2 =
   match b1, b2 with
   | AVal (_, a1), AVal (_, a2) -> compare_aexpr a1 a2
-  | AFun (_, args1, a1), AFun (_, args2, a2) -> args1 = args2 && compare_aexpr a1 a2
-  | _, _ -> false
+;;
+
+let%test "anf_simple_constant" =
+  let expr = [ DLet (false, PtVar "x", EConst (CInt 42)) ] in
+  let expected = [ AVal ("x", ACExpr (CImmExpr (ImmInt 42))) ] in
+  anf_program expr = expected
+;;
+
+let%test "anf_function_application" =
+  let expr = [ DLet (false, PtVar "x", EApp (EVar "f", EConst (CInt 42))) ] in
+  let expected =
+    [ AVal
+        ( "x"
+        , ALet
+            ( "anf_1"
+            , CApp (ImmIdentifier "f", ImmInt 42)
+            , ACExpr (CImmExpr (ImmIdentifier "anf_1")) ) )
+    ]
+  in
+  anf_program expr = expected
 ;;
 
 let%test "anf_factorial_test" =
@@ -241,25 +230,32 @@ let%test "anf_factorial_test" =
     |> List.map (fun e -> DLet (false, PtVar "some_id", e))
   in
   let expected =
-    (* Adjusted to reflect the structure, not specific variable names *)
-    [ AFun
-        ( "fack1"
-        , [ "k"; "n"; "m" ]
+    [ AVal
+        ( "some_id"
         , ALet
-            ( "_"
-            , CBinaryOp (Mul, ImmIdentifier "m", ImmIdentifier "n")
+            ( "anf_4"
+            , CImmExpr (ImmIdentifier "_")
             , ALet
-                ( "_"
-                , CApp (ImmIdentifier "k", ImmIdentifier "_")
-                , ACExpr (CImmExpr (ImmIdentifier "_")) ) ) )
-    ; AFun ("var", [ "x" ], ACExpr (CImmExpr (ImmIdentifier "x")))
-    ; AFun
-        ( "fac"
-        , [ "n" ]
+                ( "anf_5"
+                , CBinaryOp (Mul, ImmIdentifier "m", ImmIdentifier "n")
+                , ALet
+                    ( "anf_6"
+                    , CApp (ImmIdentifier "k", ImmIdentifier "anf_5")
+                    , ACExpr (CImmExpr (ImmIdentifier "anf_6")) ) ) ) )
+    ; AVal
+        ( "some_id"
         , ALet
-            ( "_"
-            , CApp (ImmIdentifier "n", ImmIdentifier "var")
-            , ACExpr (CImmExpr (ImmIdentifier "_")) ) )
+            ("anf_3", CImmExpr (ImmIdentifier "_"), ACExpr (CImmExpr (ImmIdentifier "x")))
+        )
+    ; AVal
+        ( "some_id"
+        , ALet
+            ( "anf_1"
+            , CImmExpr (ImmIdentifier "_")
+            , ALet
+                ( "anf_2"
+                , CApp (ImmIdentifier "n", ImmIdentifier "var")
+                , ACExpr (CImmExpr (ImmIdentifier "anf_2")) ) ) )
     ]
   in
   debug_print_abinding_list expected;
@@ -269,65 +265,63 @@ let%test "anf_factorial_test" =
   List.for_all2 compare_abinding result expected
 ;;
 
-(*
-   (* Inline test for ANF transformation of a simple expression *)
-   let%test "anf_simple_expression" =
-   let expr = EConst (CInt 42) in
-   debug_print_expr expr;
-   let expected = ACExpr (CImmExpr (ImmInt 42)) in
-   let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
-   debug_print_aexpr result;
-   result = expected
-   ;;
+(* Inline test for ANF transformation of a simple expression *)
+let%test "anf_simple_expression" =
+  let expr = EConst (CInt 42) in
+  debug_print_expr expr;
+  let expected = ACExpr (CImmExpr (ImmInt 42)) in
+  let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
+  debug_print_aexpr result;
+  result = expected
+;;
 
-   (* Inline test for ANF transformation of a unary operation *)
-   let%test "anf_unary_operation" =
-   let expr = EUnOp (Minus, EConst (CInt 42)) in
-   debug_print_expr expr;
-   let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
-   (* Expected ANF form: let varname = -42 in varname *)
-   debug_print_aexpr result;
-   match result with
-   | ALet (varname, CUnaryOp (Minus, ImmInt 42), ACExpr (CImmExpr (ImmIdentifier vn)))
-   when varname = vn -> true
-   | _ -> false
-   ;;
+(* Inline test for ANF transformation of a unary operation *)
+let%test "anf_unary_operation" =
+  let expr = EUnOp (Minus, EConst (CInt 42)) in
+  debug_print_expr expr;
+  let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
+  (* Expected ANF form: let varname = -42 in varname *)
+  debug_print_aexpr result;
+  match result with
+  | ALet (varname, CUnaryOp (Minus, ImmInt 42), ACExpr (CImmExpr (ImmIdentifier vn)))
+    when varname = vn -> true
+  | _ -> false
+;;
 
-   (* Inline test for ANF transformation of a binary operation *)
-   let%test "anf_binary_operation" =
-   let expr = EBinOp (Add, EConst (CInt 40), EConst (CInt 2)) in
-   debug_print_expr expr;
-   let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
-   (* Expected ANF form: let varname = 40 + 2 in varname *)
-   debug_print_aexpr result;
-   match result with
-   | ALet (_, CBinaryOp (Add, ImmInt 40, ImmInt 2), ACExpr (CImmExpr (ImmIdentifier _))) ->
-   true
-   | _ -> false
-   ;;
+(* Inline test for ANF transformation of a binary operation *)
+let%test "anf_binary_operation" =
+  let expr = EBinOp (Add, EConst (CInt 40), EConst (CInt 2)) in
+  debug_print_expr expr;
+  let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
+  (* Expected ANF form: let varname = 40 + 2 in varname *)
+  debug_print_aexpr result;
+  match result with
+  | ALet (_, CBinaryOp (Add, ImmInt 40, ImmInt 2), ACExpr (CImmExpr (ImmIdentifier _))) ->
+    true
+  | _ -> false
+;;
 
-   (* Inline test for ANF transformation of a conditional expression *)
-   let%test "anf_conditional_expression" =
-   let expr = EIf (EConst (CBool true), EConst (CInt 1), EConst (CInt 0)) in
-   debug_print_expr expr;
-   let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
-   (* Expected ANF form: let varname = if true then 1 else 0 in varname *)
-   debug_print_aexpr result;
-   match result with
-   | ALet (_, CIf (ImmBool true, ImmInt 1, ImmInt 0), ACExpr (CImmExpr (ImmIdentifier _)))
-   -> true
-   | _ -> false
-   ;;
+(* Inline test for ANF transformation of a conditional expression *)
+let%test "anf_conditional_expression" =
+  let expr = EIf (EConst (CBool true), EConst (CInt 1), EConst (CInt 0)) in
+  debug_print_expr expr;
+  let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
+  (* Expected ANF form: let varname = if true then 1 else 0 in varname *)
+  debug_print_aexpr result;
+  match result with
+  | ALet (_, CIf (ImmBool true, ImmInt 1, ImmInt 0), ACExpr (CImmExpr (ImmIdentifier _)))
+    -> true
+  | _ -> false
+;;
 
-   (* Inline test for ANF transformation of a let-in expression *)
-   let%test "anf_let_in_expression" =
-   let expr = ELet ([ true, PtVar "x", EConst (CInt 42) ], EVar "x") in
-   debug_print_expr expr;
-   let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
-   (* Expected ANF form: let x = 42 in x *)
-   debug_print_aexpr result;
-   match result with
-   | ALet ("x", CImmExpr (ImmInt 42), ACExpr (CImmExpr (ImmIdentifier "x"))) -> true
-   | _ -> false
-   ;;
-*)
+(* Inline test for ANF transformation of a let-in expression *)
+let%test "anf_let_in_expression" =
+  let expr = ELet ([ true, PtVar "x", EConst (CInt 42) ], EVar "x") in
+  debug_print_expr expr;
+  let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
+  (* Expected ANF form: let x = 42 in x *)
+  debug_print_aexpr result;
+  match result with
+  | ALet ("x", CImmExpr (ImmInt 42), ACExpr (CImmExpr (ImmIdentifier "x"))) -> true
+  | _ -> false
+;;
