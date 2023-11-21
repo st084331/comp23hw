@@ -60,28 +60,24 @@ let rec anf (e : exp) (expr_with_hole : immexpr -> aexpr) : aexpr =
     let anf_body = anf body (fun imm -> ACExpr (CImmExpr imm)) in
     ALet (varname, CImmExpr (ImmIdentifier "_"), anf_body)
 
-(* Implementing the handling of let bindings *)
 and anf_let_bindings bindings body expr_with_hole =
   match bindings with
-  | [] -> anf body expr_with_hole (* No bindings left, transform the body *)
+  | [] -> anf body expr_with_hole
   | (is_rec, pt, exp) :: rest ->
     anf exp (fun immexpr ->
       let varname = fresh_var () in
       match pt with
       | PtWild -> anf_let_bindings rest body expr_with_hole
       | PtVar id ->
-        (* Use the original variable name for the binding *)
         let new_body = substitute id id (ELet (rest, body)) in
         ALet (id, CImmExpr immexpr, anf_let_bindings rest new_body expr_with_hole)
       | PtConst const -> anf_let_bindings rest body expr_with_hole)
 
-(* Convert a constant to an immexpr *)
 and const_to_immexpr const =
   match const with
   | CInt n -> ImmInt n
   | CBool b -> ImmBool b
 
-(* Substitute occurrences of `old_id` with `new_id` in the expression *)
 and substitute old_id new_id expr =
   match expr with
   | EConst _ -> expr
@@ -100,11 +96,9 @@ and substitute old_id new_id expr =
       (List.map (substitute_in_binding old_id new_id) bindings, substitute old_id new_id e)
   | EFun (pt, e) ->
     (match pt with
-     | PtVar id when id = old_id ->
-       EFun (pt, e) (* Do not substitute shadowed variables *)
+     | PtVar id when id = old_id -> EFun (pt, e)
      | _ -> EFun (pt, substitute old_id new_id e))
 
-(* Substitute in bindings *)
 and substitute_in_binding old_id new_id (is_rec, pt, exp) =
   match pt with
   | PtVar id when id = old_id && not is_rec -> is_rec, pt, exp
@@ -114,23 +108,18 @@ and anf_fun pt body expr_with_hole =
   let varname = fresh_var () in
   match pt with
   | PtVar arg_id ->
-    (* Handling function with a single argument *)
     let anf_body =
       anf (substitute arg_id varname body) (fun imm -> ACExpr (CImmExpr imm))
     in
     ALet (varname, CImmExpr (ImmIdentifier arg_id), anf_body)
   | PtWild ->
-    (* Handling function with a wildcard argument *)
     let anf_body = anf body (fun imm -> ACExpr (CImmExpr imm)) in
     ALet (varname, CImmExpr (ImmIdentifier "_"), anf_body)
   | PtConst const ->
-    (* Handling function with a constant pattern *)
     let anf_body = anf body (fun imm -> ACExpr (CImmExpr imm)) in
     let check_const =
       match const with
-      | CInt n ->
-        CIf (ImmInt n, ImmIdentifier varname, ImmInt 0)
-        (* 0 could represent false or null *)
+      | CInt n -> CIf (ImmInt n, ImmIdentifier varname, ImmInt 0)
       | CBool b -> CIf (ImmBool b, ImmIdentifier varname, ImmBool false)
     in
     ALet (varname, check_const, anf_body)
@@ -154,7 +143,6 @@ let anf_program (program : prog) : abinding list =
     []
 ;;
 
-(* Debugging function to print an expression *)
 let debug_print_expr expr = Printf.printf "Debug Expression: %s\n" (show_exp expr)
 
 let debug_print_abinding_list abinding_list =
@@ -165,40 +153,8 @@ let debug_print_abinding_list abinding_list =
     abinding_list
 ;;
 
-(* Debugging function to print an aexpr *)
 let debug_print_aexpr aexpr =
   Printf.printf "Debug ANF Expression: %s\n" (show_aexpr aexpr)
-;;
-
-let rec compare_immexpr e1 e2 =
-  match e1, e2 with
-  | ImmInt n1, ImmInt n2 -> n1 = n2
-  | ImmBool b1, ImmBool b2 -> b1 = b2
-  | ImmIdentifier _, ImmIdentifier _ -> true (* Ignore names *)
-  | _, _ -> false
-;;
-
-let rec compare_cexpr c1 c2 =
-  match c1, c2 with
-  | CImmExpr ie1, CImmExpr ie2 -> compare_immexpr ie1 ie2
-  | CUnaryOp (op1, e1), CUnaryOp (op2, e2) -> op1 = op2 && compare_immexpr e1 e2
-  | CBinaryOp (op1, l1, r1), CBinaryOp (op2, l2, r2) ->
-    op1 = op2 && compare_immexpr l1 l2 && compare_immexpr r1 r2
-  | CApp (e1a, e1b), CApp (e2a, e2b) -> compare_immexpr e1a e2a && compare_immexpr e1b e2b
-  | CIf (c1, t1, f1), CIf (c2, t2, f2) ->
-    compare_immexpr c1 c2 && compare_immexpr t1 t2 && compare_immexpr f1 f2
-  | _, _ -> false
-
-and compare_aexpr a1 a2 =
-  match a1, a2 with
-  | ALet (_, c1, a1), ALet (_, c2, a2) -> compare_cexpr c1 c2 && compare_aexpr a1 a2
-  | ACExpr c1, ACExpr c2 -> compare_cexpr c1 c2
-  | _, _ -> false
-;;
-
-let compare_abinding b1 b2 =
-  match b1, b2 with
-  | AVal (_, a1), AVal (_, a2) -> compare_aexpr a1 a2
 ;;
 
 let%test "anf_simple_constant" =
@@ -262,10 +218,9 @@ let%test "anf_factorial_test" =
   let result = anf_program expr in
   Printf.printf "Result length: %d\n" (List.length result);
   debug_print_abinding_list result;
-  List.for_all2 compare_abinding result expected
+  result = expected
 ;;
 
-(* Inline test for ANF transformation of a simple expression *)
 let%test "anf_simple_expression" =
   let expr = EConst (CInt 42) in
   debug_print_expr expr;
@@ -275,7 +230,6 @@ let%test "anf_simple_expression" =
   result = expected
 ;;
 
-(* Inline test for ANF transformation of a unary operation *)
 let%test "anf_unary_operation" =
   let expr = EUnOp (Minus, EConst (CInt 42)) in
   debug_print_expr expr;
@@ -288,7 +242,6 @@ let%test "anf_unary_operation" =
   | _ -> false
 ;;
 
-(* Inline test for ANF transformation of a binary operation *)
 let%test "anf_binary_operation" =
   let expr = EBinOp (Add, EConst (CInt 40), EConst (CInt 2)) in
   debug_print_expr expr;
@@ -301,7 +254,6 @@ let%test "anf_binary_operation" =
   | _ -> false
 ;;
 
-(* Inline test for ANF transformation of a conditional expression *)
 let%test "anf_conditional_expression" =
   let expr = EIf (EConst (CBool true), EConst (CInt 1), EConst (CInt 0)) in
   debug_print_expr expr;
@@ -314,7 +266,6 @@ let%test "anf_conditional_expression" =
   | _ -> false
 ;;
 
-(* Inline test for ANF transformation of a let-in expression *)
 let%test "anf_let_in_expression" =
   let expr = ELet ([ true, PtVar "x", EConst (CInt 42) ], EVar "x") in
   debug_print_expr expr;
