@@ -2,8 +2,10 @@
 
 (** SPDX-License-Identifier: LGPL-2.1-or-later *)
 
+(** The type of identifiers *)
 type id = string [@@deriving eq, show { with_path = false }]
 
+(** The type of binary operations *)
 type bin_op =
   | Add (** + *)
   | Sub (** - *)
@@ -20,18 +22,21 @@ type bin_op =
   | Or (** || *)
 [@@deriving show { with_path = false }]
 
+(** The type of constants *)
 type const =
   | CBool of bool (** true *)
   | CInt of int (** 777 *)
   | CUnit (** () *)
 [@@deriving show { with_path = false }]
 
+(** The type of patterns *)
 type pattern =
   | PWild (** _ *)
   | PConst of const (** 1 *)
   | PVar of id (** abc *)
 [@@deriving show { with_path = false }]
 
+(** The type of expressions *)
 type expr =
   | EConst of const (** 1 *)
   | EBinOp of bin_op * expr * expr (** 1 + 1 *)
@@ -42,34 +47,35 @@ type expr =
   | EApp of expr * expr (** f x *)
 [@@deriving show { with_path = false }]
 
+(** The type of bindings *)
 type binding = ELet of bool * id * expr (** let [rec] f x = e *)
 [@@deriving show { with_path = false }]
 
-(** e1 ;; e2 ;; ... ;; en;; *)
+(** The type of programs *)
 type program = binding list [@@deriving show { with_path = false }]
 
 (**  Const constructors *)
-let constr_cint n = CInt n
+val constr_cint : int -> const
 
-let constr_cbool b = CBool b
+val constr_cbool : bool -> const
 
 (**  Pattern constructors *)
 
-let constr_pwild _ = PWild
-let constr_pconst c = PConst c
-let constr_pvar id = PVar id
+val constr_pwild : string -> pattern
+val constr_pconst : const -> pattern
+val constr_pvar : id -> pattern
 
 (**  Operation constructor *)
-let constr_ebinop binary_op expr1 expr2 = EBinOp (binary_op, expr1, expr2)
+val constr_ebinop : bin_op -> expr -> expr -> expr
 
 (**  Expr constructors *)
-let constr_econst e = EConst e
+val constr_econst : const -> expr
 
-let constr_evar id = EVar id
-let constr_eif e1 e2 e3 = EIf (e1, e2, e3)
-let constr_efun pl e = List.fold_right (fun p e -> EFun (p, e)) pl e
-let constr_eletin b id e1 e2 = ELetIn (b, id, e1, e2)
-let constr_eapp f args = List.fold_left (fun f arg -> EApp (f, arg)) f args
+val constr_evar : id -> expr
+val constr_eif : expr -> expr -> expr -> expr
+val constr_efun : pattern list -> expr -> expr
+val constr_eletin : bool -> id -> expr -> expr -> expr
+val constr_eapp : expr -> expr list -> expr
 
 (**  Binding constructor *)
-let constr_elet b id e = ELet (b, id, e)
+val constr_elet : bool -> id -> expr -> binding
