@@ -20,9 +20,7 @@ type aexpr =
   | ALet of string * cexpr * aexpr
   | ACExpr of cexpr
 
-type abinding =
-  | AVal of string * aexpr
-  | AFun of string * string list * aexpr
+type abinding = AVal of string * aexpr
 
 val anf : exp -> (immexpr -> aexpr) -> aexpr
 val anf_program : prog -> abinding list
