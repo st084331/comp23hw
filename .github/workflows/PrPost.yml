@@ -165,41 +165,54 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            github.rest.issues.addLabels({
+            github.rest.issues.setLabels({
               issue_number: ${{ env.CI_PULL_REQUEST }},
               owner: context.repo.owner,
               repo: context.repo.repo,
               labels: ["FEW"]
             })
-            github.rest.issues.deleteLabel({
+            var labels = github.rest.issues.listLabelsOnIssue({
               issue_number: ${{ env.CI_PULL_REQUEST }},
               owner: context.repo.owner,
               repo: context.repo.repo,
-              labels: ["TOOMANY"]
-            })
+            });
+            console.log(labels)
 
       - name: Tag PR as TOOMANY linter complains
         if: ${{ env.LINTER_RESOLUTION == 'TOOMANY' }}
         uses: actions/github-script@v6
         with:
           script: |
-            github.rest.issues.addLabels({
+            github.rest.issues.setLabels({
               issue_number: ${{ env.CI_PULL_REQUEST }},
               owner: context.repo.owner,
               repo: context.repo.repo,
               labels: ["TOOMANY"]
             })
-            github.rest.issues.deleteLabel({
+            var labels = github.rest.issues.listLabelsOnIssue({
               issue_number: ${{ env.CI_PULL_REQUEST }},
               owner: context.repo.owner,
               repo: context.repo.repo,
-              labels: ["FEW"]
-            })
+            });
+            console.log(labels)
 
-      # TODO: remove BUG labels too
-      - name: Tag PR as TOOMANY linter complains
-        if: ${{ env.LINTER_RESOLUTION == 'BUG' }}
-        run: echo BUG
+      - name: Remove tags related to linter complains
+        if: ${{ env.LINTER_RESOLUTION == 'OK' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.setLabels({
+              issue_number: ${{ env.CI_PULL_REQUEST }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: []
+            })
+            var labels = github.rest.issues.listLabelsOnIssue({
+              issue_number: ${{ env.CI_PULL_REQUEST }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            console.log(labels)
 
   ###################################################################################################
   upload_docs:
