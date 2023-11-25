@@ -221,6 +221,169 @@ let%test "anf_factorial_test" =
   result = expected
 ;;
 
+let%test "anf_fibo_cps" =
+  let expr =
+    [ DLet (false, PtVar "id", EFun (PtVar "x", EVar "x"))
+    ; DLet
+        ( false
+        , PtVar "acc1"
+        , EFun
+            ( PtVar "acc"
+            , EFun
+                ( PtVar "x"
+                , EFun (PtVar "y", EApp (EVar "acc", EBinOp (Add, EVar "x", EVar "y"))) )
+            ) )
+    ; DLet
+        ( false
+        , PtVar "acc2"
+        , EFun
+            ( PtVar "fib_func"
+            , EFun
+                ( PtVar "n"
+                , EFun
+                    ( PtVar "acc"
+                    , EFun
+                        ( PtVar "x"
+                        , EApp
+                            ( EApp
+                                (EVar "fib_func", EBinOp (Sub, EVar "n", EConst (CInt 2)))
+                            , EApp (EApp (EVar "acc1", EVar "acc"), EVar "x") ) ) ) ) ) )
+    ; DLet
+        ( true
+        , PtVar "fibo_cps"
+        , EFun
+            ( PtVar "n"
+            , EFun
+                ( PtVar "acc"
+                , EIf
+                    ( EBinOp (Less, EVar "n", EConst (CInt 3))
+                    , EApp (EVar "acc", EConst (CInt 1))
+                    , EApp
+                        ( EVar "fibo_cps"
+                        , EApp
+                            ( EApp (EApp (EVar "acc2", EVar "fibo_cps"), EVar "n")
+                            , EVar "acc" ) ) ) ) ) )
+    ; DLet
+        ( false
+        , PtVar "fibo"
+        , EFun (PtVar "n", EApp (EApp (EVar "fibo_cps", EVar "n"), EVar "id")) )
+    ]
+  in
+  let result = anf_program expr in
+  let expected =
+    [ AVal
+        ( "id"
+        , ALet
+            ("anf_27", CImmExpr (ImmIdentifier "_"), ACExpr (CImmExpr (ImmIdentifier "x")))
+        )
+    ; AVal
+        ( "acc1"
+        , ALet
+            ( "anf_22"
+            , CImmExpr (ImmIdentifier "_")
+            , ALet
+                ( "anf_23"
+                , CImmExpr (ImmIdentifier "_")
+                , ALet
+                    ( "anf_24"
+                    , CImmExpr (ImmIdentifier "_")
+                    , ALet
+                        ( "anf_25"
+                        , CBinaryOp (Add, ImmIdentifier "x", ImmIdentifier "y")
+                        , ALet
+                            ( "anf_26"
+                            , CApp (ImmIdentifier "acc", ImmIdentifier "anf_25")
+                            , ACExpr (CImmExpr (ImmIdentifier "anf_26")) ) ) ) ) ) )
+    ; AVal
+        ( "acc2"
+        , ALet
+            ( "anf_13"
+            , CImmExpr (ImmIdentifier "_")
+            , ALet
+                ( "anf_14"
+                , CImmExpr (ImmIdentifier "_")
+                , ALet
+                    ( "anf_15"
+                    , CImmExpr (ImmIdentifier "_")
+                    , ALet
+                        ( "anf_16"
+                        , CImmExpr (ImmIdentifier "_")
+                        , ALet
+                            ( "anf_17"
+                            , CBinaryOp (Sub, ImmIdentifier "n", ImmInt 2)
+                            , ALet
+                                ( "anf_18"
+                                , CApp (ImmIdentifier "fib_func", ImmIdentifier "anf_17")
+                                , ALet
+                                    ( "anf_19"
+                                    , CApp (ImmIdentifier "acc1", ImmIdentifier "acc")
+                                    , ALet
+                                        ( "anf_20"
+                                        , CApp (ImmIdentifier "anf_19", ImmIdentifier "x")
+                                        , ALet
+                                            ( "anf_21"
+                                            , CApp
+                                                ( ImmIdentifier "anf_18"
+                                                , ImmIdentifier "anf_20" )
+                                            , ACExpr (CImmExpr (ImmIdentifier "anf_21"))
+                                            ) ) ) ) ) ) ) ) ) )
+    ; AVal
+        ( "fibo_cps"
+        , ALet
+            ( "anf_4"
+            , CImmExpr (ImmIdentifier "_")
+            , ALet
+                ( "anf_5"
+                , CImmExpr (ImmIdentifier "_")
+                , ALet
+                    ( "anf_6"
+                    , CBinaryOp (Less, ImmIdentifier "n", ImmInt 3)
+                    , ALet
+                        ( "anf_7"
+                        , CApp (ImmIdentifier "acc", ImmInt 1)
+                        , ALet
+                            ( "anf_8"
+                            , CApp (ImmIdentifier "acc2", ImmIdentifier "fibo_cps")
+                            , ALet
+                                ( "anf_9"
+                                , CApp (ImmIdentifier "anf_8", ImmIdentifier "n")
+                                , ALet
+                                    ( "anf_10"
+                                    , CApp (ImmIdentifier "anf_9", ImmIdentifier "acc")
+                                    , ALet
+                                        ( "anf_11"
+                                        , CApp
+                                            ( ImmIdentifier "fibo_cps"
+                                            , ImmIdentifier "anf_10" )
+                                        , ALet
+                                            ( "anf_12"
+                                            , CIf
+                                                ( ImmIdentifier "anf_6"
+                                                , ImmIdentifier "anf_7"
+                                                , ImmIdentifier "anf_11" )
+                                            , ACExpr (CImmExpr (ImmIdentifier "anf_12"))
+                                            ) ) ) ) ) ) ) ) ) )
+    ; AVal
+        ( "fibo"
+        , ALet
+            ( "anf_1"
+            , CImmExpr (ImmIdentifier "_")
+            , ALet
+                ( "anf_2"
+                , CApp (ImmIdentifier "fibo_cps", ImmIdentifier "n")
+                , ALet
+                    ( "anf_3"
+                    , CApp (ImmIdentifier "anf_2", ImmIdentifier "id")
+                    , ACExpr (CImmExpr (ImmIdentifier "anf_3")) ) ) ) )
+    ]
+  in
+  Printf.printf "Result:\n";
+  debug_print_abinding_list result;
+  Printf.printf "Expected:\n";
+  debug_print_abinding_list expected;
+  result = expected
+;;
+
 let%test "anf_simple_expression" =
   let expr = EConst (CInt 42) in
   debug_print_expr expr;
