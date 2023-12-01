@@ -73,8 +73,7 @@ and anf_let_bindings bindings body expr_with_hole =
         ALet (id, CImmExpr immexpr, anf_let_bindings rest new_body expr_with_hole)
       | PtConst const -> anf_let_bindings rest body expr_with_hole)
 
-and const_to_immexpr const =
-  match const with
+and const_to_immexpr = function
   | CInt n -> ImmInt n
   | CBool b -> ImmBool b
 
