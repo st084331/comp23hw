@@ -1,5 +1,9 @@
-(** Copyright 2023-2024, Rustam Shangareev and Danil Yevdokimov *)
+module type CounterState = sig
+  val counter : int ref
+  val reset : unit -> unit
+end
 
-(** SPDX-License-Identifier: LGPL-2.1 *)
-
-val create_fresh_var_system : unit -> (string -> unit -> string) * (unit -> unit)
+module FreshVarGenerator (State : CounterState) : sig
+  val fresh_var : string -> unit -> string
+  val reset : unit -> unit
+end
