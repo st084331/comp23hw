@@ -2,5 +2,4 @@
 
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
-val fresh_var : string -> unit -> string
-val reset_counter : unit -> unit
+val create_fresh_var_system : unit -> (string -> unit -> string) * (unit -> unit)

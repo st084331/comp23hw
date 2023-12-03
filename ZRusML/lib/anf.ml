@@ -58,17 +58,17 @@ let rec anf_func (fresh_var : unit -> id) (e : exp) (expr_with_hole : immexpr ->
   | EVar x -> expr_with_hole (ImmIdentifier x)
   | EUnOp (op, exp) ->
     anf exp (fun imm ->
-      let varname = fresh_var () in
+      let varname = fresh_var "anf" () in
       ALet (varname, CUnaryOp (op, imm), expr_with_hole (ImmIdentifier varname)))
   | EBinOp (op, left, right) ->
     anf left (fun limm ->
       anf right (fun rimm ->
-        let varname = fresh_var () in
+        let varname = fresh_var "anf" () in
         ALet (varname, CBinaryOp (op, limm, rimm), expr_with_hole (ImmIdentifier varname))))
   | EApp (e1, e2) ->
     anf e1 (fun e1imm ->
       anf e2 (fun e2imm ->
-        let varname = fresh_var () in
+        let varname = fresh_var "anf" () in
         ALet (varname, CApp (e1imm, e2imm), expr_with_hole (ImmIdentifier varname))))
   | EIf (cond, e1, e2) ->
     anf cond (fun condimm ->
@@ -132,8 +132,8 @@ let anf_program (program : prog) : abinding list =
         let id =
           match pt with
           | PtVar id -> id
-          | PtWild -> fresh_var ()
-          | PtConst _ -> fresh_var ()
+          | PtWild -> fresh_var "anf" ()
+          | PtConst _ -> fresh_var "anf" ()
         in
         ABind (id, lst, anf_exp) :: acc)
     program
