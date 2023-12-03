@@ -26,7 +26,7 @@ type aexpr =
 
 type abinding = AVal of string * aexpr [@@deriving show { with_path = false }]
 
-let fresh_var = fresh_var "anf"
+let fresh_var, reset_counter = create_fresh_var_system ()
 
 let rec anf (e : exp) (expr_with_hole : immexpr -> aexpr) : aexpr =
   match e with
@@ -35,28 +35,28 @@ let rec anf (e : exp) (expr_with_hole : immexpr -> aexpr) : aexpr =
   | EVar x -> expr_with_hole (ImmIdentifier x)
   | EUnOp (op, exp) ->
     anf exp (fun imm ->
-      let varname = fresh_var () in
+      let varname = fresh_var "anf" () in
       ALet (varname, CUnaryOp (op, imm), expr_with_hole (ImmIdentifier varname)))
   | EBinOp (op, left, right) ->
     anf left (fun limm ->
       anf right (fun rimm ->
-        let varname = fresh_var () in
+        let varname = fresh_var "anf" () in
         ALet (varname, CBinaryOp (op, limm, rimm), expr_with_hole (ImmIdentifier varname))))
   | EApp (e1, e2) ->
     anf e1 (fun e1imm ->
       anf e2 (fun e2imm ->
-        let varname = fresh_var () in
+        let varname = fresh_var "anf" () in
         ALet (varname, CApp (e1imm, e2imm), expr_with_hole (ImmIdentifier varname))))
   | EIf (cond, e1, e2) ->
     anf cond (fun condimm ->
       anf e1 (fun e1imm ->
         anf e2 (fun e2imm ->
-          let varname = fresh_var () in
+          let varname = fresh_var "anf" () in
           ALet
             (varname, CIf (condimm, e1imm, e2imm), expr_with_hole (ImmIdentifier varname)))))
   | ELet (bindings, body) -> anf_let_bindings bindings body expr_with_hole
   | EFun (pt, body) ->
-    let varname = fresh_var () in
+    let varname = fresh_var "anf" () in
     let anf_body = anf body (fun imm -> ACExpr (CImmExpr imm)) in
     ALet (varname, CImmExpr (ImmIdentifier "_"), anf_body)
 
@@ -65,7 +65,7 @@ and anf_let_bindings bindings body expr_with_hole =
   | [] -> anf body expr_with_hole
   | (is_rec, pt, exp) :: rest ->
     anf exp (fun immexpr ->
-      let varname = fresh_var () in
+      let varname = fresh_var "anf" () in
       match pt with
       | PtWild -> anf_let_bindings rest body expr_with_hole
       | PtVar id ->
@@ -104,7 +104,7 @@ and substitute_in_binding old_id new_id (is_rec, pt, exp) =
   | _ -> is_rec, pt, substitute old_id new_id exp
 
 and anf_fun pt body expr_with_hole =
-  let varname = fresh_var () in
+  let varname = fresh_var "anf" () in
   match pt with
   | PtVar arg_id ->
     let anf_body =
@@ -134,8 +134,8 @@ let anf_program (program : prog) : abinding list =
         let id =
           match pt with
           | PtVar id -> id
-          | PtWild -> fresh_var ()
-          | PtConst _ -> fresh_var ()
+          | PtWild -> fresh_var "anf" ()
+          | PtConst _ -> fresh_var "anf" ()
         in
         AVal (id, anf_exp) :: acc)
     program
