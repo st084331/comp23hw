@@ -1,12 +1,17 @@
 (** Copyright 2023-2024, Rustam Shangareev and Danil Yevdokimov *)
 
 (** SPDX-License-Identifier: LGPL-2.1 *)
-let create_fresh_var_system () =
-  let count = ref 0 in
+module type CounterState = sig
+  val counter : int ref
+  val reset : unit -> unit
+end
+
+(* Functor that takes a CounterState and provides fresh variable functionality *)
+module FreshVarGenerator (State : CounterState) = struct
   let fresh_var name () =
-    incr count;
-    Printf.sprintf "%s_%d" name !count
-  in
-  let reset_counter () = count := 0 in
-  fresh_var, reset_counter
-;;
+    State.counter := !State.counter + 1;
+    Printf.sprintf "%s_%d" name !State.counter
+  ;;
+
+  let reset = State.reset
+end
