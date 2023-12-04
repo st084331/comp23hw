@@ -109,26 +109,6 @@ and substitute_in_binding old_id new_id (is_rec, pt, exp) =
   match pt with
   | PtVar id when id = old_id && not is_rec -> is_rec, pt, exp
   | _ -> is_rec, pt, substitute old_id new_id exp
-
-and anf_fun pt body expr_with_hole =
-  let varname = fresh_var () in
-  match pt with
-  | PtVar arg_id ->
-    let anf_body =
-      anf (substitute arg_id varname body) (fun imm -> ACExpr (CImmExpr imm))
-    in
-    ALet (varname, CImmExpr (ImmIdentifier arg_id), anf_body)
-  | PtWild ->
-    let anf_body = anf body (fun imm -> ACExpr (CImmExpr imm)) in
-    ALet (varname, CImmExpr (ImmIdentifier "_"), anf_body)
-  | PtConst const ->
-    let anf_body = anf body (fun imm -> ACExpr (CImmExpr imm)) in
-    let check_const =
-      match const with
-      | CInt n -> CIf (ImmInt n, ImmIdentifier varname, ImmInt 0)
-      | CBool b -> CIf (ImmBool b, ImmIdentifier varname, ImmBool false)
-    in
-    ALet (varname, check_const, anf_body)
 ;;
 
 let anf_program (program : prog) : abinding list =
