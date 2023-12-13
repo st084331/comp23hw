@@ -3,14 +3,6 @@
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
 open Ast
-open Var_counter
-
-module Counter = struct
-  let counter = ref 0
-  let reset () = counter := 0
-end
-
-module FreshVar = FreshVarGenerator (Counter)
 
 type immexpr =
   | ImmInt of int
@@ -64,17 +56,17 @@ let rec anf_func (fresh_var : unit -> id) (e : exp) (expr_with_hole : immexpr ->
   | EConst (CBool b) -> expr_with_hole (ImmBool b)
   | EVar x -> expr_with_hole (ImmIdentifier x)
   | EUnOp (op, exp) ->
-    anf exp (fun imm ->
+    anf fresh_var exp (fun imm ->
       let varname = fresh_var () in
       ALet (varname, CUnaryOp (op, imm), expr_with_hole (ImmIdentifier varname)))
   | EBinOp (op, left, right) ->
-    anf left (fun limm ->
-      anf right (fun rimm ->
+    anf fresh_var left (fun limm ->
+      anf fresh_var right (fun rimm ->
         let varname = fresh_var () in
         ALet (varname, CBinaryOp (op, limm, rimm), expr_with_hole (ImmIdentifier varname))))
   | EApp (e1, e2) ->
-    anf e1 (fun e1imm ->
-      anf e2 (fun e2imm ->
+    anf fresh_var e1 (fun e1imm ->
+      anf fresh_var e2 (fun e2imm ->
         let varname = fresh_var () in
         ALet (varname, CApp (e1imm, e2imm), expr_with_hole (ImmIdentifier varname))))
   | EIf (cond, e1, e2) ->
@@ -86,7 +78,7 @@ let rec anf_func (fresh_var : unit -> id) (e : exp) (expr_with_hole : immexpr ->
   | ELet (bindings, body) -> anf_let_bindings bindings body expr_with_hole
   | EFun (_, body) ->
     let varname = fresh_var () in
-    let anf_body = anf body (fun imm -> ACExpr (CImmExpr imm)) in
+    let anf_body = anf fresh_var body (fun imm -> ACExpr (CImmExpr imm)) in
     ALet (varname, CImmExpr (ImmIdentifier "_"), anf_body)
 
 and const_to_immexpr = function
