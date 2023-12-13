@@ -22,5 +22,5 @@ type aexpr =
 
 type abinding = AVal of string * aexpr
 
-val anf : exp -> (immexpr -> aexpr) -> aexpr
+val anf : (unit -> id) -> exp -> (immexpr -> aexpr) -> aexpr
 val anf_program : prog -> abinding list

@@ -11,8 +11,7 @@
   Compare
   Closure_conversion
   Pretty_printer
-  Lambda_lifting
-  Var_counter)
+  Lambda_lifting)
  (inline_tests)
  (libraries base angstrom stdlib)
  (preprocess
