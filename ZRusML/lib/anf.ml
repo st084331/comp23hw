@@ -3,14 +3,6 @@
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
 open Ast
-open Var_counter
-
-module Counter = struct
-  let counter = ref 0
-  let reset () = counter := 0
-end
-
-module FreshVar = FreshVarGenerator (Counter)
 
 type immexpr =
   | ImmInt of int
@@ -33,52 +25,52 @@ type aexpr =
 
 type abinding = AVal of string * aexpr [@@deriving show { with_path = false }]
 
-let fresh_var = FreshVar.fresh_var "anf"
-
-let rec anf (e : exp) (expr_with_hole : immexpr -> aexpr) : aexpr =
+let rec anf (fresh_var : unit -> id) (e : exp) (expr_with_hole : immexpr -> aexpr) : aexpr
+  =
   match e with
   | EConst (CInt n) -> expr_with_hole (ImmInt n)
   | EConst (CBool b) -> expr_with_hole (ImmBool b)
   | EVar x -> expr_with_hole (ImmIdentifier x)
   | EUnOp (op, exp) ->
-    anf exp (fun imm ->
+    anf fresh_var exp (fun imm ->
       let varname = fresh_var () in
       ALet (varname, CUnaryOp (op, imm), expr_with_hole (ImmIdentifier varname)))
   | EBinOp (op, left, right) ->
-    anf left (fun limm ->
-      anf right (fun rimm ->
+    anf fresh_var left (fun limm ->
+      anf fresh_var right (fun rimm ->
         let varname = fresh_var () in
         ALet (varname, CBinaryOp (op, limm, rimm), expr_with_hole (ImmIdentifier varname))))
   | EApp (e1, e2) ->
-    anf e1 (fun e1imm ->
-      anf e2 (fun e2imm ->
+    anf fresh_var e1 (fun e1imm ->
+      anf fresh_var e2 (fun e2imm ->
         let varname = fresh_var () in
         ALet (varname, CApp (e1imm, e2imm), expr_with_hole (ImmIdentifier varname))))
   | EIf (cond, e1, e2) ->
-    anf cond (fun condimm ->
-      anf e1 (fun e1imm ->
-        anf e2 (fun e2imm ->
+    anf fresh_var cond (fun condimm ->
+      anf fresh_var e1 (fun e1imm ->
+        anf fresh_var e2 (fun e2imm ->
           let varname = fresh_var () in
           ALet
             (varname, CIf (condimm, e1imm, e2imm), expr_with_hole (ImmIdentifier varname)))))
-  | ELet (bindings, body) -> anf_let_bindings bindings body expr_with_hole
+  | ELet (bindings, body) -> anf_let_bindings fresh_var bindings body expr_with_hole
   | EFun (pt, body) ->
     let varname = fresh_var () in
-    let anf_body = anf body (fun imm -> ACExpr (CImmExpr imm)) in
+    let anf_body = anf fresh_var body (fun imm -> ACExpr (CImmExpr imm)) in
     ALet (varname, CImmExpr (ImmIdentifier "_"), anf_body)
 
-and anf_let_bindings bindings body expr_with_hole =
+and anf_let_bindings fresh_var bindings body expr_with_hole =
   match bindings with
-  | [] -> anf body expr_with_hole
+  | [] -> anf fresh_var body expr_with_hole
   | (is_rec, pt, exp) :: rest ->
-    anf exp (fun immexpr ->
+    anf fresh_var exp (fun immexpr ->
       let varname = fresh_var () in
       match pt with
-      | PtWild -> anf_let_bindings rest body expr_with_hole
+      | PtWild -> anf_let_bindings fresh_var rest body expr_with_hole
       | PtVar id ->
         let new_body = substitute id id (ELet (rest, body)) in
-        ALet (id, CImmExpr immexpr, anf_let_bindings rest new_body expr_with_hole)
-      | PtConst const -> anf_let_bindings rest body expr_with_hole)
+        ALet
+          (id, CImmExpr immexpr, anf_let_bindings fresh_var rest new_body expr_with_hole)
+      | PtConst const -> anf_let_bindings fresh_var rest body expr_with_hole)
 
 and const_to_immexpr = function
   | CInt n -> ImmInt n
@@ -112,12 +104,16 @@ and substitute_in_binding old_id new_id (is_rec, pt, exp) =
 ;;
 
 let anf_program (program : prog) : abinding list =
-  FreshVar.reset ();
+  let count = ref 0 in
+  let fresh_var () =
+    incr count;
+    Printf.sprintf "%s_%d" "anf" !count
+  in
   List.fold_right
     (fun decl acc ->
       match decl with
       | DLet (is_rec, pt, exp) ->
-        let anf_exp = anf exp (fun imm -> ACExpr (CImmExpr imm)) in
+        let anf_exp = anf fresh_var exp (fun imm -> ACExpr (CImmExpr imm)) in
         let id =
           match pt with
           | PtVar id -> id
@@ -371,18 +367,28 @@ let%test "anf_fibo_cps" =
 ;;
 
 let%test "anf_simple_expression" =
+  let count = ref 0 in
+  let fresh_var () =
+    incr count;
+    Printf.sprintf "%s_%d" "anf" !count
+  in
   let expr = EConst (CInt 42) in
   debug_print_expr expr;
   let expected = ACExpr (CImmExpr (ImmInt 42)) in
-  let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
+  let result = anf fresh_var expr (fun imm -> ACExpr (CImmExpr imm)) in
   debug_print_aexpr result;
   result = expected
 ;;
 
 let%test "anf_unary_operation" =
+  let count = ref 0 in
+  let fresh_var () =
+    incr count;
+    Printf.sprintf "%s_%d" "anf" !count
+  in
   let expr = EUnOp (Minus, EConst (CInt 42)) in
   debug_print_expr expr;
-  let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
+  let result = anf fresh_var expr (fun imm -> ACExpr (CImmExpr imm)) in
   (* Expected ANF form: let varname = -42 in varname *)
   debug_print_aexpr result;
   match result with
@@ -392,9 +398,14 @@ let%test "anf_unary_operation" =
 ;;
 
 let%test "anf_binary_operation" =
+  let count = ref 0 in
+  let fresh_var () =
+    incr count;
+    Printf.sprintf "%s_%d" "anf" !count
+  in
   let expr = EBinOp (Add, EConst (CInt 40), EConst (CInt 2)) in
   debug_print_expr expr;
-  let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
+  let result = anf fresh_var expr (fun imm -> ACExpr (CImmExpr imm)) in
   (* Expected ANF form: let varname = 40 + 2 in varname *)
   debug_print_aexpr result;
   match result with
@@ -404,9 +415,14 @@ let%test "anf_binary_operation" =
 ;;
 
 let%test "anf_conditional_expression" =
+  let count = ref 0 in
+  let fresh_var () =
+    incr count;
+    Printf.sprintf "%s_%d" "anf" !count
+  in
   let expr = EIf (EConst (CBool true), EConst (CInt 1), EConst (CInt 0)) in
   debug_print_expr expr;
-  let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
+  let result = anf fresh_var expr (fun imm -> ACExpr (CImmExpr imm)) in
   (* Expected ANF form: let varname = if true then 1 else 0 in varname *)
   debug_print_aexpr result;
   match result with
@@ -416,9 +432,14 @@ let%test "anf_conditional_expression" =
 ;;
 
 let%test "anf_let_in_expression" =
+  let count = ref 0 in
+  let fresh_var () =
+    incr count;
+    Printf.sprintf "%s_%d" "anf" !count
+  in
   let expr = ELet ([ true, PtVar "x", EConst (CInt 42) ], EVar "x") in
   debug_print_expr expr;
-  let result = anf expr (fun imm -> ACExpr (CImmExpr imm)) in
+  let result = anf fresh_var expr (fun imm -> ACExpr (CImmExpr imm)) in
   (* Expected ANF form: let x = 42 in x *)
   debug_print_aexpr result;
   match result with
