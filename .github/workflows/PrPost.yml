@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1                # fix me later
           submodules: false
@@ -37,7 +37,7 @@ jobs:
       - run: echo "event = ${{ github.event.workflow_run.event }}"
 
       - name: Download artifact
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v3
         with:
           workflow: PR.yml
           name: review
@@ -68,7 +68,12 @@ jobs:
 
       - name: Run reviewer
         run: >
-          opam exec -- reviewer -token ${{ secrets.GITHUB_TOKEN }} -owner ${{env.CI_REPO_OWNER}} -repo ${{github.event.repository.name}} -pr_number ${{ env.CI_PULL_REQUEST }} -commit ${{ env.CI_COMMIT }} -irdjsonl lints.rdjsonl -review
+          opam exec -- reviewer -token ${{ secrets.GITHUB_TOKEN }} \
+            -owner ${{env.CI_REPO_OWNER}} \
+            -repo ${{github.event.repository.name}} \
+            -pr_number ${{ env.CI_PULL_REQUEST }} \
+            -commit ${{ env.CI_COMMIT }} \
+            -irdjsonl lints.rdjsonl -review
 
       # TODO: Maybe not deploy empty lint files
       - run: |
@@ -154,8 +159,13 @@ jobs:
 #          proxy-url: https://add-pr-comment-proxy-94idvmwyie-uc.a.run.app
 
       - run: opam list
-      - name: manual adding of a comment from text.md
-        run: opam exec -- ocaml .github/add_comment.ml -file text.md -token ${{ secrets.CLASSIC_TOKEN }} -issue ${{ env.CI_PULL_REQUEST }}
+      - name: Adding a comment from text.md via OCaml script
+        run: >
+          opam exec -- ocaml .github/add_comment.ml -file text.md \
+            -token ${{ secrets.GITHUB_TOKEN }} \
+            -issue ${{ env.CI_PULL_REQUEST }} \
+            -repo fp2023 \
+            -user Kakadu
 
       - shell: bash
         run: echo "LINTER_RESOLUTION=$(bash .github/check_rdjson.sh lints.rdjsonl)" >> $GITHUB_ENV
@@ -226,10 +236,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download odoc artifact
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v3
         with:
           workflow: PR.yml
           name: docs
@@ -248,9 +258,10 @@ jobs:
       - name: Deploy documentation
         uses: peaceiris/actions-gh-pages@v3
         with:
-          personal_token: ${{ secrets.CLASSIC_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          #personal_token: ${{ secrets.CLASSIC_TOKEN }}
           #github_token: ${{ secrets.PAT1 }}  # used only to publish in local repo
-          publish_dir: ./_docs/_doc/_html
+          publish_dir: ./_docs/_html
           publish_branch: gh-pages
           enable_jekyll: false
           keep_files: true
@@ -260,7 +271,12 @@ jobs:
           user_name: '${{ github.event.repository.name }}[bot]'
           user_email: '${{ github.event.repository.name }}[bot]@users.noreply.github.com'
 
-      - run: .github/make_doc_msg.sh "${{ github.event.repository.name }}" "${{ env.LANG_NAME }}" text.md
+      - run: >
+          .github/make_doc_msg.sh \
+            "${{ github.event.repository.name }}" \
+            "${{ env.LANG_NAME }}" \
+            _docs/percent.txt \
+            text.md
 
       - run: cat text.md
 
@@ -305,16 +321,21 @@ jobs:
 
       - run: opam exec -- ocamlopt --version
 
-      - name: manual adding of a comment from text.md
-        run: opam exec -- ocaml .github/add_comment.ml -file text.md -token ${{ secrets.CLASSIC_TOKEN }} -issue ${{ env.PR_NUMBER }}
-
+      - name: Adding a comment from 'text.md' manually
+        run: >
+          opam exec -- ocaml .github/add_comment.ml \
+            -file text.md \
+            -token ${{ secrets.GITHUB_TOKEN }} \
+            -issue ${{ env.PR_NUMBER }}
+            -repo comp23hw \
+            -user Kakadu
 
   upload_coverage:
     runs-on: ubuntu-latest
     if: ${{( github.event.workflow_run.event == 'pull_request') && (github.event.workflow_run.conclusion == 'success') }}
     steps:
       - name: Download coverage artifact
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v3
         with:
           workflow: PR.yml
           name: coverage
@@ -353,7 +374,7 @@ jobs:
     #  github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Download artifact
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v3
         with:
           workflow: PR.yml
           name: jscpd_report
