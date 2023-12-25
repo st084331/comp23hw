@@ -326,7 +326,7 @@ jobs:
           opam exec -- ocaml .github/add_comment.ml \
             -file text.md \
             -token ${{ secrets.GITHUB_TOKEN }} \
-            -issue ${{ env.PR_NUMBER }}
+            -issue ${{ env.PR_NUMBER }} \
             -repo comp23hw \
             -user Kakadu
 
