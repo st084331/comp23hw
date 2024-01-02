@@ -20,6 +20,7 @@ jobs:
       cancel-in-progress: true
 
     steps:
+      - run: sudo apt-get update -yy
       # https://github.com/actions/checkout
       - name: Checkout code
         uses: actions/checkout@v4
@@ -66,8 +67,8 @@ jobs:
 
       - name: Installing dependencies
         run: |
-          cd ${{ env.latest }} && opam install . --depext-only --with-test --with-doc
-          cd ${{ env.latest }} && opam install . --deps-only --with-test --with-doc
+          opam install ${{ env.latest }} --depext-only --with-test --with-doc
+          opam install ${{ env.latest }} --deps-only --with-test --with-doc
 
       #- name: Naive linting
       #  run: |
