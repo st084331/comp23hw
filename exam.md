@@ -16,4 +16,4 @@
 1. Представление данных в памяти. Tagged integers, tagged pointer, NaN-tagging. Подходы без тегирования.
 1. Эффективная компиляция сопоставления с образцом. Оптимизации для автомата с возвратами. BDD и эвристика necessity. Особенности компиляции для ленивых языков.
 1. Компиляция языка выражений в стековую машины. Польская запись. Уметь доказывать корректность компиляции и пояснять, как происходит доказательство на Coq.
-1. Символьное исправление. Задачи и сложности. Concolic подход на примере. [слайды](https://docs.google.com/presentation/d/1TqEKePTJ0nkMWY1CJ48VO0SXAuQe0Ij9QXMAifTJrek/edit#slide=id.g2a68322c8e0_0_133)
+1. Символьное исполнение. Задачи и сложности. Concolic подход на примере. [слайды](https://docs.google.com/presentation/d/1TqEKePTJ0nkMWY1CJ48VO0SXAuQe0Ij9QXMAifTJrek/edit#slide=id.g2a68322c8e0_0_133)
