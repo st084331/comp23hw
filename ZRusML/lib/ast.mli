@@ -23,26 +23,23 @@ type bin_op =
   | Div (** Division *)
 
 (** Unary operations available in the language *)
-and un_op =
+type un_op =
   | Not (** Logical not *)
   | Minus (** Unary minus *)
 
-(** Binding type for let expressions and function arguments *)
-and binding = bool * pt * exp
-
-(** Case type for pattern matching *)
-and case = pt * exp
-
-(** Declarations available in the language *)
-and decl = DLet of binding (** let declaration *)
-
-(** Program type representing a list of declarations *)
-and prog = decl list
-
 (** Constants available in the language *)
-and const =
+type const =
   | CInt of int (** Integer constant *)
   | CBool of bool (** Boolean constant *)
+
+(** Patterns available in the language for pattern matching *)
+type pt =
+  | PtWild (** Wildcard pattern *)
+  | PtVar of id (** Variable pattern *)
+  | PtConst of const (** Constant pattern *)
+
+(** Binding type for let expressions and function arguments *)
+type binding = bool * pt * exp
 
 (** Expressions in the language *)
 and exp =
@@ -55,9 +52,16 @@ and exp =
   | EBinOp of bin_op * exp * exp (** Binary operations *)
   | EApp of exp * exp (** Function application *)
 
-(** Patterns available in the language for pattern matching *)
-and pt =
-  | PtWild (** Wildcard pattern *)
-  | PtVar of id (** Variable pattern *)
-  | PtConst of const (** Constant pattern *)
-[@@deriving show { with_path = false }]
+(** Case type for pattern matching *)
+type case = pt * exp
+
+(** Declarations available in the language *)
+type decl = DLet of binding (** let declaration *)
+
+(** Program type representing a list of declarations *)
+type prog = decl list
+
+
+
+
+
