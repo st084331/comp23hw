@@ -5,6 +5,9 @@
 open Ast
 module StringMap = Map.Make (String)
 
+(* THIS FUNCTION CREATES DUMMY ID THAT CANNOT BE USED IN CODE AND MUST BE RENAMED FURTHER *)
+let get_lifted_name cnt = string_of_int cnt ^ "lambda"
+
 let rec replace_vars old_name new_name = function
   | EVar t when t = old_name -> EVar new_name
   | EUnOp (op, e) -> EUnOp (op, replace_vars old_name new_name e)
@@ -39,7 +42,7 @@ let rec lift_exp map cnt exp =
           let next_map =
             match elem with
             | EFun _ when is_rec ->
-              let last_name = string_of_int (next_cnt - 1) ^ "lambda" in
+              let last_name = get_lifted_name (next_cnt - 1) in
               let (DLet (_, p, e)) = StringMap.find last_name next_map in
               let new_e =
                 match pt with
@@ -65,7 +68,7 @@ let rec lift_exp map cnt exp =
     in
     let e = helper_efun exp in
     let map, cnt, new_e = lift_exp map cnt e in
-    let name = string_of_int cnt ^ "lambda" in
+    let name = get_lifted_name cnt in
     let rec helper_result = function
       | EFun (p, e) -> EFun (p, helper_result e)
       | _ -> new_e
@@ -102,7 +105,7 @@ let lift_prog prog =
         let next_map =
           match elem with
           | EFun _ when is_rec ->
-            let last_name = string_of_int (next_cnt - 1) ^ "lambda" in
+            let last_name = get_lifted_name (next_cnt - 1) in
             let (DLet (_, p, e)) = StringMap.find last_name next_map in
             let new_e =
               match pt with
