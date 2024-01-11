@@ -18,18 +18,20 @@ type bin_op =
   | Mul (**  * *)
   | Div (**  / *)
 
-and un_op =
+type un_op =
   | Not (**  not *)
   | Minus (** - *)
 
-and binding = bool * pt * exp
-and case = pt * exp
-and decl = DLet of binding (**  val y = 256 *)
-and prog = decl list
-
-and const =
+type const =
   | CInt of int
   | CBool of bool
+
+type pt =
+  | PtWild (**  _ *)
+  | PtVar of id (**  xyz *)
+  | PtConst of const (**  256 *)
+
+type binding = bool * pt * exp
 
 and exp =
   | EConst of const (**    false *)
@@ -41,8 +43,9 @@ and exp =
   | EBinOp of bin_op * exp * exp (**    25 / (7 + -2) *)
   | EApp of exp * exp (**    fold a list init *)
 
-and pt =
-  | PtWild (**  _ *)
-  | PtVar of id (**  xyz *)
-  | PtConst of const (**  256 *)
-[@@deriving show { with_path = false }]
+type case = pt * exp
+type decl = DLet of binding (**  val y = 256 *)
+type prog = decl list
+
+
+

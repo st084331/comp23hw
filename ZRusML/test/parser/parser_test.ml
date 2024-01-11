@@ -4,6 +4,7 @@
 
 open ZRusML_lib.Ast
 open ZRusML_lib.Parser
+open ZRusML_lib.Pretty_printer
 
 let test_parse ~label ~code ~expected =
   match parse prog code with
