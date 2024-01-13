@@ -3,7 +3,6 @@
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
 open Ast
-open Pretty_printer
 
 type immexpr =
   | ImmInt of int
