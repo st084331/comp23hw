@@ -18,7 +18,7 @@ let%expect_test "anf test sample" =
   |}
   in
   match parse prog code with
-  | Error _ -> Printf.printf "[Parser test] -> PARSE ERROR"
+  | Error _ -> Printf.printf "[Anf test] -> PARSE ERROR"
   | Result.Ok res ->
     pp_abinding_list Format.std_formatter (anf_program res);
     [%expect
