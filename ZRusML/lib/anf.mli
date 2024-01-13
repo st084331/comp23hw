@@ -16,11 +16,15 @@ type cexpr =
   | CApp of immexpr * immexpr
   | CIf of immexpr * immexpr * immexpr
 
+type pexpr =
+  | PImmExpr of immexpr
+  | PImmWild
+
 type aexpr =
   | ALet of string * cexpr * aexpr
   | ACExpr of cexpr
 
-type abinding = AVal of string * aexpr
+type abinding = ABind of bool * string * pexpr list * aexpr
 
 val anf_func : (unit -> id) -> exp -> (immexpr -> aexpr) -> aexpr
 val anf_program : prog -> abinding list
