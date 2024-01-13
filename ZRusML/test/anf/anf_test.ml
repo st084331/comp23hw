@@ -1,8 +1,18 @@
-open Anf
-open Anf_pretty
-open Ast
-open Parser
-open Pretty_printer
+(** Copyright 2023-2024, Rustam Shangareev and Danil Yevdokimov *)
+
+(** SPDX-License-Identifier: LGPL-2.1 *)
+
+open ZRusML_lib.Anf
+open ZRusML_lib.Anf_pretty
+open ZRusML_lib.Ast
+open ZRusML_lib.Parser
+open ZRusML_lib.Pretty_printer
+
+let helper code =
+  match parse prog code with
+  | Error _ -> Printf.printf "PARSE ERROR"
+  | Result.Ok res -> pp_abinding_list Format.std_formatter (anf_program res)
+;;
 
 let%expect_test "anf test sample" =
   let code =
@@ -17,12 +27,9 @@ let%expect_test "anf test sample" =
     let fac = ast_3;;
   |}
   in
-  match parse prog code with
-  | Error _ -> Printf.printf "[Anf test] -> PARSE ERROR"
-  | Result.Ok res ->
-    pp_abinding_list Format.std_formatter (anf_program res);
-    [%expect
-      {|
+  helper code;
+  [%expect
+    {|
   let ast_0 m =
       let anf_9 = m * n in
       let anf_10 = k anf_9 in
