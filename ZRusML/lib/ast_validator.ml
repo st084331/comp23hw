@@ -3,8 +3,6 @@
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
 open Ast
-open Parser
-open Pretty_printer
 module StringMap = Map.Make (String)
 module StringSet = Set.Make (String)
 
