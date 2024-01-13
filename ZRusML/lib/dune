@@ -12,7 +12,8 @@
   Closure_conversion
   Pretty_printer
   Lambda_lifting
-  Anf_pretty)
+  Anf_pretty
+  Ast_validator)
  (inline_tests)
  (libraries base angstrom stdlib)
  (preprocess
