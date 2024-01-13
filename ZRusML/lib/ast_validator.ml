@@ -1,6 +1,8 @@
+(** Copyright 2023-2024, Rustam Shangareev and Danil Yevdokimov *)
+
+(** SPDX-License-Identifier: LGPL-2.1 *)
+
 open Ast
-open Parser
-open Pretty_printer
 module StringMap = Map.Make (String)
 
 let get_validated_name cnt = "ast_" ^ string_of_int cnt
@@ -48,7 +50,7 @@ let rec validate_exp env cnt exp =
             let new_name = get_validated_name acc_cnt in
             let acc_cnt = acc_cnt + 1 in
             let new_env = StringMap.add id new_name acc_env in
-            let validated_env = if is_rec then acc_env else new_env in
+            let validated_env = if is_rec then new_env else acc_env in
             let _, acc_cnt, new_exp = validate_exp validated_env acc_cnt exp in
             (new_env, acc_cnt), (is_rec, PtVar new_name, new_exp)
           | _ ->
@@ -70,7 +72,7 @@ let validate_prog prog =
           let new_name = get_validated_name acc_cnt in
           let acc_cnt = acc_cnt + 1 in
           let new_env = StringMap.add id new_name acc_env in
-          let validated_env = if is_rec then acc_env else new_env in
+          let validated_env = if is_rec then new_env else acc_env in
           let _, acc_cnt, new_exp = validate_exp validated_env acc_cnt exp in
           (new_env, acc_cnt), DLet (is_rec, PtVar new_name, new_exp)
         | _ ->
