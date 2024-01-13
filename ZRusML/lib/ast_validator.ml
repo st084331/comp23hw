@@ -1,4 +1,6 @@
 open Ast
+open Parser
+open Pretty_printer
 module StringMap = Map.Make (String)
 
 let get_validated_name cnt = "ast_" ^ string_of_int cnt
@@ -57,4 +59,25 @@ let rec validate_exp env cnt exp =
     in
     let new_env, new_cnt, new_e = validate_exp env cnt e in
     new_env, new_cnt, ELet (new_bindings, new_e)
+;;
+
+let validate_prog prog =
+  let _, new_prog =
+    List.fold_left_map
+      (fun (acc_env, acc_cnt) (DLet (is_rec, p, exp)) ->
+        match p with
+        | PtVar id ->
+          let new_name = get_validated_name acc_cnt in
+          let acc_cnt = acc_cnt + 1 in
+          let new_env = StringMap.add id new_name acc_env in
+          let validated_env = if is_rec then acc_env else new_env in
+          let _, acc_cnt, new_exp = validate_exp validated_env acc_cnt exp in
+          (new_env, acc_cnt), DLet (is_rec, PtVar new_name, new_exp)
+        | _ ->
+          let _, acc_cnt, new_exp = validate_exp acc_env acc_cnt exp in
+          (acc_env, acc_cnt), DLet (is_rec, p, new_exp))
+      (StringMap.empty, 0)
+      prog
+  in
+  new_prog
 ;;
