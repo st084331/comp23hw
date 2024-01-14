@@ -11,14 +11,16 @@ let int_type = i64_type context (* Assuming 64-bit integers *)
 let bool_type = i1_type context (* Booleans *)
 let named_values = Hashtbl.create 50 (* Variable environment *)
 
-(* Utility functions for constants *)
-let rec codegen_const = function
-  | CInt i -> const_int int_type i
-  | CBool b -> const_int bool_type (if b then 1 else 0)
-;;
+let rec codegen_decl = function
+  | DLet (_, pt, exp) ->
+    (match pt with
+     | PtVar id ->
+       let exp_val = codegen_exp exp in
+       Hashtbl.add named_values id exp_val;
+       exp_val)
 
 (* Codegen functions for expressions *)
-let rec codegen_exp = function
+and codegen_exp = function
   | EConst c -> codegen_const c
   | EUnOp (op, e) -> codegen_unop op e
   | EBinOp (op, e1, e2) -> codegen_binop op e1 e2
@@ -47,6 +49,10 @@ let rec codegen_exp = function
   | EFun (pt, e) -> codegen_fun pt e
   | EIf (cond, e1, e2) -> codegen_if cond e1 e2
   | EApp (e1, e2) -> codegen_app e1 e2
+
+and codegen_const = function
+  | CInt i -> const_int int_type i
+  | CBool b -> const_int bool_type (if b then 1 else 0)
 
 and codegen_fun pt e =
   let return_type = int_type in
@@ -121,7 +127,63 @@ and codegen_unop op e =
 ;;
 
 (* Main compilation function *)
-let compile ast =
-  List.iter (fun exp -> ignore (codegen_exp exp)) ast;
+(* Main compilation function *)
+let compile decls =
+  (* Declare runtime functions *)
+  let runtime =
+    [ declare_function
+        "applyPAppli"
+        (function_type int_type [| int_type; int_type |])
+        the_module
+    ]
+  in
+  (* Compile each declaration in the AST and accumulate the results *)
+  let result =
+    List.fold_left
+      (fun acc decl ->
+        let decl_val = codegen_decl decl in
+        decl_val :: acc)
+      runtime
+      decls
+  in
+  (* Return the module *)
   the_module
+;;
+
+let print_compiled_module the_module =
+  let module_str = Llvm.string_of_llmodule the_module in
+  Printf.printf "%s\n" module_str
+;;
+
+let%test "test1" =
+  let example_ast =
+    [ DLet (false, PtVar "square", EFun (PtVar "x", EBinOp (Mul, EVar "x", EVar "x")))
+    ; DLet
+        ( false
+        , PtVar "is_even"
+        , EFun
+            ( PtVar "x"
+            , EIf
+                ( EBinOp (Eq, EBinOp (Add, EVar "x", EConst (CInt 2)), EConst (CInt 0))
+                , EConst (CBool true)
+                , EConst (CBool false) ) ) )
+    ; DLet
+        ( false
+        , PtVar "sum"
+        , EFun (PtVar "x", EFun (PtVar "y", EBinOp (Add, EVar "x", EVar "y"))) )
+    ; DLet
+        ( false
+        , PtVar "main"
+        , ELet
+            ( [ false, PtVar "a", EConst (CInt 10)
+              ; false, PtVar "b", EApp (EVar "square", EVar "a")
+              ; false, PtVar "c", EApp (EVar "is_even", EVar "b")
+              ]
+            , EIf
+                (EVar "c", EApp (EApp (EVar "sum", EVar "b"), EConst (CInt 20)), EVar "b")
+            ) )
+    ]
+  in
+  print_compiled_module (compile example_ast);
+  true
 ;;
