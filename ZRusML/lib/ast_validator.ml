@@ -16,7 +16,7 @@ let rec validate_exp env cnt exp =
   | EVar id ->
     (match StringMap.find_opt id env with
      | Some v -> env, cnt, EVar v
-     | None -> env, cnt, exp)
+     | _ -> env, cnt, exp)
   | EIf (condition, true_branch, false_branch) ->
     let _, new_cnt, new_condition = validate_exp env cnt condition in
     let _, new_cnt, new_true_branch = validate_exp env new_cnt true_branch in
@@ -69,7 +69,7 @@ let validate_prog prog =
       (fun (acc_env, acc_cnt) (DLet (is_rec, p, exp)) ->
         match p with
         | PtVar id ->
-          let new_name = get_validated_name acc_cnt in
+          let new_name = if id <> "main" then get_validated_name acc_cnt else "main" in
           let acc_cnt = acc_cnt + 1 in
           let new_env = StringMap.add id new_name acc_env in
           let validated_env = if is_rec then new_env else acc_env in

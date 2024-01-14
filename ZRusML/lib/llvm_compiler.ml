@@ -24,13 +24,12 @@ let codegen_imm = function
   | ImmBool b -> ok (const_int bool_type (Base.Bool.to_int b))
   | ImmIdentifier id ->
     (match Hashtbl.find_opt named_values id with
-     | Some v -> ok (build_load int_type v id builder)
+     | Some v -> ok (build_load v id builder)
      | None ->
        (match lookup_function id the_module with
         | Some v ->
           ok
             (build_call
-               (function_type int_type [| int_type; int_type |])
                (Option.get (lookup_function "addNewPAppliClosure" the_module))
                [| build_pointercast v int_type "cast_pointer_to_int" builder
                 ; params v |> Base.Array.length |> const_int int_type
@@ -82,7 +81,6 @@ and codegen_cexpr = function
     let* arg = codegen_imm argument in
     ok
       (build_call
-         (function_type int_type [| int_type; int_type |])
          (Option.get (lookup_function "applyPAppli" the_module))
          [| calee; arg |]
          "PAppliApplication"
@@ -198,19 +196,13 @@ let print_prog_result code =
      | Error e -> Stdlib.Format.printf "Error%s" e)
   | Error e -> Stdlib.Format.printf "Error%s" e
 ;;
-(*
-   let%expect_test "anf test sample" =
+
+let%expect_test "anf test sample" =
   let code =
     {|
-    let fac n =
-      let rec fack n k =
-        if n <= 1 then 1
-        else fack (n - 1) (fun m -> k (m * n))
-      in
-      fack n (fun x -> x)
-    ;;
+    let rec fac n = if n <= 1 then 1 else n * (fac (n - 1));;
 
-    let ans = fac 5;;
+    let main = print_int (fac 5);;
   |}
   in
   print_prog_result code;
@@ -218,4 +210,3 @@ let print_prog_result code =
 
   |}]
 ;;
-*)
