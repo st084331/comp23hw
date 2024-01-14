@@ -107,11 +107,11 @@ and codegen_cexpr = function
       build_phi [ then_val, new_then_bb; else_val, new_else_bb ] "ifphi" builder
     in
     position_at_end start_bb builder;
-    ignore (build_cond_br cond_val then_bb else_bb builder);
+    let (_ : Llvm.llvalue) = build_cond_br cond_val then_bb else_bb builder in
     position_at_end new_then_bb builder;
-    ignore (build_br merge_bb builder);
+    let (_ : Llvm.llvalue) = build_br merge_bb builder in
     position_at_end new_else_bb builder;
-    ignore (build_br merge_bb builder);
+    let (_ : Llvm.llvalue) = build_br merge_bb builder in
     position_at_end merge_bb builder;
     ok phi
 ;;
