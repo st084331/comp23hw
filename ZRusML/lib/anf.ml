@@ -73,13 +73,10 @@ let rec anf_func (fresh_var : unit -> id) (e : exp) (expr_with_hole : immexpr ->
         ALet (varname, CApp (e1imm, e2imm), expr_with_hole (ImmIdentifier varname))))
   | EIf (cond, e1, e2) ->
     anf cond (fun condimm ->
-      anf e1 (fun e1imm ->
-        anf e2 (fun e2imm ->
-          let varname = fresh_var () in
-          ALet
-            ( varname
-            , CIf (condimm, ACExpr (CImmExpr e1imm), ACExpr (CImmExpr e2imm))
-            , expr_with_hole (ImmIdentifier varname) ))))
+      let new_e1 = anf e1 (fun e1imm -> ACExpr (CImmExpr e1imm)) in
+      let new_e2 = anf e2 (fun e2imm -> ACExpr (CImmExpr e2imm)) in
+      let varname = fresh_var () in
+      ALet (varname, CIf (condimm, new_e1, new_e2), expr_with_hole (ImmIdentifier varname)))
   | ELet (bindings, body) -> anf_let_bindings bindings body expr_with_hole
   | EFun (pt, body) ->
     let varname = fresh_var () in
