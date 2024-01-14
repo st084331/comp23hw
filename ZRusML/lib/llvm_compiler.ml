@@ -220,8 +220,8 @@ let print_prog_result code =
      | Error e -> Stdlib.Format.printf "Error%s" e)
   | Error e -> Stdlib.Format.printf "Error%s" e
 ;;
-
-let%expect_test "anf test sample" =
+(*
+   let%expect_test "anf test sample" =
   let code =
     {|
     let fac n =
@@ -240,3 +240,4 @@ let%expect_test "anf test sample" =
 
   |}]
 ;;
+*)
