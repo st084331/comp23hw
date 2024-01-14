@@ -2,5 +2,7 @@
 
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
-val get_validated_name : int -> string
-val validate_prog : Ast.decl list -> Ast.decl list
+open Llvm
+open Anf
+
+val codegen_program : Anf.abinding list -> (Llvm.llvalue list, string) result

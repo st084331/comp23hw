@@ -7,4 +7,3 @@ val decompose_fun : Ast.pt list -> Ast.exp -> Ast.pt list * Ast.exp
 
 (** Transform decls to decls without closures *)
 val transform_decls : Ast.decl list -> Ast.decl list
-

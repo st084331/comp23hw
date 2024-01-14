@@ -13,9 +13,10 @@
   Pretty_printer
   Lambda_lifting
   Anf_pretty
-  Ast_validator)
+  Ast_validator
+  Llvm_compiler)
  (inline_tests)
- (libraries base angstrom stdlib)
+ (libraries base angstrom stdlib llvm)
  (preprocess
   (pps ppx_expect ppx_deriving.show ppx_deriving.eq))
  (instrumentation
