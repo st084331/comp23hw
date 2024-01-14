@@ -88,30 +88,30 @@ and codegen_cexpr = function
          "PAppliApplication"
          builder)
   | CIf (cond, then_, else_) ->
-    let* cond = codegen_imm cond in
-    let cond = cond in
+    let* cond_val = codegen_imm cond in
     let zero = const_int int_type 0 in
-    let cond_val = build_icmp Icmp.Ne cond zero "ifcondition" builder in
+    let cond_val = build_icmp Icmp.Ne cond_val zero "ifcondition" builder in
     let start_bb = insertion_block builder in
     let the_function = block_parent start_bb in
     let then_bb = append_block context "then_br" the_function in
     position_at_end then_bb builder;
-    let* then_val = codegen_imm then_ in
+    let* then_val = codegen_aexpr then_ in
     let new_then_bb = insertion_block builder in
     let else_bb = append_block context "else_br" the_function in
     position_at_end else_bb builder;
-    let* else_val = codegen_imm else_ in
+    let* else_val = codegen_aexpr else_ in
     let new_else_bb = insertion_block builder in
     let merge_bb = append_block context "ifcontext" the_function in
     position_at_end merge_bb builder;
-    let incoming = [ then_val, new_then_bb; else_val, new_else_bb ] in
-    let phi = build_phi incoming "ifphi" builder in
+    let phi =
+      build_phi [ then_val, new_then_bb; else_val, new_else_bb ] "ifphi" builder
+    in
     position_at_end start_bb builder;
-    let (_ : Llvm.llvalue) = build_cond_br cond_val then_bb else_bb builder in
+    ignore (build_cond_br cond_val then_bb else_bb builder);
     position_at_end new_then_bb builder;
-    let (_ : Llvm.llvalue) = build_br merge_bb builder in
+    ignore (build_br merge_bb builder);
     position_at_end new_else_bb builder;
-    let (_ : Llvm.llvalue) = build_br merge_bb builder in
+    ignore (build_br merge_bb builder);
     position_at_end merge_bb builder;
     ok phi
 ;;
@@ -184,8 +184,7 @@ let codegen_program prog =
   ok (List.rev result)
 ;;
 
-(*
-   let print_prog_result code =
+let print_prog_result code =
   match parse prog code with
   | Ok res ->
     let prog_closure = transform_decls res in
@@ -219,4 +218,3 @@ let%expect_test "anf test sample" =
 
   |}]
 ;;
-*)

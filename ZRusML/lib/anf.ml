@@ -9,20 +9,20 @@ type immexpr =
   | ImmBool of bool
   | ImmIdentifier of string
 
-type cexpr =
+type aexpr =
+  | ALet of string * cexpr * aexpr
+  | ACExpr of cexpr
+
+and cexpr =
   | CImmExpr of immexpr
   | CUnaryOp of un_op * immexpr
   | CBinaryOp of bin_op * immexpr * immexpr
   | CApp of immexpr * immexpr
-  | CIf of immexpr * immexpr * immexpr
+  | CIf of immexpr * aexpr * aexpr
 
 type pexpr =
   | PImmExpr of immexpr
   | PImmWild
-
-type aexpr =
-  | ALet of string * cexpr * aexpr
-  | ACExpr of cexpr
 
 type abinding = ABind of bool * string * pexpr list * aexpr
 
@@ -77,7 +77,9 @@ let rec anf_func (fresh_var : unit -> id) (e : exp) (expr_with_hole : immexpr ->
         anf e2 (fun e2imm ->
           let varname = fresh_var () in
           ALet
-            (varname, CIf (condimm, e1imm, e2imm), expr_with_hole (ImmIdentifier varname)))))
+            ( varname
+            , CIf (condimm, ACExpr (CImmExpr e1imm), ACExpr (CImmExpr e2imm))
+            , expr_with_hole (ImmIdentifier varname) ))))
   | ELet (bindings, body) -> anf_let_bindings bindings body expr_with_hole
   | EFun (pt, body) ->
     let varname = fresh_var () in
