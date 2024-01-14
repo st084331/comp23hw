@@ -14,7 +14,12 @@ let show_immexpr = function
 
 let pp_immexpr fmt ie = fprintf fmt "%s" (show_immexpr ie)
 
-let show_cexpr = function
+let rec show_aexpr = function
+  | ALet (id, ce, ae) ->
+    sprintf "    let %s = %s in\n%s" id (show_cexpr ce) (show_aexpr ae)
+  | ACExpr ce -> show_cexpr ce
+
+and show_cexpr = function
   | CImmExpr x -> show_immexpr x
   | CUnaryOp (o, x) -> sprintf "%s%s" (show_un_op o) (show_immexpr x)
   | CBinaryOp (o, x1, x2) ->
@@ -24,8 +29,8 @@ let show_cexpr = function
     sprintf
       "if %s then %s else %s"
       (show_immexpr condition)
-      (show_immexpr true_branch)
-      (show_immexpr false_branch)
+      (show_aexpr true_branch)
+      (show_aexpr false_branch)
 ;;
 
 let pp_cexpr fmt ce = fprintf fmt "%s" (show_cexpr ce)
@@ -36,13 +41,6 @@ let show_pexpr = function
 ;;
 
 let pp_pexpr fmt pe = fprintf fmt "%s" pe
-
-let rec show_aexpr = function
-  | ALet (id, ce, ae) ->
-    sprintf "    let %s = %s in\n%s" id (show_cexpr ce) (show_aexpr ae)
-  | ACExpr ce -> show_cexpr ce
-;;
-
 let pp_aexpr fmt ae = fprintf fmt "%s" (show_aexpr ae)
 
 let show_abinding (ABind (is_rec, id, lst, ae)) =
