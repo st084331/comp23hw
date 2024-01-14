@@ -9,20 +9,20 @@ type immexpr =
   | ImmBool of bool
   | ImmIdentifier of string
 
-type cexpr =
+type aexpr =
+  | ALet of string * cexpr * aexpr
+  | ACExpr of cexpr
+
+and cexpr =
   | CImmExpr of immexpr
   | CUnaryOp of un_op * immexpr
   | CBinaryOp of bin_op * immexpr * immexpr
   | CApp of immexpr * immexpr
-  | CIf of immexpr * immexpr * immexpr
+  | CIf of immexpr * aexpr * aexpr
 
 type pexpr =
   | PImmExpr of immexpr
   | PImmWild
-
-type aexpr =
-  | ALet of string * cexpr * aexpr
-  | ACExpr of cexpr
 
 type abinding = ABind of bool * string * pexpr list * aexpr
 
