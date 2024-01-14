@@ -206,8 +206,7 @@ let codegen_program prog =
   ok (List.rev result)
 ;;
 
-(*
-   let print_prog_result code =
+let print_prog_result code =
   match parse prog code with
   | Ok res ->
     let prog_closure = transform_decls res in
@@ -241,4 +240,3 @@ let%expect_test "anf test sample" =
 
   |}]
 ;;
-*)
