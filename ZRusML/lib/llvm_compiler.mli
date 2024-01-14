@@ -3,6 +3,6 @@
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
 open Llvm
-open Ast
+open Anf
 
-val compile : prog -> llmodule
+val codegen_program : Anf.abinding list -> (Llvm.llvalue list, string) result
