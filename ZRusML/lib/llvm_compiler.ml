@@ -4,157 +4,178 @@
 
 open Llvm
 open Ast
+open Anf
+open Result
 
-(* Initialize LLVM Context and Module *)
 let context = global_context ()
 let the_module = create_module context "ZRusML"
 let builder = builder context
+let int_type = i64_type context
+let bool_type = i1_type context
+let named_values : (string, llvalue) Hashtbl.t = Hashtbl.create 50
+let ( let* ) = bind
 
-(* Define LLVM types corresponding to your language types *)
-let int_type = i64_type context (* Assuming 64-bit integers *)
-let bool_type = i1_type context (* Booleans *)
-let named_values = Hashtbl.create 50 (* Variable environment *)
-
-let rec codegen_decl = function
-  | DLet (_, pt, exp) ->
-    (match pt with
-     | PtVar id ->
-       let exp_val = codegen_exp exp in
-       Hashtbl.add named_values id exp_val;
-       exp_val)
-
-(* Codegen functions for expressions *)
-and codegen_exp = function
-  | EConst c -> codegen_const c
-  | EUnOp (op, e) -> codegen_unop op e
-  | EBinOp (op, e1, e2) -> codegen_binop op e1 e2
-  | EVar id ->
-    (try Hashtbl.find named_values id with
-     | Not_found -> raise (Failure "Unknown variable name"))
-  | ELet (bindings, e) ->
-    let transformed_bindings =
-      List.map
-        (fun (is_rec, pattern, expr) ->
-          match pattern with
-          | PtVar id -> is_rec, id, expr
-          | _ -> raise (Failure "Invalid pattern in let-binding"))
-        bindings
-    in
-    let _ =
-      List.fold_left
-        (fun _ (is_rec, id, expr) ->
-          let new_val = codegen_exp expr in
-          Hashtbl.add named_values id new_val;
-          new_val)
-        (const_null int_type)
-        transformed_bindings
-    in
-    codegen_exp e
-  | EFun (pt, e) -> codegen_fun pt e
-  | EIf (cond, e1, e2) -> codegen_if cond e1 e2
-  | EApp (e1, e2) -> codegen_app e1 e2
-
-and codegen_const = function
-  | CInt i -> const_int int_type i
-  | CBool b -> const_int bool_type (if b then 1 else 0)
-
-and codegen_fun pt e =
-  let return_type = int_type in
-  let arg_types = [| int_type |] in
-  let function_type = function_type return_type arg_types in
-  let function_val = define_function "function_name" function_type the_module in
-  let bb = append_block context "entry" function_val in
-  position_at_end bb builder;
-  (match pt with
-   | PtVar id ->
-     let arg = Array.get (params function_val) 0 in
-     set_value_name id arg;
-     let alloca = build_alloca int_type id builder in
-     ignore (build_store arg alloca builder);
-     Hashtbl.add named_values id alloca
-   | _ -> raise (Failure "Invalid function parameter pattern"));
-  codegen_exp e
-
-and codegen_if cond e1 e2 =
-  let cond_val = codegen_exp cond in
-  let zero = const_int int_type 0 in
-  let cond_val = build_icmp Icmp.Ne cond_val zero "ifcond" builder in
-  let start_bb = insertion_block builder in
-  let the_function = block_parent start_bb in
-  let then_bb = append_block context "then" the_function in
-  let else_bb = append_block context "else" the_function in
-  let merge_bb = append_block context "ifcont" the_function in
-  position_at_end then_bb builder;
-  let then_val = codegen_exp e1 in
-  ignore (build_br merge_bb builder);
-  position_at_end else_bb builder;
-  let else_val = codegen_exp e2 in
-  ignore (build_br merge_bb builder);
-  position_at_end merge_bb builder;
-  let phi = build_phi [ then_val, then_bb; else_val, else_bb ] "iftmp" builder in
-  position_at_end start_bb builder;
-  ignore (build_cond_br cond_val then_bb else_bb builder);
-  phi
-
-and codegen_app e1 e2 =
-  let calee = codegen_exp e1 in
-  let arg = codegen_exp e2 in
-  build_call
-    (function_type int_type [| int_type; int_type |])
-    (Option.get (lookup_function "applyPAppli" the_module))
-    [| calee; arg |]
-    "PAppliApplication"
-    builder
-
-and codegen_binop op e1 e2 =
-  let e1_ir = codegen_exp e1 in
-  let e2_ir = codegen_exp e2 in
-  match op with
-  | And -> build_and e1_ir e2_ir "andtmp" builder
-  | Or -> build_or e1_ir e2_ir "ortmp" builder
-  | Less -> build_icmp Icmp.Slt e1_ir e2_ir "lesstmp" builder
-  | Leq -> build_icmp Icmp.Sle e1_ir e2_ir "leqtmp" builder
-  | Gre -> build_icmp Icmp.Sgt e1_ir e2_ir "gretmp" builder
-  | Geq -> build_icmp Icmp.Sge e1_ir e2_ir "geqtmp" builder
-  | Eq -> build_icmp Icmp.Eq e1_ir e2_ir "eqtmp" builder
-  | Neq -> build_icmp Icmp.Ne e1_ir e2_ir "neqtmp" builder
-  | Add -> build_add e1_ir e2_ir "addtmp" builder
-  | Sub -> build_sub e1_ir e2_ir "subtmp" builder
-  | Mul -> build_mul e1_ir e2_ir "multmp" builder
-  | Div -> build_sdiv e1_ir e2_ir "divtmp" builder
-
-and codegen_unop op e =
-  let e_ir = codegen_exp e in
-  match op with
-  | Not -> build_not e_ir "nottmp" builder
-  | Minus -> build_neg e_ir "negtmp" builder
+let codegen_imm = function
+  | ImmInt x -> ok (const_int int_type x)
+  | ImmBool b -> ok (const_int bool_type (Base.Bool.to_int b))
+  | ImmIdentifier id ->
+    (match Hashtbl.find_opt named_values id with
+     | Some v -> ok (build_load int_type v id builder)
+     | None ->
+       (match lookup_function id the_module with
+        | Some v ->
+          ok
+            (build_call
+               (function_type int_type [| int_type; int_type |])
+               (Option.get (lookup_function "addNewPAppliClosure" the_module))
+               [| build_pointercast v int_type "cast_pointer_to_int" builder
+                ; params v |> Base.Array.length |> const_int int_type
+               |]
+               "PAppliClosure"
+               builder)
+        | None -> error "Unknown variable"))
 ;;
 
-(* Main compilation function *)
-(* Main compilation function *)
-let compile decls =
-  (* Declare runtime functions *)
+let codegen_binop = function
+  | Add -> fun x y -> build_add x y "addtmp" builder
+  | Sub -> fun x y -> build_sub x y "subtmp" builder
+  | Mul -> fun x y -> build_mul x y "multmp" builder
+  | Div -> fun x y -> build_sdiv x y "divtmp" builder
+  | Eq -> fun x y -> build_icmp Icmp.Eq x y "eqtmp" builder
+  | Neq -> fun x y -> build_icmp Icmp.Ne x y "neqtmp" builder
+  | Less -> fun x y -> build_icmp Icmp.Slt x y "lesstmp" builder
+  | Leq -> fun x y -> build_icmp Icmp.Sle x y "leqtmp" builder
+  | Gre -> fun x y -> build_icmp Icmp.Sgt x y "gretmp" builder
+  | Geq -> fun x y -> build_icmp Icmp.Sge x y "geqtmp" builder
+  | And -> fun x y -> build_and x y "andtmp" builder
+  | Or -> fun x y -> build_or x y "ortmp" builder
+;;
+
+let codegen_unop = function
+  | Not -> fun x -> build_not x "nottmp" builder
+  | Minus -> fun x -> build_neg x "negtmp" builder
+;;
+
+let rec codegen_aexpr = function
+  | ALet (id, c, ae) ->
+    let* body = codegen_cexpr c in
+    let alloca = build_alloca int_type id builder in
+    let (_ : Llvm.llvalue) = build_store body alloca builder in
+    Hashtbl.add named_values id alloca;
+    codegen_aexpr ae
+  | ACExpr c -> codegen_cexpr c
+
+and codegen_cexpr = function
+  | CUnaryOp (op, x) -> codegen_cexpr (CBinaryOp (Sub, ImmInt 0, x))
+  | CBinaryOp (op, l, r) ->
+    let* l' = codegen_imm l in
+    let* r' = codegen_imm r in
+    let res = codegen_binop op l' r' in
+    ok (build_zext res int_type "to_int" builder)
+  | CImmExpr e -> codegen_imm e
+  | CApp (func, argument) ->
+    let* calee = codegen_imm func in
+    let* arg = codegen_imm argument in
+    ok
+      (build_call
+         (function_type int_type [| int_type; int_type |])
+         (Option.get (lookup_function "applyPAppli" the_module))
+         [| calee; arg |]
+         "PAppliApplication"
+         builder)
+  | CIf (cond, then_, else_) ->
+    let* cond = codegen_imm cond in
+    let cond = cond in
+    let zero = const_int int_type 0 in
+    let cond_val = build_icmp Icmp.Ne cond zero "ifcondition" builder in
+    let start_bb = insertion_block builder in
+    let the_function = block_parent start_bb in
+    let then_bb = append_block context "then_br" the_function in
+    position_at_end then_bb builder;
+    let* then_val = codegen_imm then_ in
+    let new_then_bb = insertion_block builder in
+    let else_bb = append_block context "else_br" the_function in
+    position_at_end else_bb builder;
+    let* else_val = codegen_imm else_ in
+    let new_else_bb = insertion_block builder in
+    let merge_bb = append_block context "ifcontext" the_function in
+    position_at_end merge_bb builder;
+    let incoming = [ then_val, new_then_bb; else_val, new_else_bb ] in
+    let phi = build_phi incoming "ifphi" builder in
+    position_at_end start_bb builder;
+    let (_ : Llvm.llvalue) = build_cond_br cond_val then_bb else_bb builder in
+    position_at_end new_then_bb builder;
+    let (_ : Llvm.llvalue) = build_br merge_bb builder in
+    position_at_end new_else_bb builder;
+    let (_ : Llvm.llvalue) = build_br merge_bb builder in
+    position_at_end merge_bb builder;
+    ok phi
+;;
+
+let codegen_abind = function
+  | ABind (_, id, args, body) ->
+    Hashtbl.clear named_values;
+    let ints = Array.make (List.length args) int_type in
+    let ftype = function_type int_type ints in
+    let* func =
+      match lookup_function id the_module with
+      | Some _ -> error "Function already exists"
+      | None -> ok @@ declare_function id ftype the_module
+    in
+    let* names =
+      let rec check acc = function
+        | [] -> ok (List.rev acc)
+        | PImmExpr (ImmIdentifier id) :: xs -> check (id :: acc) xs
+        | PImmWild :: xs -> check ("0_unused" :: acc) xs
+        | _ -> error "Invalid argument"
+      in
+      check [] args
+    in
+    Array.iteri
+      (fun i a ->
+        let name = List.nth names i in
+        set_value_name name a)
+      (params func);
+    let bb = append_block context "entry" func in
+    position_at_end bb builder;
+    Array.iteri
+      (fun i a ->
+        let name = List.nth names i in
+        let alloca = build_alloca int_type name builder in
+        let (_ : llvalue) = build_store a alloca builder in
+        Hashtbl.add named_values name alloca)
+      (params func);
+    let* ret_val = codegen_aexpr body in
+    let _ =
+      if id = "main"
+      then build_ret (const_int int_type 0) builder
+      else build_ret ret_val builder
+    in
+    ok func
+;;
+
+let codegen_program prog =
   let runtime =
     [ declare_function
+        "addNewPAppliClosure"
+        (function_type int_type [| int_type; int_type |])
+        the_module
+    ; declare_function
         "applyPAppli"
         (function_type int_type [| int_type; int_type |])
         the_module
+    ; declare_function "print_int" (function_type int_type [| int_type |]) the_module
+    ; declare_function "print_bool" (function_type int_type [| int_type |]) the_module
     ]
   in
-  (* Compile each declaration in the AST and accumulate the results *)
-  let result =
+  let* result =
     List.fold_left
-      (fun acc decl ->
-        let decl_val = codegen_decl decl in
-        decl_val :: acc)
-      runtime
-      decls
+      (fun acc abind ->
+        let* acc = acc in
+        let* res = codegen_abind abind in
+        ok (res :: acc))
+      (ok runtime)
+      prog
   in
-  (* Return the module *)
-  the_module
-;;
-
-let print_compiled_module the_module =
-  let module_str = Llvm.string_of_llmodule the_module in
-  Printf.printf "%s\n" module_str
+  ok (List.rev result)
 ;;
