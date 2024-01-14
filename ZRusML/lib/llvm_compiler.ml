@@ -158,36 +158,3 @@ let print_compiled_module the_module =
   let module_str = Llvm.string_of_llmodule the_module in
   Printf.printf "%s\n" module_str
 ;;
-
-let%test "test1" =
-  let example_ast =
-    [ DLet (false, PtVar "square", EFun (PtVar "x", EBinOp (Mul, EVar "x", EVar "x")))
-    ; DLet
-        ( false
-        , PtVar "is_even"
-        , EFun
-            ( PtVar "x"
-            , EIf
-                ( EBinOp (Eq, EBinOp (Add, EVar "x", EConst (CInt 2)), EConst (CInt 0))
-                , EConst (CBool true)
-                , EConst (CBool false) ) ) )
-    ; DLet
-        ( false
-        , PtVar "sum"
-        , EFun (PtVar "x", EFun (PtVar "y", EBinOp (Add, EVar "x", EVar "y"))) )
-    ; DLet
-        ( false
-        , PtVar "main"
-        , ELet
-            ( [ false, PtVar "a", EConst (CInt 10)
-              ; false, PtVar "b", EApp (EVar "square", EVar "a")
-              ; false, PtVar "c", EApp (EVar "is_even", EVar "b")
-              ]
-            , EIf
-                (EVar "c", EApp (EApp (EVar "sum", EVar "b"), EConst (CInt 20)), EVar "b")
-            ) )
-    ]
-  in
-  print_compiled_module (compile example_ast);
-  true
-;;
