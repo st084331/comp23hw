@@ -220,19 +220,13 @@ let print_prog_result code =
      | Error e -> Stdlib.Format.printf "Error%s" e)
   | Error e -> Stdlib.Format.printf "Error%s" e
 ;;
-(*
-   let%expect_test "anf test sample" =
+
+let%expect_test "anf test sample" =
   let code =
     {|
-    let fac n =
-      let rec fack n k =
-        if n <= 1 then 1
-        else fack (n - 1) (fun m -> k (m * n))
-      in
-      fack n (fun x -> x)
-    ;;
+    let rec fac n = if n <= 1 then 1 else n * (fac (n - 1));;
 
-    let ans = fac 5;;
+    let main = print_int (fac 5);;
   |}
   in
   print_prog_result code;
@@ -240,4 +234,3 @@ let print_prog_result code =
 
   |}]
 ;;
-*)
