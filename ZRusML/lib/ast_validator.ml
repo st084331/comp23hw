@@ -68,7 +68,7 @@ let validate_prog prog =
     List.fold_left_map
       (fun (acc_env, acc_cnt) (DLet (is_rec, p, exp)) ->
         match p with
-        | PtVar id ->
+        | PtVar id when id <> "main" ->
           let new_name = get_validated_name acc_cnt in
           let acc_cnt = acc_cnt + 1 in
           let new_env = StringMap.add id new_name acc_env in
