@@ -1,6 +1,6 @@
-(** Copyright 2023-2024, Rustam Shangareev and Danil Yevdokimov *)
+(** Copyright 2023-2024, Grigory Aseev and Matvey Kalashnikov *)
 
-(** SPDX-License-Identifier: LGPL-2.1 *)
+(** SPDX-License-Identifier: LGPL-3.0 *)
 
 open Llvm
 open Result
