@@ -60,8 +60,3 @@ type decl = DLet of binding (** let declaration *)
 
 (** Program type representing a list of declarations *)
 type prog = decl list
-
-
-
-
-

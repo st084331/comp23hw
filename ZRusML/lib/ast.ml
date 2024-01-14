@@ -46,6 +46,3 @@ and exp =
 type case = pt * exp
 type decl = DLet of binding (**  val y = 256 *)
 type prog = decl list
-
-
-
