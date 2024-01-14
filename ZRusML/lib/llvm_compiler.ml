@@ -3,9 +3,13 @@
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
 open Llvm
+open Result
 open Ast
 open Anf
-open Result
+open Parser
+open Closure_conversion
+open Lambda_lifting
+open Ast_validator
 
 let context = global_context ()
 let the_module = create_module context "ZRusML"
@@ -179,3 +183,40 @@ let codegen_program prog =
   in
   ok (List.rev result)
 ;;
+
+(*
+   let print_prog_result code =
+  match parse prog code with
+  | Ok res ->
+    let prog_closure = transform_decls res in
+    let lifted = lift_prog prog_closure in
+    let validated_prog = validate_prog lifted in
+    let anf_prog = anf_program validated_prog in
+    (match codegen_program anf_prog with
+     | Ok llvalue_list ->
+       Base.List.iter llvalue_list ~f:(fun f ->
+         Stdlib.Format.printf "%s\n" (Llvm.string_of_llvalue f))
+     | Error e -> Stdlib.Format.printf "Error%s" e)
+  | Error e -> Stdlib.Format.printf "Error%s" e
+;;
+
+let%expect_test "anf test sample" =
+  let code =
+    {|
+    let fac n =
+      let rec fack n k =
+        if n <= 1 then 1
+        else fack (n - 1) (fun m -> k (m * n))
+      in
+      fack n (fun x -> x)
+    ;;
+
+    let ans = fac 5;;
+  |}
+  in
+  print_prog_result code;
+  [%expect {|
+
+  |}]
+;;
+*)
