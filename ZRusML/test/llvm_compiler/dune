@@ -1,0 +1,8 @@
+(executable
+ (name llvm_test)
+ (modules llvm_test)
+ (public_name llvm_test)
+ (libraries ZRusML.lib stdlib stdio))
+
+(cram
+ (deps ./llvm_test.exe ../../runtime/runtime.so))
