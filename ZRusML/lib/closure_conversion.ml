@@ -139,20 +139,20 @@ let rec transform_exp exp env exp_name =
      | Some _ -> StringSet.empty, exp
      | None -> StringSet.singleton nm, exp)
   | EUnOp (op, e) ->
-    let new_env, new_exp = transform_exp e env exp_name in
+    let new_env, new_exp = transform_exp e env in
     new_env, EUnOp (op, new_exp)
   | EIf (e1, e2, e3) ->
-    let env1, exp1 = transform_exp e1 env exp_name in
-    let env2, exp2 = transform_exp e2 env exp_name in
-    let env3, exp3 = transform_exp e3 env exp_name in
+    let env1, exp1 = transform_exp e1 env in
+    let env2, exp2 = transform_exp e2 env in
+    let env3, exp3 = transform_exp e3 env in
     StringSet.union (StringSet.union env1 env2) env3, EIf (exp1, exp2, exp3)
   | EBinOp (op, e1, e2) ->
-    let env1, exp1 = transform_exp e1 env exp_name in
-    let env2, exp2 = transform_exp e2 env exp_name in
+    let env1, exp1 = transform_exp e1 env in
+    let env2, exp2 = transform_exp e2 env in
     StringSet.union env1 env2, EBinOp (op, exp1, exp2)
   | EApp (e1, e2) ->
-    let env1, exp1 = transform_exp e1 env exp_name in
-    let env2, exp2 = transform_exp e2 env exp_name in
+    let env1, exp1 = transform_exp e1 env in
+    let env2, exp2 = transform_exp e2 env in
     StringSet.union env1 env2, EApp (exp1, exp2)
   | EFun (_, _) ->
     let vars, body = decompose_fun [] exp in
@@ -164,8 +164,7 @@ let rec transform_exp exp env exp_name =
              | _ -> None)
            vars)
     in
-    let body_vars, new_body = transform_exp body args exp_name in
-    let body_vars = StringSet.remove exp_name body_vars in
+    let body_vars, new_body = transform_exp body args in
     let body_vars_lst = List.of_seq (StringSet.to_seq body_vars) in
     let pt_vars = List.map (fun elem -> PtVar elem) body_vars_lst @ List.rev vars in
     let rec helper_efun = function
@@ -191,13 +190,13 @@ let rec transform_exp exp env exp_name =
             | _ -> "_"
           in
           let new_acc = if is_rec then StringSet.add p_name acc else acc in
-          let next_env, new_ex = transform_exp ex new_acc p_name in
+          let next_env, new_ex = transform_exp ex new_acc in
           let new_acc = StringSet.add p_name acc in
           (new_acc, StringSet.union next_env prev_env), (is_rec, p, new_ex))
         (env, StringSet.empty)
         bindings
     in
-    let final_acc, new_e = transform_exp e bindings_acc exp_name in
+    let final_acc, new_e = transform_exp e bindings_acc in
     StringSet.union final_acc final_env, ELet (new_bindings, new_e)
   | _ -> StringSet.empty, exp
 ;;
@@ -212,7 +211,7 @@ let transform_decls bindings =
           | _ -> "_"
         in
         let new_acc = if is_rec then StringSet.add p_name acc else acc in
-        let _, new_ex = transform_exp ex new_acc p_name in
+        let _, new_ex = transform_exp ex new_acc in
         let new_acc = StringSet.add p_name acc in
         new_acc, (is_rec, p, new_ex))
       StringSet.empty
