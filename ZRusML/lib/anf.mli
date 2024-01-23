@@ -26,5 +26,4 @@ type pexpr =
 
 type abinding = ABind of bool * string * pexpr list * aexpr
 
-val anf_func : (unit -> id) -> exp -> (immexpr -> aexpr) -> aexpr
 val anf_program : prog -> abinding list
