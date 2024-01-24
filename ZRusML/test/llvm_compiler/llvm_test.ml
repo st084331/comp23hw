@@ -21,7 +21,9 @@ let print_prog_result code =
   | Ok res ->
     let prog_closure = transform_decls res in
     let lifted = lift_prog prog_closure in
-    let anf_prog = anf_program lifted in
+    (* let _ = pp_prog Format.std_formatter lifted in *)
+    let validated = validate_prog lifted in
+    let anf_prog = anf_program validated in
     (match codegen_program anf_prog with
      | Ok llvalue_list ->
        Base.List.iter llvalue_list ~f:(fun f ->
