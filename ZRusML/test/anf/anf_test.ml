@@ -4,9 +4,7 @@
 
 open ZRusML_lib.Anf
 open ZRusML_lib.Anf_pretty
-open ZRusML_lib.Ast
 open ZRusML_lib.Parser
-open ZRusML_lib.Pretty_printer
 open ZRusML_lib.Closure_conversion
 open ZRusML_lib.Lambda_lifting
 open ZRusML_lib.Ast_validator
