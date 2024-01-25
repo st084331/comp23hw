@@ -222,7 +222,7 @@ let print_prog_result code =
 ;;
 
 (*
-let%expect_test "anf test sample" =
+   let%expect_test "anf test sample" =
   let code =
     {|
     let rec fac n = if n <= 1 then 1 else n * (fac (n - 1));;
