@@ -21,7 +21,7 @@ let ( let* ) = bind
 
 let codegen_imm = function
   | ImmInt x -> ok (const_int int_type x)
-  | ImmBool b -> ok (const_int bool_type (Base.Bool.to_int b))
+  | ImmBool b -> ok (const_int int_type (Base.Bool.to_int b))
   | ImmIdentifier id ->
     (match Hashtbl.find_opt named_values id with
      | Some v -> ok (build_load int_type v id builder)
@@ -55,11 +55,6 @@ let codegen_binop = function
   | Or -> fun x y -> build_or x y "ortmp" builder
 ;;
 
-let codegen_unop = function
-  | Not -> fun x -> build_not x "nottmp" builder
-  | Minus -> fun x -> build_neg x "negtmp" builder
-;;
-
 let rec codegen_aexpr = function
   | ALet (id, c, ae) ->
     let* body = codegen_cexpr c in
@@ -70,7 +65,14 @@ let rec codegen_aexpr = function
   | ACExpr c -> codegen_cexpr c
 
 and codegen_cexpr = function
-  | CUnaryOp (op, x) -> codegen_cexpr (CBinaryOp (Sub, ImmInt 0, x))
+  | CUnaryOp (Not, x) ->
+    let* x' = codegen_imm x in
+    let res = build_not x' "nottmp" builder in
+    ok (build_trunc res bool_type "to_bool" builder)
+  | CUnaryOp (Minus, x) ->
+    let* x' = codegen_imm x in
+    let res = build_neg x' "negtmp" builder in
+    ok (build_zext res int_type "to_int" builder)
   | CBinaryOp (op, l, r) ->
     let* l' = codegen_imm l in
     let* r' = codegen_imm r in
@@ -200,7 +202,7 @@ let print_prog_result code =
 ;;
 
 (*
-let%expect_test "anf test sample" =
+   let%expect_test "anf test sample" =
   let code =
     {|
     let rec fac n = if n <= 1 then 1 else n * (fac (n - 1));;
