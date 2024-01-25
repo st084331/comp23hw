@@ -14,6 +14,7 @@ type identifier = string
 type ground_type =
   | Int (** Integer type *)
   | Bool (** Boolean type *)
+  | Unit (** Unit type *)
 
 (** Representation of types in the language *)
 type typ =
