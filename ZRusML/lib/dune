@@ -8,13 +8,13 @@
   Typing
   Inferencer
   Anf
-  Compare
   Closure_conversion
   Pretty_printer
   Lambda_lifting
   Anf_pretty
   Ast_validator
-  Llvm_compiler)
+  Llvm_compiler
+  Interpreter)
  (inline_tests)
  (libraries base angstrom stdlib llvm)
  (preprocess

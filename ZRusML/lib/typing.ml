@@ -8,6 +8,7 @@ type identifier = string
 type ground_type =
   | Int
   | Bool
+  | Unit
 
 type typ =
   | TVar of type_variable_number (** 'a *)
@@ -41,7 +42,8 @@ let rec pp_type fmt typ =
   | TGround x ->
     (match x with
      | Int -> fprintf fmt "int"
-     | Bool -> fprintf fmt "bool")
+     | Bool -> fprintf fmt "bool"
+     | Unit -> fprintf fmt "unit")
   | TArr (typ_left, typ_right) ->
     fprintf fmt (arrow_format typ_left ^^ " -> %a") pp_type typ_left pp_type typ_right
   | TVar var -> fprintf fmt "%s" @@ "'" ^ Char.escaped (Stdlib.Char.chr (var + 97))
