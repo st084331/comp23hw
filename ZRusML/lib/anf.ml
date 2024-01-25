@@ -43,15 +43,14 @@ let rec anf_func (fresh_var : unit -> id) (e : exp) (expr_with_hole : immexpr ->
   let rec anf_let_bindings bindings body expr_with_hole =
     match bindings with
     | [] -> anf body expr_with_hole
-    | (is_rec, pt, exp) :: rest ->
+    | (_, pt, exp) :: rest ->
       anf exp (fun immexpr ->
-        let varname = fresh_var () in
         match pt with
         | PtWild -> anf_let_bindings rest body expr_with_hole
         | PtVar id ->
           let new_body = substitute id id (ELet (rest, body)) in
           ALet (id, CImmExpr immexpr, anf_let_bindings rest new_body expr_with_hole)
-        | PtConst const -> anf_let_bindings rest body expr_with_hole)
+        | PtConst _ -> anf_let_bindings rest body expr_with_hole)
   in
   match e with
   | EConst (CInt n) -> expr_with_hole (ImmInt n)
@@ -78,7 +77,7 @@ let rec anf_func (fresh_var : unit -> id) (e : exp) (expr_with_hole : immexpr ->
       let varname = fresh_var () in
       ALet (varname, CIf (condimm, new_e1, new_e2), expr_with_hole (ImmIdentifier varname)))
   | ELet (bindings, body) -> anf_let_bindings bindings body expr_with_hole
-  | EFun (pt, body) ->
+  | EFun (_, body) ->
     let varname = fresh_var () in
     let anf_body = anf body (fun imm -> ACExpr (CImmExpr imm)) in
     ALet (varname, CImmExpr (ImmIdentifier "_"), anf_body)
