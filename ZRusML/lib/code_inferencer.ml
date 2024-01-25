@@ -11,7 +11,7 @@ let rec find x = function
   | h :: t -> if x = h then 1 else 1 + find x t
 ;;
 
-let inference_prog prog =
+let env_inference prog env =
   let typs, _ =
     List.fold_left
       (fun (typs, environment) dec ->
@@ -28,11 +28,13 @@ let inference_prog prog =
         in
         let environment' = get_last_env (List.map snd (tcheck dec)) in
         tcheck dec :: typs, environment')
-      ([], TypeEnv.empty)
+      ([], env)
       prog
   in
   List.concat (List.rev typs)
 ;;
+
+let inference_prog prog = env_inference prog TypeEnv.empty
 
 let inference _ code =
   match Parser.parse Parser.prog code with
