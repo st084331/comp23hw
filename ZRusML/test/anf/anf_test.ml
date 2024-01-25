@@ -36,27 +36,27 @@ let%expect_test "anf test sample" =
   [%expect
     {|
     let ast_0 ast_1 ast_2 ast_3 =
-        let anf_12 = ast_3 * ast_2 in
-        let anf_13 = ast_1 anf_12 in
-    anf_13;;
+        let anf_11 = ast_3 * ast_2 in
+        let anf_12 = ast_1 anf_11 in
+    anf_12;;
 
     let rec ast_4 ast_5 ast_6 =
-        let anf_5 = ast_5 <= 1 in
-        let anf_11 = if anf_5 then 1 else     let anf_6 = ast_5 - 1 in
-        let anf_7 = ast_4 anf_6 in
-        let anf_8 = ast_0 ast_6 in
-        let anf_9 = anf_8 ast_5 in
-        let anf_10 = anf_7 anf_9 in
-    anf_10 in
-    anf_11;;
+        let anf_4 = ast_5 <= 1 in
+        let anf_10 = if anf_4 then 1 else     let anf_5 = ast_5 - 1 in
+        let anf_6 = ast_4 anf_5 in
+        let anf_7 = ast_0 ast_6 in
+        let anf_8 = anf_7 ast_5 in
+        let anf_9 = anf_6 anf_8 in
+    anf_9 in
+    anf_10;;
 
     let ast_7 ast_8 = ast_8;;
 
     let ast_9 ast_10 =
         let ast_11 = ast_4 in
-        let anf_3 = ast_11 ast_10 in
-        let anf_4 = anf_3 ast_7 in
-    anf_4;;
+        let anf_2 = ast_11 ast_10 in
+        let anf_3 = anf_2 ast_7 in
+    anf_3;;
 
     let ast_12 = ast_9;;
 
