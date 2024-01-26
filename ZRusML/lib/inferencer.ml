@@ -375,13 +375,7 @@ let rec id_exists id = function
 
 let check_types environment (dec : decl) =
   match dec with
-  | (DLet (false, PtVar name, exp) | DLet (true, PtVar name, exp))
-    when not (id_exists name exp) ->
-    let* subst, function_type, environment' = infer environment exp in
-    let res_typ = function_type in
-    let generalized_type = generalize environment' (Subst.apply subst res_typ) in
-    return (TypeEnv.extend environment' name generalized_type, res_typ)
-  | DLet (true, PtVar name, exp) ->
+  | DLet (true, PtVar name, exp) when id_exists name exp ->
     let* type_variable = fresh_var in
     let env =
       TypeEnv.extend environment name (Base.Set.empty (module Base.Int), type_variable)
@@ -392,7 +386,16 @@ let check_types environment (dec : decl) =
     let env = TypeEnv.apply final_subst env in
     let generalized_type = generalize env (Subst.apply final_subst type_variable) in
     return (TypeEnv.extend environment' name generalized_type, typ)
-  | _ -> fail `Unreachable
+  | DLet (_, pt, exp) ->
+    let name =
+      match pt with
+      | PtVar id -> id
+      | _ -> "_"
+    in
+    let* subst, function_type, environment' = infer environment exp in
+    let res_typ = function_type in
+    let generalized_type = generalize environment' (Subst.apply subst res_typ) in
+    return (TypeEnv.extend environment' name generalized_type, res_typ)
 ;;
 
 let run_inference expression env = run (check_types env expression)
