@@ -27,7 +27,7 @@ let print_prog_result code =
         ~f:(fun acc (id, t) -> TypeEnv.extend acc id (Set.empty (module Int), t))
         stdlib
     in
-    (match env_show_inference code stdlib_env with
+    (match env_show_inference res stdlib_env with
      | Ok _ ->
        let prog_closure = transform_decls res in
        let lifted = lift_prog prog_closure in
