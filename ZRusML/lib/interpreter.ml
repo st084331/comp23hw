@@ -37,7 +37,7 @@ let print_prog_result code =
         | Ok llvalue_list ->
           Base.List.iter llvalue_list ~f:(fun f ->
             Stdlib.Format.printf "%s\n" (Llvm.string_of_llvalue f))
-        | Error e -> Stdlib.Format.printf "Error%s" e)
+        | Error e -> Stdlib.Format.printf "Error\n%s" e)
      | Error res -> Stdlib.Format.printf "%s" res)
-  | Error e -> Stdlib.Format.printf "Error%s" e
+  | Error e -> Stdlib.Format.printf "Error\n%s" e
 ;;
