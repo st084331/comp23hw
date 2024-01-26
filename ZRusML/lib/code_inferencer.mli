@@ -2,6 +2,11 @@
 
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
+open Inferencer
+open Typing
+
+val env_show_inference : identifier -> TypeEnv.t -> (identifier, identifier) result
+
 (** [inference code] performs type inference on the given [code].
     If the code is correctly parsed and no type errors are found,
     it prints the inferred types for each declaration.
