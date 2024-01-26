@@ -360,9 +360,23 @@ let infer =
   ehelper
 ;;
 
+let rec id_exists id = function
+  | EVar name -> String.equal id name
+  | EApp (p, e) -> id_exists id p || id_exists id e
+  | EUnOp (_, e) -> id_exists id e
+  | ELet (lst, exp) ->
+    id_exists id exp
+    || List.fold_left ~f:(fun acc (_, _, e) -> acc || id_exists id e) ~init:false lst
+  | EFun (_, e) -> id_exists id e
+  | EIf (e1, e2, e3) -> id_exists id e1 || id_exists id e2 || id_exists id e3
+  | EBinOp (_, e1, e2) -> id_exists id e1 || id_exists id e2
+  | EConst _ -> false
+;;
+
 let check_types environment (dec : decl) =
   match dec with
-  | DLet (false, PtVar name, exp) ->
+  | (DLet (false, PtVar name, exp) | DLet (true, PtVar name, exp))
+    when not (id_exists name exp) ->
     let* subst, function_type, environment' = infer environment exp in
     let res_typ = function_type in
     let generalized_type = generalize environment' (Subst.apply subst res_typ) in
@@ -372,8 +386,7 @@ let check_types environment (dec : decl) =
     let env =
       TypeEnv.extend environment name (Base.Set.empty (module Base.Int), type_variable)
     in
-    let* subst, typ', environment' = infer env exp in
-    let typ = typ' in
+    let* subst, typ, environment' = infer env exp in
     let* subst' = unify (Subst.apply subst type_variable) typ in
     let* final_subst = Subst.compose subst' subst in
     let env = TypeEnv.apply final_subst env in
