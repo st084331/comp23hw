@@ -47,14 +47,12 @@ type error =
   | `Matching_failed
   ]
 
-(** Function to pretty-print types *)
-val pp_type : Format.formatter -> typ -> unit
+val show_typ : typ -> string
 
-(** Function to print types *)
-val print_typ : typ -> unit
+(** Function to pretty-print types *)
+val pp_typ : Format.formatter -> typ -> unit
+
+val show_error : error -> string
 
 (** Function to pretty-print type errors *)
 val pp_error : Format.formatter -> error -> unit
-
-(** Function to print type errors *)
-val print_type_error : error -> unit
