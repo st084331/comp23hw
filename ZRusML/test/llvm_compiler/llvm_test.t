@@ -90,3 +90,21 @@
   > let main = print_int (-x);;
   -5
 
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so
+  > let rec fac n = if n <= 1 then 1 else n * (fac (n - 1));;
+  > let main = print_int (fac 10);;
+  3628800
+
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so
+  > let factorial n =
+  >   let rec fac acc n = if n <= 1 then acc else fac (acc * n) (n - 1) in
+  >   fac 1 n
+  > ;;
+  > let main = print_int (factorial 10);;
+  3628800
+
+  $ ./llvm_test.exe <<- EOF 
+  > let x = 15;;
+  > let y = x = true;;
+  Error in №2 declaration: 
+  Elaboration failed: Rules disagree on type: Cannot merge bool and int
