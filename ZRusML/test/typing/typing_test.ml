@@ -8,7 +8,7 @@ open ZRusML_lib.Typing
 let%test "pp_type prints int type correctly" =
   let buf = Buffer.create 16 in
   let fmt = Format.formatter_of_buffer buf in
-  pp_type fmt int_typ;
+  pp_typ fmt int_typ;
   Format.pp_print_flush fmt ();
   String.equal (Buffer.contents buf) "int"
 ;;
@@ -16,7 +16,7 @@ let%test "pp_type prints int type correctly" =
 let%test "pp_type prints bool type correctly" =
   let buf = Buffer.create 16 in
   let fmt = Format.formatter_of_buffer buf in
-  pp_type fmt bool_typ;
+  pp_typ fmt bool_typ;
   Format.pp_print_flush fmt ();
   String.equal (Buffer.contents buf) "bool"
 ;;
@@ -24,7 +24,7 @@ let%test "pp_type prints bool type correctly" =
 let%test "pp_type prints arrow type correctly" =
   let buf = Buffer.create 16 in
   let fmt = Format.formatter_of_buffer buf in
-  pp_type fmt (arrow_t int_typ bool_typ);
+  pp_typ fmt (arrow_t int_typ bool_typ);
   Format.pp_print_flush fmt ();
   String.equal (Buffer.contents buf) "int -> bool"
 ;;
