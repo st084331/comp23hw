@@ -36,10 +36,10 @@ let env_inference prog env =
 
 let inference_prog prog = env_inference prog TypeEnv.empty
 
-let inference _ code =
+let env_show_inference code env =
   match Parser.parse Parser.prog code with
   | Ok prog ->
-    let id_x_typs = inference_prog prog in
+    let id_x_typs = env_inference prog env in
     let only_typs = List.map snd id_x_typs in
     let error_check =
       List.find_opt
@@ -50,18 +50,24 @@ let inference _ code =
     in
     (match error_check with
      | None ->
-       List.iter
-         (fun (a, b) ->
-           match b with
-           | Ok (_, typ) ->
-             Format.printf "val %s : " a;
-             print_typ typ
-           | Error e -> print_type_error e)
-         id_x_typs
+       Ok
+         (List.fold_left
+            (fun acc (a, b) ->
+              match b with
+              | Ok (_, typ) -> acc ^ Format.sprintf "val %s : %s\n" a (show_typ typ)
+              | Error e -> acc ^ show_error e)
+            ""
+            id_x_typs)
      | Some (Error e) ->
        let index = find (Error e) only_typs in
-       Format.printf "Error in №%d declaration:\n" index;
-       print_type_error e
-     | _ -> print_type_error `Unreachable)
-  | _ -> Format.printf "Parse error\n"
+       Error (Format.sprintf "Error in №%d declaration: \n%s\n" index (show_error e))
+     | _ -> Error (show_error `Unreachable))
+  | _ -> Error "Parse error\n"
 ;;
+
+let show_inference code =
+  match env_show_inference code TypeEnv.empty with
+  | Ok res | Error res -> res
+;;
+
+let inference fmt code = Format.fprintf fmt "%s" (show_inference code)
