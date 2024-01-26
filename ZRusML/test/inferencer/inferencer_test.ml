@@ -116,3 +116,15 @@ let%expect_test "parse error test" =
 Parse error
   |}]
 ;;
+
+let%expect_test "wild test" =
+  let code = {|
+  let rec foo _ _ _ _ e f _ = e;;
+  let k = foo 1 2 3 4 5 6 7;;
+  |} in
+  Format.printf "%a" inference code;
+  [%expect {|
+val foo : 'a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> 'e
+val k : int
+  |}]
+;;
