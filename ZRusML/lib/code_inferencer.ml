@@ -36,38 +36,38 @@ let env_inference prog env =
 
 let inference_prog prog = env_inference prog TypeEnv.empty
 
-let env_show_inference code env =
-  match Parser.parse Parser.prog code with
-  | Ok prog ->
-    let id_x_typs = env_inference prog env in
-    let only_typs = List.map snd id_x_typs in
-    let error_check =
-      List.find_opt
-        (function
-          | Error _ -> true
-          | _ -> false)
-        only_typs
-    in
-    (match error_check with
-     | None ->
-       Ok
-         (List.fold_left
-            (fun acc (a, b) ->
-              match b with
-              | Ok (_, typ) -> acc ^ Format.sprintf "val %s : %s\n" a (show_typ typ)
-              | Error e -> acc ^ show_error e)
-            ""
-            id_x_typs)
-     | Some (Error e) ->
-       let index = find (Error e) only_typs in
-       Error (Format.sprintf "Error in №%d declaration: \n%s\n" index (show_error e))
-     | _ -> Error (show_error `Unreachable))
-  | _ -> Error "Parse error\n"
+let env_show_inference prog env =
+  let id_x_typs = env_inference prog env in
+  let only_typs = List.map snd id_x_typs in
+  let error_check =
+    List.find_opt
+      (function
+        | Error _ -> true
+        | _ -> false)
+      only_typs
+  in
+  match error_check with
+  | None ->
+    Ok
+      (List.fold_left
+         (fun acc (a, b) ->
+           match b with
+           | Ok (_, typ) -> acc ^ Format.sprintf "val %s : %s\n" a (show_typ typ)
+           | Error e -> acc ^ show_error e)
+         ""
+         id_x_typs)
+  | Some (Error e) ->
+    let index = find (Error e) only_typs in
+    Error (Format.sprintf "Error in №%d declaration: \n%s\n" index (show_error e))
+  | _ -> Error (show_error `Unreachable)
 ;;
 
 let show_inference code =
-  match env_show_inference code TypeEnv.empty with
-  | Ok res | Error res -> res
+  match Parser.parse Parser.prog code with
+  | Ok prog ->
+    (match env_show_inference prog TypeEnv.empty with
+     | Ok res | Error res -> res)
+  | _ -> "Parse error"
 ;;
 
 let inference fmt code = Format.fprintf fmt "%s" (show_inference code)

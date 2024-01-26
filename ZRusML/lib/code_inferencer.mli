@@ -4,8 +4,9 @@
 
 open Inferencer
 open Typing
+open Ast
 
-val env_show_inference : identifier -> TypeEnv.t -> (identifier, identifier) result
+val env_show_inference : decl list -> TypeEnv.t -> (identifier, identifier) result
 
 (** [inference code] performs type inference on the given [code].
     If the code is correctly parsed and no type errors are found,
