@@ -3,29 +3,42 @@
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
 open Ast
+open Pretty_printer
 module StringMap = Map.Make (String)
 
 (* THIS FUNCTION CREATES DUMMY ID THAT CANNOT BE USED IN CODE AND MUST BE RENAMED FURTHER *)
-let get_lifted_name cnt = string_of_int cnt ^ "lambda"
+let get_lifted_name cnt = "lambda" ^ string_of_int cnt
+let z_combinator_name = "ZOV"
 
-let rec replace_vars old_name new_name = function
-  | EVar t when t = old_name -> EVar new_name
-  | EUnOp (op, e) -> EUnOp (op, replace_vars old_name new_name e)
+let z_combinator =
+  DLet
+    ( true
+    , PtVar z_combinator_name
+    , EFun
+        ( PtVar "f"
+        , EFun
+            ( PtVar "x"
+            , EApp (EApp (EVar "f", EApp (EVar z_combinator_name, EVar "f")), EVar "x") )
+        ) )
+;;
+
+let rec replace_exp old_exp new_exp = function
+  | x when x = old_exp -> new_exp
+  | EUnOp (op, e) -> EUnOp (op, replace_exp old_exp new_exp e)
   | ELet (bindings, e) ->
     let new_bindings =
-      List.map (fun (r, p, exp) -> r, p, replace_vars old_name new_name exp) bindings
+      List.map (fun (r, p, exp) -> r, p, replace_exp old_exp new_exp exp) bindings
     in
-    ELet (new_bindings, replace_vars old_name new_name e)
-  | EFun (p, e) -> EFun (p, replace_vars old_name new_name e)
+    ELet (new_bindings, replace_exp old_exp new_exp e)
+  | EFun (p, e) -> EFun (p, replace_exp old_exp new_exp e)
   | EIf (e1, e2, e3) ->
     EIf
-      ( replace_vars old_name new_name e1
-      , replace_vars old_name new_name e2
-      , replace_vars old_name new_name e3 )
+      ( replace_exp old_exp new_exp e1
+      , replace_exp old_exp new_exp e2
+      , replace_exp old_exp new_exp e3 )
   | EBinOp (op, e1, e2) ->
-    EBinOp (op, replace_vars old_name new_name e1, replace_vars old_name new_name e2)
-  | EApp (e1, e2) ->
-    EApp (replace_vars old_name new_name e1, replace_vars old_name new_name e2)
+    EBinOp (op, replace_exp old_exp new_exp e1, replace_exp old_exp new_exp e2)
+  | EApp (e1, e2) -> EApp (replace_exp old_exp new_exp e1, replace_exp old_exp new_exp e2)
   | _ as original -> original
 ;;
 
@@ -37,25 +50,29 @@ let rec lift_exp map cnt exp =
   | ELet (bindings, e) ->
     let (map, cnt), new_bindings =
       List.fold_left_map
-        (fun (acc_map, acc_cnt) (is_rec, pt, elem) ->
-          let next_map, next_cnt, new_elem = lift_exp acc_map acc_cnt elem in
-          let next_map =
-            match elem with
-            | EFun _ when is_rec ->
-              let last_name = get_lifted_name (next_cnt - 1) in
-              let (DLet (_, p, e)) = StringMap.find last_name next_map in
-              let new_e =
-                match pt with
-                | PtVar old_name -> replace_vars old_name last_name e
-                | _ -> e
+        (fun (acc_map, acc_cnt) decl ->
+          let next_map, next_cnt, new_decl = lift_decl acc_map acc_cnt decl in
+          let next_map, next_cnt, new_decl =
+            match new_decl with
+            | _, pt, EFun (e1, e2) ->
+              let next_map, next_cnt, new_exp =
+                lift_exp next_map next_cnt (EFun (e1, e2))
               in
-              StringMap.add
-                last_name
-                (DLet (true, p, new_e))
-                (StringMap.remove last_name next_map)
-            | _ -> next_map
+              let next_map =
+                match pt, new_exp with
+                | PtVar id, EVar lambda ->
+                  let (DLet (_, pt, e)) = StringMap.find lambda next_map in
+                  let new_rec, _, _ = decl in
+                  StringMap.add
+                    lambda
+                    (DLet (new_rec, pt, replace_exp (EVar id) (EVar lambda) e))
+                    next_map
+                | _ -> next_map
+              in
+              next_map, next_cnt, (false, pt, new_exp)
+            | other -> next_map, next_cnt, other
           in
-          (next_map, next_cnt), (is_rec, pt, new_elem))
+          (next_map, next_cnt), new_decl)
         (map, cnt)
         bindings
     in
@@ -90,36 +107,39 @@ let rec lift_exp map cnt exp =
     let map2, cnt2, exp2 = lift_exp map1 cnt1 e2 in
     map2, cnt2, EApp (exp1, exp2)
   | _ -> map, cnt, exp
-;;
 
-let lift_decl map cnt (DLet (is_rec, pt, exp)) =
-  let new_map, new_cnt, new_exp = lift_exp map cnt exp in
-  new_map, new_cnt, DLet (is_rec, pt, new_exp)
+and lift_decl map cnt (is_rec, pt, exp) =
+  let map, cnt, exp = lift_exp map cnt exp in
+  let rec decompose_eapp args = function
+    | EApp (e, arg) -> decompose_eapp (arg :: args) e
+    | other -> other, args
+  in
+  let fn, args = decompose_eapp [] exp in
+  let fn, map =
+    match fn with
+    | EVar id ->
+      (match StringMap.find_opt id map with
+       | Some (DLet (_, _, e)) -> e, StringMap.remove id map
+       | _ -> fn, map)
+    | _ -> fn, map
+  in
+  let rec construct_exp = function
+    | EFun (PtVar id, e), h :: tl ->
+      let e' = replace_exp (EVar id) h e in
+      construct_exp (e', tl)
+    | EFun (_, e), _ :: tl -> construct_exp (e, tl)
+    | other, _ -> other
+  in
+  map, cnt, (is_rec, pt, construct_exp (fn, args))
 ;;
 
 let lift_prog prog =
   let (new_bindings, _), new_prog =
     List.fold_left_map
-      (fun (acc_map, acc_cnt) (DLet (is_rec, pt, elem)) ->
-        let next_map, next_cnt, new_elem = lift_exp acc_map acc_cnt elem in
-        let next_map =
-          match elem with
-          | EFun _ when is_rec ->
-            let last_name = get_lifted_name (next_cnt - 1) in
-            let (DLet (_, p, e)) = StringMap.find last_name next_map in
-            let new_e =
-              match pt with
-              | PtVar old_name -> replace_vars old_name last_name e
-              | _ -> e
-            in
-            StringMap.add
-              last_name
-              (DLet (true, p, new_e))
-              (StringMap.remove last_name next_map)
-          | _ -> next_map
-        in
-        (next_map, next_cnt), DLet (is_rec, pt, new_elem))
-      (StringMap.empty, 0)
+      (fun (acc_map, acc_cnt) (DLet decl) ->
+        let next_map, next_cnt, new_decl = lift_decl acc_map acc_cnt decl in
+        (next_map, next_cnt), DLet new_decl)
+      (StringMap.add z_combinator_name z_combinator StringMap.empty, 0)
       prog
   in
   let new_bindings = List.map snd @@ List.of_seq @@ StringMap.to_seq new_bindings in
