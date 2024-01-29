@@ -3,6 +3,7 @@
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
 open Ast
+open Pretty_printer
 module StringMap = Map.Make (String)
 
 (* THIS FUNCTIONS CREATES DUMMY ID THAT CANNOT BE USED IN CODE AND MUST BE RENAMED FURTHER *)
