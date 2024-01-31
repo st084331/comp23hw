@@ -1,8 +1,14 @@
   $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so
+  > let f_wrapper f n = if n <= 1 then 0 else ((fun y -> y 15 + f (n - 1)) (fun t -> 15 * t + f (n - 1)));;
+  > let rec f n = f_wrapper f n;;
+  > let main = print_int (f 10);;
+  114975
+
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so
   > let fibo n =
-  > let rec fibo_cps n acc =
-  > if n < 3 then acc 1 else fibo_cps (n - 1) (fun x ->  fibo_cps (n - 2) (fun y -> acc (x + y)))
-  > in
+  >   let rec fibo_cps n acc =
+  >     if n < 3 then acc 1 else fibo_cps (n - 1) (fun x -> fibo_cps (n - 2) (fun y -> acc (x + y)))
+  >   in
   > fibo_cps n (fun x -> x);;
   > let main = print_int (fibo 11);;
   > EOF
@@ -17,6 +23,13 @@
   > let main = print_int (fac 6);;
   > EOF
   720
+
+
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so
+  > let rec factorial n = if n <= 1 then 1 else n * factorial (n - 1);;
+  > let main = print_int (factorial 5);;
+  > EOF
+  120
 
   $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so
   > let x = 15;;
@@ -34,25 +47,31 @@
   -5
 
   $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so
-  > let rec fac n = if n <= 1 then 1 else n * (fac (n - 1));;
-  > let main = print_int (fac 10);;
-  3628800
+  > let rec print_helper cps n = if n = 0 then cps 1 else print_helper (fun x -> let _ = print_int (n - 2 * (n / 2)) in cps 1) (n / 2);;
+  > let print_binary = print_helper (fun x -> x);;
+  > let main = print_binary 23;;
+  10111
 
   $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so
-  > let factorial n =
-  >   let rec fac acc n = if n <= 1 then acc else fac (acc * n) (n - 1) in
-  >   fac 1 n
+  > let rec bin_pow base exp =
+  >   if exp = 0 then 
+  >      1 
+  >   else if (exp = 2 * (exp / 2)) then
+  >     let tmp = bin_pow base (exp / 2)
+  >     in tmp * tmp
+  >   else
+  >     base * (bin_pow base (exp - 1));;
+  > 
+  > let test_print base exp =
+  >   let _ = print_int (bin_pow base exp) in print_endline
   > ;;
-  > let main = print_int (factorial 10);;
-  3628800
-
-  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so
-  > let rec fib n = if n <= 1 then 1 else fib (n - 1) + fib (n - 2);;
-  > let main = print_int (fib 10);;
-  89
-
-  $ ./llvm_test.exe <<- EOF 
-  > let x = 15;;
-  > let y = x = true;;
-  Error in №2 declaration: 
-  Elaboration failed: Rules disagree on type: Cannot merge bool and int
+  > 
+  > let main = 
+  >   let test1 = test_print 32 4 in
+  >   let test2 = test_print 7 4 in
+  >   let test3 = test_print 2 10 in
+  > 0;;
+  
+  1048576
+  2401
+  1024
