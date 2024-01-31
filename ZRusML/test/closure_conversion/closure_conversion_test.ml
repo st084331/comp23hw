@@ -13,12 +13,17 @@ let helper code =
 ;;
 
 let%expect_test "closure depth 0" =
-  let code = {|
-    let f x = x + y;;
-|} in
+  let code =
+    {|
+  let f_wrapper f n = if n <= 1 then 0 else ((fun y -> y 15 + f (n - 1)) (fun t -> 15 * t + f (n - 1)));;
+  let rec f n = f_wrapper f n;;
+|}
+  in
   helper code;
-  [%expect {|
-  let f = (fun y x -> (x + y)) y;;
+  [%expect
+    {|
+  let f_wrapper f n = if (n <= 1) then 0 else (fun f n y -> (y 15 + f (n - 1))) f n ((fun f n t -> ((15 * t) + f (n - 1))) f n);;
+  let rec f = (fun f f_wrapper n -> f_wrapper f n) f f_wrapper;;
 |}]
 ;;
 
@@ -88,7 +93,7 @@ let%expect_test "factorial cps test" =
   [%expect
     {|
 let fac n = 
-    let rec fack n k = if (n <= 1) then 1 else fack (n - 1) ((fun k n m -> k (m * n)) k n) in
+    let rec fack = (fun fack n k -> if (n <= 1) then 1 else fack (n - 1) ((fun k n m -> k (m * n)) k n)) fack in
     fack n (fun x -> x)
 ;;
 |}]
@@ -118,5 +123,20 @@ let f = (fun m z a b ->
      in
     x 1337
 ) m z;;
+|}]
+;;
+
+let%expect_test "closure multi depth test" =
+  let code =
+    {|
+    let f_wrapper f n = if n <= 1 then 0 else ((fun y -> y 15 + f (n - 1)) (fun t -> 15 * t + f (n - 1)));;
+    let rec f n = f_wrapper f n;;
+|}
+  in
+  helper code;
+  [%expect
+    {|
+    let f_wrapper f n = if (n <= 1) then 0 else (fun f n y -> (y 15 + f (n - 1))) f n ((fun f n t -> ((15 * t) + f (n - 1))) f n);;
+    let rec f = (fun f f_wrapper n -> f_wrapper f n) f f_wrapper;;
 |}]
 ;;
