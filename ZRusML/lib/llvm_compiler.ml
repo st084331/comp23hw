@@ -6,10 +6,6 @@ open Llvm
 open Result
 open Ast
 open Anf
-open Parser
-open Closure_conversion
-open Lambda_lifting
-open Ast_validator
 
 let context = global_context ()
 let the_module = create_module context "ZRusML"
@@ -59,7 +55,7 @@ let rec codegen_aexpr = function
   | ALet (id, c, ae) ->
     let* body = codegen_cexpr c in
     let alloca = build_alloca int_type id builder in
-    let (_ : Llvm.llvalue) = build_store body alloca builder in
+    let _ = build_store body alloca builder in
     Hashtbl.add named_values id alloca;
     codegen_aexpr ae
   | ACExpr c -> codegen_cexpr c
@@ -119,7 +115,7 @@ and codegen_cexpr = function
 ;;
 
 let codegen_abind = function
-  | ABind (_, id, args, body) ->
+  | ABind (id, args, body) ->
     Hashtbl.clear named_values;
     let ints = Array.make (List.length args) int_type in
     let ftype = function_type int_type ints in
@@ -172,6 +168,8 @@ let codegen_program prog =
         the_module
     ; declare_function "print_int" (function_type int_type [| int_type |]) the_module
     ; declare_function "print_bool" (function_type int_type [| int_type |]) the_module
+    ; declare_function "print_endline" (function_type int_type [||]) the_module
+    ; declare_function "print_char" (function_type int_type [| int_type |]) the_module
     ]
   in
   let* result =
