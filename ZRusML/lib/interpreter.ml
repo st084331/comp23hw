@@ -11,7 +11,8 @@ open Llvm_compiler
 open Code_inferencer
 open Typing
 open Inferencer
-open Base
+open Anf_pretty
+open Pretty_printer
 
 let print_prog_result code =
   match parse prog code with
@@ -19,12 +20,15 @@ let print_prog_result code =
     let stdlib =
       [ "print_int", TArr (TGround Int, TGround Unit)
       ; "print_bool", TArr (TGround Bool, TGround Unit)
+      ; "print_endline", TArr (TGround Unit, TGround Unit)
+      ; "print_char", TArr (TGround Int, TGround Unit)
       ]
     in
     let stdlib_env =
-      List.fold_left
+      Base.List.fold_left
         ~init:TypeEnv.empty
-        ~f:(fun acc (id, t) -> TypeEnv.extend acc id (Set.empty (module Int), t))
+        ~f:(fun acc (id, t) ->
+          TypeEnv.extend acc id (Base.Set.empty (module Base.Int), t))
         stdlib
     in
     (match env_show_inference res stdlib_env with
