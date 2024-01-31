@@ -8,7 +8,7 @@ typedef struct PartAppl
     int tcount;    // Total number of arguments
     int acount;    // Number of arguments applied
     int64_t *args; // Stored arguments
-} *PAppli;          // Читать как Папли :D
+} *PAppli;
 
 // Functoins invocation
 
@@ -621,7 +621,6 @@ static int64_t (*invokers[101])(PAppli) = {
     invoke100,
 };
 
-
 PAppli newPAppli(int64_t *fn, int tcount)
 {
     PAppli p = (PAppli)malloc(sizeof(struct PartAppl));
@@ -668,14 +667,13 @@ int64_t applyPAppli(int64_t pointer, int64_t arg)
             printf("Error: too many arguments applied\n");
             exit(1);
         }
-        
     }
-    return (int64_t)new;
+    return (int64_t) new;
 }
 
 int64_t addNewPAppliClosure(int64_t func, int64_t tcount)
 {
-    int64_t* fn = (int64_t*)func;
+    int64_t *fn = (int64_t *)func;
     PAppli new = NULL;
     if (tcount > 100)
     {
@@ -683,7 +681,8 @@ int64_t addNewPAppliClosure(int64_t func, int64_t tcount)
         exit(1);
     }
     new = newPAppli(fn, tcount);
-    if (tcount == 0){
+    if (tcount == 0)
+    {
         int64_t (*fn)(PAppli) = invokers[new->tcount];
         int64_t res = fn(new);
         free(new->args);
@@ -695,7 +694,7 @@ int64_t addNewPAppliClosure(int64_t func, int64_t tcount)
 
 int64_t print_int(int64_t x)
 {
-    printf("%ld\n", x);
+    printf("%ld", x);
     return 0;
 }
 
@@ -703,11 +702,23 @@ int64_t print_bool(int64_t x)
 {
     if (x == 0)
     {
-        printf("false\n");
+        printf("false");
     }
     else
     {
-        printf("true\n");
+        printf("true");
     }
+    return 0;
+}
+
+int64_t print_endline()
+{
+    printf("%c", '\n');
+    return 0;
+}
+
+int64_t print_char(int64_t x)
+{
+    printf("%c", (char)x);
     return 0;
 }
