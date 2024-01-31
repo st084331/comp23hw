@@ -54,8 +54,10 @@ let rec validate_exp env cnt exp =
             let _, acc_cnt, new_exp = validate_exp validated_env acc_cnt exp in
             (new_env, acc_cnt), (is_rec, PtVar new_name, new_exp)
           | _ ->
+            let new_name = get_validated_name acc_cnt in
+            let acc_cnt = acc_cnt + 1 in
             let _, acc_cnt, new_exp = validate_exp acc_env acc_cnt exp in
-            (acc_env, acc_cnt), (is_rec, p, new_exp))
+            (acc_env, acc_cnt), (is_rec, PtVar new_name, new_exp))
         (env, cnt)
         bindings
     in
@@ -76,8 +78,10 @@ let validate_prog prog =
           let _, acc_cnt, new_exp = validate_exp validated_env acc_cnt exp in
           (new_env, acc_cnt), DLet (is_rec, PtVar new_name, new_exp)
         | _ ->
+          let new_name = get_validated_name acc_cnt in
+          let acc_cnt = acc_cnt + 1 in
           let _, acc_cnt, new_exp = validate_exp acc_env acc_cnt exp in
-          (acc_env, acc_cnt), DLet (is_rec, p, new_exp))
+          (acc_env, acc_cnt), DLet (is_rec, PtVar new_name, new_exp))
       (StringMap.empty, 0)
       prog
   in
