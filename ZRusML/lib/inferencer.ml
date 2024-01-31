@@ -307,7 +307,7 @@ let infer =
           let* identifier, exp =
             match elem with
             | _, PtVar id, exp -> return (id, exp)
-            | _ -> fail `Unreachable
+            | _, _, exp -> return ("_", exp)
           in
           let* fresh_var = fresh_var in
           let env' =
