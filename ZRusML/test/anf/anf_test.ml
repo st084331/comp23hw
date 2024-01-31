@@ -21,47 +21,52 @@ let helper code =
 let%expect_test "anf test sample" =
   let code =
     {|
-    let fac n =
-      let rec fack n k =
-        if n <= 1 then 1
-        else fack (n - 1) (fun m -> k (m * n))
-      in
-      fack n (fun x -> x)
-    ;;
-
-    let ans = fac 5;;
+    let test_print base exp =
+       let _ = print_int (bin_pow base exp) in print_endline
+     ;;
+     
+     let main = 
+       let test1 = test_print 32 4 in
+       let test2 = test_print 7 4 in
+       let test3 = test_print 8 9 in
+     test_print 2 10;;
   |}
   in
   helper code;
   [%expect
     {|
-    let ast_0 ast_1 ast_2 ast_3 =
-        let anf_11 = ast_3 * ast_2 in
-        let anf_12 = ast_1 anf_11 in
-    anf_12;;
-
-    let rec ast_4 ast_5 ast_6 =
-        let anf_4 = ast_5 <= 1 in
-        let anf_10 = if anf_4 then 1 else     let anf_5 = ast_5 - 1 in
-        let anf_6 = ast_4 anf_5 in
-        let anf_7 = ast_0 ast_6 in
-        let anf_8 = anf_7 ast_5 in
-        let anf_9 = anf_6 anf_8 in
-    anf_9 in
-    anf_10;;
-
-    let ast_7 ast_8 = ast_8;;
-
-    let ast_9 ast_10 =
-        let ast_11 = ast_4 in
-        let anf_2 = ast_11 ast_10 in
-        let anf_3 = anf_2 ast_7 in
-    anf_3;;
-
-    let ast_12 = ast_9;;
-
-    let ast_13 =
-        let anf_1 = ast_12 5 in
-    anf_1;;
+    let ast_0 ast_1 ast_2 =
+        let anf_15 = ast_0 ast_1 in
+        let anf_16 = ast_1 anf_15 in
+        let anf_17 = anf_16 ast_2 in
+    anf_17;;
+    
+    let ast_3 ast_4 ast_5 ast_6 ast_7 ast_8 =
+        let anf_12 = ast_4 ast_7 in
+        let anf_13 = anf_12 ast_8 in
+        let anf_14 = ast_6 anf_13 in
+        let ast_9 = anf_14 in
+    ast_5;;
+    
+    let ast_10 =
+        let anf_9 = ast_3 bin_pow in
+        let anf_10 = anf_9 print_endline in
+        let anf_11 = anf_10 print_int in
+    anf_11;;
+    
+    let main =
+        let anf_1 = ast_10 32 in
+        let anf_2 = anf_1 4 in
+        let ast_12 = anf_2 in
+        let anf_3 = ast_10 7 in
+        let anf_4 = anf_3 4 in
+        let ast_13 = anf_4 in
+        let anf_5 = ast_10 8 in
+        let anf_6 = anf_5 9 in
+        let ast_14 = anf_6 in
+        let anf_7 = ast_10 2 in
+        let anf_8 = anf_7 10 in
+    anf_8;;
+       
   |}]
 ;;
