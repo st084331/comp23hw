@@ -24,6 +24,6 @@ type pexpr =
   | PImmExpr of immexpr
   | PImmWild
 
-type abinding = ABind of bool * string * pexpr list * aexpr
+type abinding = ABind of string * pexpr list * aexpr
 
 val anf_program : prog -> abinding list

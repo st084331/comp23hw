@@ -43,8 +43,7 @@ let show_pexpr = function
 let pp_pexpr fmt pe = fprintf fmt "%s" pe
 let pp_aexpr fmt ae = fprintf fmt "%s" (show_aexpr ae)
 
-let show_abinding (ABind (is_rec, id, lst, ae)) =
-  let rec_str = if is_rec then "rec " else "" in
+let show_abinding (ABind (id, lst, ae)) =
   let rec construct_lst = function
     | hd :: tl -> sprintf "%s %s" (show_pexpr hd) (construct_lst tl)
     | _ -> ""
@@ -55,7 +54,7 @@ let show_abinding (ABind (is_rec, id, lst, ae)) =
     | _ -> " "
   in
   let lst_str = construct_lst lst in
-  sprintf "let %s%s %s=%s%s;;\n\n" rec_str id lst_str jump (show_aexpr ae)
+  sprintf "let %s %s=%s%s;;\n\n" id lst_str jump (show_aexpr ae)
 ;;
 
 let pp_abinding fmt ab = fprintf fmt "%s" (show_abinding ab)
