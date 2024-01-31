@@ -24,7 +24,7 @@ type pexpr =
   | PImmExpr of immexpr
   | PImmWild
 
-type abinding = ABind of bool * string * pexpr list * aexpr
+type abinding = ABind of string * pexpr list * aexpr
 
 let fresh_var_temp count () =
   incr count;
@@ -48,8 +48,7 @@ let rec anf_func (fresh_var : unit -> id) (e : exp) (expr_with_hole : immexpr ->
         match pt with
         | PtWild -> anf_let_bindings rest body expr_with_hole
         | PtVar id ->
-          let new_body = substitute id id (ELet (rest, body)) in
-          ALet (id, CImmExpr immexpr, anf_let_bindings rest new_body expr_with_hole)
+          ALet (id, CImmExpr immexpr, anf_let_bindings rest body expr_with_hole)
         | PtConst _ -> anf_let_bindings rest body expr_with_hole)
   in
   match e with
@@ -118,7 +117,7 @@ let anf_program (program : prog) : abinding list =
   List.fold_right
     (fun decl acc ->
       match decl with
-      | DLet (is_rec, pt, exp) ->
+      | DLet (_, pt, exp) ->
         let rec get_new_exp lst = function
           | EFun (PtVar id, nxt) -> get_new_exp (PImmExpr (ImmIdentifier id) :: lst) nxt
           | EFun (PtWild, nxt) -> get_new_exp (PImmWild :: lst) nxt
@@ -135,7 +134,7 @@ let anf_program (program : prog) : abinding list =
           | PtWild -> fresh_var ()
           | PtConst _ -> fresh_var ()
         in
-        ABind (is_rec, id, lst, anf_exp) :: acc)
+        ABind (id, lst, anf_exp) :: acc)
     program
     []
 ;;
