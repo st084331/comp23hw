@@ -93,7 +93,7 @@ let%expect_test "factorial cps test" =
   [%expect
     {|
 let fac n = 
-    let rec fack n k = if (n <= 1) then 1 else fack (n - 1) ((fun k n m -> k (m * n)) k n) in
+    let rec fack = (fun fack n k -> if (n <= 1) then 1 else fack (n - 1) ((fun k n m -> k (m * n)) k n)) fack in
     fack n (fun x -> x)
 ;;
 |}]
