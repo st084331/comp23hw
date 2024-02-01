@@ -27,7 +27,7 @@ let codegen_imm = function
           ok
             (build_call
                (function_type int_type [| int_type; int_type |])
-               (Option.get (lookup_function "addNewPAppliClosure" the_module))
+               (Option.get (lookup_function "create_new_apply" the_module))
                [| build_pointercast v int_type "cast_pointer_to_int" builder
                 ; params v |> Base.Array.length |> const_int int_type
                |]
@@ -81,7 +81,7 @@ and codegen_cexpr = function
     ok
       (build_call
          (function_type int_type [| int_type; int_type |])
-         (Option.get (lookup_function "applyPAppli" the_module))
+         (Option.get (lookup_function "partially_apply" the_module))
          [| calee; arg |]
          "PAppliApplication"
          builder)
@@ -159,11 +159,11 @@ let codegen_abind = function
 let codegen_program prog =
   let runtime =
     [ declare_function
-        "addNewPAppliClosure"
+        "create_new_apply"
         (function_type int_type [| int_type; int_type |])
         the_module
     ; declare_function
-        "applyPAppli"
+        "partially_apply"
         (function_type int_type [| int_type; int_type |])
         the_module
     ; declare_function "print_int" (function_type int_type [| int_type |]) the_module
