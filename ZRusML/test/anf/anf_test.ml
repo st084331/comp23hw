@@ -70,3 +70,34 @@ let%expect_test "anf test sample" =
        
   |}]
 ;;
+
+let%expect_test "binary operators test" =
+  let code =
+    {|
+    let x = -3 + 4 + (5 + 7) / 3 * 4;;
+    let main = print_int x;;
+  |}
+  in
+  helper code;
+  [%expect
+    {|
+    let ast_0 ast_1 ast_2 =
+        let anf_8 = ast_0 ast_1 in
+        let anf_9 = ast_1 anf_8 in
+        let anf_10 = anf_9 ast_2 in
+    anf_10;;
+    
+    let ast_3 =
+        let anf_2 = -3 in
+        let anf_3 = 5 + 7 in
+        let anf_4 = anf_3 / 3 in
+        let anf_5 = anf_4 * 4 in
+        let anf_6 = 4 + anf_5 in
+        let anf_7 = anf_2 + anf_6 in
+    anf_7;;
+    
+    let main =
+        let anf_1 = print_int ast_3 in
+    anf_1;;
+  |}]
+;;
