@@ -75,3 +75,8 @@
   1048576
   2401
   1024
+
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so
+  > let x = -3 + 4 + (5 + 7) / 3 * 4;;
+  > let main = print_int x;;
+  17
