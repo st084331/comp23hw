@@ -43,9 +43,13 @@ let%test _ =
                       , EBinOp
                           ( Add
                           , EBinOp
-                              ( Div
-                              , EBinOp (Add, EVar "x", EBinOp (Mul, EVar "y", EVar "z"))
-                              , EBinOp (Mul, EConst (CInt 2), EConst (CInt 1337)) )
+                              ( Mul
+                              , EBinOp
+                                  ( Div
+                                  , EBinOp
+                                      (Add, EVar "x", EBinOp (Mul, EVar "y", EVar "z"))
+                                  , EConst (CInt 2) )
+                              , EConst (CInt 1337) )
                           , EBinOp
                               ( Sub
                               , EBinOp (Div, EConst (CInt 9), EConst (CInt 13))
@@ -62,9 +66,13 @@ let%test _ =
                       , EBinOp
                           ( Add
                           , EBinOp
-                              ( Div
-                              , EBinOp (Add, EVar "x", EBinOp (Mul, EVar "y", EVar "z"))
-                              , EBinOp (Mul, EConst (CInt 2), EConst (CInt 1337)) )
+                              ( Mul
+                              , EBinOp
+                                  ( Div
+                                  , EBinOp
+                                      (Add, EVar "x", EBinOp (Mul, EVar "y", EVar "z"))
+                                  , EConst (CInt 2) )
+                              , EConst (CInt 1337) )
                           , EBinOp
                               ( Sub
                               , EBinOp (Div, EConst (CInt 9), EConst (CInt 13))
@@ -159,5 +167,22 @@ let%test _ =
                               , EVar "x" ) ) ) )
                 ]
               , EVar "check" ) )
+      ]
+;;
+
+let%test _ =
+  test_parse
+    ~label:"fib test"
+    ~code:{|
+
+      let x = 6 / 3 * 2;;
+
+    |}
+    ~expected:
+      [ DLet
+          ( false
+          , PtVar "x"
+          , EBinOp (Mul, EBinOp (Div, EConst (CInt 6), EConst (CInt 3)), EConst (CInt 2))
+          )
       ]
 ;;
