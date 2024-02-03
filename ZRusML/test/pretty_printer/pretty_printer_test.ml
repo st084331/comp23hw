@@ -3,7 +3,7 @@
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
 open ZRusML_lib.Parser
-open ZRusML_lib.Pretty_printer
+open ZRusML_lib.Ast_pretty
 
 let helper code =
   match parse prog code with

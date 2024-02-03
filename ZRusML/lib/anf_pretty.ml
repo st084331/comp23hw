@@ -4,7 +4,7 @@
 
 open Anf
 open Format
-open Pretty_printer
+open Ast_pretty
 
 let show_immexpr = function
   | ImmInt x -> sprintf "%d" x
