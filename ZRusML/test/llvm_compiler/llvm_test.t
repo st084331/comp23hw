@@ -63,7 +63,8 @@
   >     base * (bin_pow base (exp - 1));;
   > 
   > let test_print base exp =
-  >   let _ = print_int (bin_pow base exp) in print_endline
+  >   let _ = print_int (bin_pow base exp) in
+  >   print_char 32
   > ;;
   > 
   > let main = 
@@ -71,12 +72,63 @@
   >   let test2 = test_print 7 4 in
   >   let test3 = test_print 2 10 in
   > 0;;
-  
-  1048576
-  2401
-  1024
+  1048576 2401 1024 
 
   $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so
-  > let x = -3 + 4 + (5 + 7) / 3 * 4;;
+  > let x = -3 + 4 + (5 + 9 - 1) / 3 * 4 - 8;;
   > let main = print_int x;;
-  17
+  9
+
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so 
+  > let main =
+  >   let test1 = print_bool (true && (5 > 3)) in
+  >   let test2 = print_bool (false || 7 = 7) in
+  >   let test3 = print_bool (17 * 4 > 3 || 2 < 4 / 4) in
+  >   let test4 = print_bool (5 < 3 || 7 * 7 = 50 || 15 <= 14 || 9 * 3 <> 27) in
+  > print_endline;;
+  truetruetruefalse
+
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so 
+  > let f a b c d e f g = e;;
+  > let main =
+  >   let test1 = print_int (f 1 2 3 4 5 6 7) in
+  >   let test2 = print_bool (f 1 2 3 4 true 6 7) in
+  >   let test3 = print_int (f false true false 17 42 true 1) in
+  > print_endline;;
+  5true42
+
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so 
+  > let f _ _ x y z _ _ = x * y;;
+  > let main = 
+  >   let m t = 2 * t in
+  >   let test10 = print_int (f true 4 15 3 true 6 false) 
+  > in test10;;
+  45
+
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so 
+  > let f _ _ x y z _ _ = x * y;;
+  > let main = 
+  >   let m t = 2 * t in
+  >   let test10 = print_int (m (f true 4 15 3 true 6 false)) 
+  > in test10;;
+  90
+
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so 
+  > let f _ _ x y z _ _ = x * y;;
+  > let main = 
+  >   let m t = 2 * t in
+  >   let test10 = print_int (m (f true 4 15 3 true 6 false)) 
+  > in test10;;
+  90
+
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so 
+  > let f x x x = x;;
+  > let main = print_int (f 42 true 3);;
+  3
+
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so 
+  > let sum a b = a + b;;
+  > let plus42 = sum 42;;
+  > let main = print_int (plus42 15);;
+  57
+
