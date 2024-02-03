@@ -128,3 +128,22 @@ val foo : 'a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> 'e
 val k : int
   |}]
 ;;
+
+let%expect_test "wild test" =
+  let code =
+    {|
+    let f _ _ x y z _ _ = x * y;;
+
+    let main = 
+      let m t = 2 * t in
+      let tmp = m (f true 4 15 3 true 6 false) in
+    tmp;;
+  |}
+  in
+  Format.printf "%a" inference code;
+  [%expect
+    {|
+  val f : 'a -> 'b -> int -> int -> 'e -> 'f -> 'g -> int
+  val main : int
+  |}]
+;;
