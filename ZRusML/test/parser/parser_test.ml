@@ -4,7 +4,7 @@
 
 open ZRusML_lib.Ast
 open ZRusML_lib.Parser
-open ZRusML_lib.Pretty_printer
+open ZRusML_lib.Ast_pretty
 
 let test_parse ~label ~code ~expected =
   match parse prog code with
@@ -172,7 +172,7 @@ let%test _ =
 
 let%test _ =
   test_parse
-    ~label:"fib test"
+    ~label:"operators test"
     ~code:{|
 
       let x = 6 / 3 * 2;;

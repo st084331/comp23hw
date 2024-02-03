@@ -4,7 +4,7 @@
 
 open ZRusML_lib.Closure_conversion
 open ZRusML_lib.Parser
-open ZRusML_lib.Pretty_printer
+open ZRusML_lib.Ast_pretty
 
 let helper code =
   match parse prog code with
