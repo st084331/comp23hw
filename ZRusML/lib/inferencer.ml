@@ -1,6 +1,7 @@
 (** Copyright 2023-2024, Rustam Shangareev and Danil Yevdokimov *)
 
 (** SPDX-License-Identifier: LGPL-2.1 *)
+module IntSet = Set.Make (Int)
 
 open Base
 open Ast
@@ -220,9 +221,28 @@ let fresh_var = fresh >>| var_t
 
 let instantiate : scheme -> typ R.t =
   fun (set, t) ->
+  let* st =
+    VarSet.fold
+      (fun st name ->
+        let res = IntSet.add name st in
+        return res)
+      (return IntSet.empty)
+      set
+  in
   VarSet.fold
     (fun typ name ->
-      let* f = fresh_var in
+      let* f =
+        let rec helper cnt =
+          let* tmp = fresh_var in
+          match tmp with
+          | TVar n ->
+            (match IntSet.find_opt n st with
+             | Some _ -> helper cnt
+             | _ -> return tmp)
+          | _ -> return tmp
+        in
+        helper 0
+      in
       let* s = Subst.singleton name f in
       return (Subst.apply s typ))
     (return t)
