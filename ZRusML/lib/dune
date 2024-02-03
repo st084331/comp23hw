@@ -9,7 +9,7 @@
   Inferencer
   Anf
   Closure_conversion
-  Pretty_printer
+  Ast_pretty
   Lambda_lifting
   Anf_pretty
   Ast_validator
