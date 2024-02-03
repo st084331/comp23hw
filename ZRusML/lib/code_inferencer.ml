@@ -15,23 +15,22 @@ let env_inference prog env =
   let typs, _ =
     List.fold_left
       (fun (typs, environment) dec ->
-        let rec get_last_env = function
-          | [ Ok (env, _) ] -> env
-          | _ :: tl -> get_last_env tl
-          | _ -> environment
-        in
         let tcheck dec =
           match dec with
-          | DLet (_, PtWild, _) -> [ "- ", run_inference dec environment ]
-          | DLet (_, PtVar name, _) -> [ name, run_inference dec environment ]
-          | _ -> [ "", Error `Matching_failed ]
+          | DLet (_, PtWild, _) -> "- ", run_inference dec environment
+          | DLet (_, PtVar name, _) -> name, run_inference dec environment
+          | _ -> "", Error `Matching_failed
         in
-        let environment' = get_last_env (List.map snd (tcheck dec)) in
+        let environment' =
+          match snd (tcheck dec) with
+          | Ok (env, _) -> env
+          | _ -> environment
+        in
         tcheck dec :: typs, environment')
       ([], env)
       prog
   in
-  List.concat (List.rev typs)
+  List.rev typs
 ;;
 
 let inference_prog prog = env_inference prog TypeEnv.empty
