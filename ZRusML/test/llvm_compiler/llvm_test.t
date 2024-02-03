@@ -132,3 +132,46 @@
   > let main = print_int (plus42 15);;
   57
 
+  $ ./llvm_test.exe <<- EOF
+  > let f x = y t;;
+  Error in №1 declaration: 
+  Elaboration failed: Unbound value identifier y
+
+  $ ./llvm_test.exe <<- EOF
+  > let t =
+  Parser error! : no more choices
+
+  $ ./llvm_test.exe <<- EOF
+  > let snd x y = y;;
+  > let main = snd 14 15 13;;
+  Error in №2 declaration: 
+  Elaboration failed: Rules disagree on type: Cannot merge int -> 'g and int
+
+  $ ./llvm_test.exe <<- EOF
+  > let y = 4;;
+  > let x = true;;
+  > let z = x = y;;
+  Error in №3 declaration: 
+  Elaboration failed: Rules disagree on type: Cannot merge int and bool
+
+  $ ./llvm_test.exe <<- EOF
+  > let rec timer = fun y -> if y = 0 then 0 else timer (y - 1);;
+  > let main = timer true;;
+  Error in №2 declaration: 
+  Elaboration failed: Rules disagree on type: Cannot merge bool and int
+
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so 
+  > let fst x y = x;;
+  > let snd x y = y;;
+  > 
+  > let main =
+  >   let test1 = fst 4 1 in
+  >   let _ = print_int test1 in
+  >   let test2 = snd true false in
+  >   let _ = print_bool test2 in
+  >   let test3 = fst false 42 in
+  >   let _ = print_bool test3 in
+  >   let test4 = snd 42 true in
+  >   let _ = print_bool test4 in
+  > 0;;
+  4falsefalsetrue
