@@ -11,8 +11,6 @@ open Llvm_compiler
 open Code_inferencer
 open Typing
 open Inferencer
-open Anf_pretty
-open Ast_pretty
 
 let print_prog_result code =
   match parse prog code with
