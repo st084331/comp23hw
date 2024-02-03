@@ -41,5 +41,5 @@ let print_prog_result code =
             Stdlib.Format.printf "%s\n" (Llvm.string_of_llvalue f))
         | Error e -> Stdlib.Format.printf "Error\n%s" e)
      | Error res -> Stdlib.Format.printf "%s" res)
-  | Error e -> Stdlib.Format.printf "Error\n%s" e
+  | Error e -> Stdlib.Format.printf "Parser error! %s" e
 ;;
