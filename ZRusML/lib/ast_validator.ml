@@ -4,6 +4,7 @@
 
 open Ast
 module StringMap = Map.Make (String)
+module StringSet = Set.Make (String)
 
 let get_validated_name cnt = "ast_" ^ string_of_int cnt
 
@@ -66,12 +67,20 @@ let rec validate_exp env cnt exp =
 ;;
 
 let validate_prog prog =
+  let ignore_names = [ "main" ] in
+  let st_ignore =
+    List.fold_left (fun acc elem -> StringSet.add elem acc) StringSet.empty ignore_names
+  in
   let _, new_prog =
     List.fold_left_map
       (fun (acc_env, acc_cnt) (DLet (is_rec, p, exp)) ->
         match p with
         | PtVar id ->
-          let new_name = if id <> "main" then get_validated_name acc_cnt else "main" in
+          let new_name =
+            match StringSet.find_opt id st_ignore with
+            | Some _ -> id
+            | _ -> get_validated_name acc_cnt
+          in
           let acc_cnt = acc_cnt + 1 in
           let new_env = StringMap.add id new_name acc_env in
           let validated_env = if is_rec then new_env else acc_env in
