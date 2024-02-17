@@ -1,4 +1,4 @@
-(** Copyright 2023-2024, Grigory Aseev and Matvey Kalashnikov *)
+(** Copyright 2023-2024, Rustam Shangareev and Danil Yevdokimov *)
 
 (** SPDX-License-Identifier: LGPL-3.0 *)
 
