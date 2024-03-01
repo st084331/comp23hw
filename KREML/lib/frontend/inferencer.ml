@@ -399,24 +399,25 @@ let infer =
   infer_program
 ;;
 
-let run_inference program = Result.map (run (infer TypeEnv.empty program)) ~f:snd
-
-let parse_and_infer input =
-  let print_type typ =
-    let s = Format.asprintf "%a" pp_type typ in
-    Format.printf "%s\n" s
+let run_inference program =
+  let stdlib =
+    List.fold_left
+      [ "print_int", (Set.empty (module Int), arrow_t int_t unit_t)
+      ; "print_bool", (Set.empty (module Int), arrow_t bool_t unit_t)
+      ]
+      ~init:TypeEnv.empty
+      ~f:(fun acc (id, scheme) -> TypeEnv.extend acc id scheme)
   in
-  let print_type_error error =
-    let s = Format.asprintf "%a" pp_error error in
-    Format.printf "%s\n" s
-  in
-  match Parser.parse input with
-  | Ok ast ->
-    (match run_inference ast with
-     | Ok typ -> print_type typ
-     | Error e -> print_type_error e)
-  | Error e -> Format.fprintf Format.std_formatter "Parsing error: (%S)" e
+  Result.map (run (infer stdlib program)) ~f:snd
 ;;
+
+let infer ast =
+  match run_inference ast with
+  | Ok typ -> print_type typ
+  | Error e -> print_type_error e
+;;
+
+let parse_and_infer input = infer (Parser.parse_optimistically input)
 
 (* tests *)
 
