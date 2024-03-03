@@ -417,6 +417,8 @@ let infer ast =
   | Error e -> print_type_error e
 ;;
 
+let parse_and_infer input = infer (Parser.parse_optimistically input)
+
 (* tests *)
 
 let%expect_test "Empty input" =
