@@ -16,7 +16,9 @@
   LlastPrinter
   LambdaLifting
   LlvmCompiler
-  StdlibFunc)
+  StdlibFunc
+  Asm
+  resultCounter)
  (libraries base angstrom llvm)
  (instrumentation
   (backend bisect_ppx))
