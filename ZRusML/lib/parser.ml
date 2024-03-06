@@ -1,4 +1,4 @@
-(** Copyright 2023-2024, Rustam Shangareev and Danil Yevdokimov*)
+(** Copyright 2023-2024, Rustam Shangareev and Danil Yevdokimov *)
 
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
@@ -224,21 +224,17 @@ let pack =
       empty_lr @@ choice [ uns_const >>| econst; ident >>| evar; brackets @@ d.exp d ]
     in
     let app_op = empty_lr @@ chainl1' prim prim eapp in
-    let mul_op = procl (choice_op [ "*", Mul; "/", Div ]) app_op @@ d.key d in
-    let add_op =
-      procl
-        (choice_op [ "+", Add; "-", Sub ])
-        (apply_unary mul_op)
-        (apply_unary @@ d.key d)
-    in
-    let cons_op = fix @@ fun _ -> add_op >>= return in
+    let div_op = procl (choice_op [ "/", Div ]) (apply_unary app_op) @@ d.key d in
+    let mul_op = procl (choice_op [ "*", Mul ]) div_op @@ d.key d in
+    let cons_op = fix @@ fun _ -> mul_op >>= return in
+    let add_op = procl (choice_op [ "+", Add; "-", Sub ]) cons_op @@ d.key d in
     let cmp_op =
-      procl (choice_op [ ">=", Geq; ">", Gre; "<=", Leq; "<", Less ]) cons_op @@ d.key d
+      procl (choice_op [ ">=", Geq; ">", Gre; "<=", Leq; "<", Less ]) add_op @@ d.key d
     in
     let eq_op = procl (choice_op [ "=", Eq; "<>", Neq ]) cmp_op @@ d.key d in
     let conj_op = procl (choice_op [ "&&", And ]) eq_op @@ d.key d in
     let disj_op = procl (choice_op [ "||", Or ]) conj_op @@ d.key d in
-    empty_lr @@ disj_op
+    empty_lr disj_op
   in
   { key; op; exp }
 ;;
