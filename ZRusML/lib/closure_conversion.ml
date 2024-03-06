@@ -125,7 +125,7 @@ let closure_transform prog =
       prog
   in
   bindings
-;; *)
+;;
 
 let rec decompose_fun pts = function
   | EFun (p, e) -> decompose_fun (p :: pts) e
