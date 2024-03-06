@@ -36,16 +36,6 @@ let new_fresh_var () =
   fresh_var_temp count
 ;;
 
-let fresh_var_temp count () =
-  incr count;
-  Printf.sprintf "%s_%d" "anf" !count
-;;
-
-let new_fresh_var () =
-  let count = ref 0 in
-  fresh_var_temp count
-;;
-
 let rec anf_func (fresh_var : unit -> id) (e : exp) (expr_with_hole : immexpr -> aexpr)
   : aexpr
   =
