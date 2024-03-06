@@ -40,6 +40,7 @@ module R : sig
 
   (** Produces a fresh integer. *)
   val fresh : int t
+
   (** Runs the monad, producing a result. *)
   val run : 'a t -> ('a, error) Result.t
 end
