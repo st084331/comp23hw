@@ -6,11 +6,6 @@ open Ast
 open Inferencer
 open Typing
 
-let rec find x = function
-  | [] -> 0
-  | h :: t -> if x = h then 1 else 1 + find x t
-;;
-
 let env_inference prog env =
   let typs, _ =
     List.fold_left
@@ -56,6 +51,13 @@ let env_show_inference prog env =
          ""
          id_x_typs)
   | Some (Error e) ->
+    let find x =
+      let rec find_helper x ans = function
+        | [] -> ans
+        | h :: t -> if x = h then ans else find_helper x (ans + 1) t
+      in
+      find_helper x 1
+    in
     let index = find (Error e) only_typs in
     Error (Format.sprintf "Error in №%d declaration: \n%s\n" index (show_error e))
   | _ -> Error (show_error `Unreachable)

@@ -5,34 +5,22 @@
 open Base
 open ZRusML_lib.Typing
 
-let%test "pp_type prints int type correctly" =
-  let buf = Buffer.create 16 in
-  let fmt = Format.formatter_of_buffer buf in
-  pp_typ fmt int_typ;
-  Format.pp_print_flush fmt ();
-  String.equal (Buffer.contents buf) "int"
+let%expect_test "pp_type prints int type correctly" =
+  pp_typ Format.std_formatter int_typ;
+  [%expect "int"]
 ;;
 
-let%test "pp_type prints bool type correctly" =
-  let buf = Buffer.create 16 in
-  let fmt = Format.formatter_of_buffer buf in
-  pp_typ fmt bool_typ;
-  Format.pp_print_flush fmt ();
-  String.equal (Buffer.contents buf) "bool"
+let%expect_test "pp_type prints bool type correctly" =
+  pp_typ Format.std_formatter bool_typ;
+  [%expect "bool"]
 ;;
 
-let%test "pp_type prints arrow type correctly" =
-  let buf = Buffer.create 16 in
-  let fmt = Format.formatter_of_buffer buf in
-  pp_typ fmt (arrow_t int_typ bool_typ);
-  Format.pp_print_flush fmt ();
-  String.equal (Buffer.contents buf) "int -> bool"
+let%expect_test "pp_type prints arrow type correctly" =
+  pp_typ Format.std_formatter (arrow_t int_typ bool_typ);
+  [%expect "int -> bool"]
 ;;
 
-let%test "pp_error prints OccursCheck correctly" =
-  let buf = Buffer.create 16 in
-  let fmt = Format.formatter_of_buffer buf in
-  pp_error fmt `OccursCheck;
-  Format.pp_print_flush fmt ();
-  String.equal (Buffer.contents buf) "Occurs check failed."
+let%expect_test "pp_error prints OccursCheck correctly" =
+  pp_error Format.std_formatter `OccursCheck;
+  [%expect "Occurs check failed."]
 ;;
