@@ -4,45 +4,52 @@
 
 open Ast
 
-type arg = Arg of string * Typetree.ty (** Typed function argument *)
+(** Typed patterns *)
+type tpattern =
+  | TPVar of string * Ty.ty
+  | TPWildcard of Ty.ty
+  | TPTuple of tpattern list * Ty.ty
 
-(** Typed expession type *)
+type typed_name = string * Ty.ty
+type typed_binop = bin_op * Ty.ty
+
+(** Typed expression type *)
 type texpr =
-  | TConst of const * Typetree.ty (** Typed expression for the constant *)
-  | TVar of string * Typetree.ty (** Typed expression for the variables *)
-  | TBinop of bin_op * texpr * texpr * Typetree.ty
+  | TConst of const * Ty.ty (** Typed expression for the constant *)
+  | TVar of string * Ty.ty (** Typed expression for the variables *)
+  | TBinop of typed_binop * texpr * texpr
   (** Typed expression for the binary operations *)
-  | TApp of texpr * texpr * Typetree.ty
+  | TApp of texpr * texpr * Ty.ty
   (** Typed expression for the function application to the arguments *)
-  | TIfThenElse of texpr * texpr * texpr * Typetree.ty
+  | TIfThenElse of texpr * texpr * texpr * Ty.ty
   (** Typed expression for condition statement *)
-  | TLetIn of string * texpr * texpr * Typetree.ty
-  (** Typed expression for let in declaration *)
-  | TLetRecIn of string * texpr * texpr * Typetree.ty
+  | TLetIn of tpattern * texpr * texpr (** Typed expression for let in declaration *)
+  | TLetRecIn of typed_name * texpr * texpr
   (** Typed expression for let rec in declaration *)
-  | TFun of arg * texpr * Typetree.ty (** Typed expression for function *)
+  | TFun of tpattern * texpr * Ty.ty (** Typed expression for function *)
+  | TTuple of texpr list * Ty.ty (** Typed expression for the tuples *)
 
 (** Typed binding type *)
 type tbinding =
-  | TLet of string * texpr * Typetree.ty (** Typed expression for let declaration *)
-  | TLetRec of string * texpr * Typetree.ty
-  (** Typed expression for let rec declaration *)
+  | TLet of tpattern * texpr (** Typed expression for let declaration *)
+  | TLetRec of typed_name * texpr (** Typed expression for let rec declaration *)
 
 (** Typed statements type *)
 type tstatements = tbinding list
 
 (** Constructors for typed expressions *)
 
-val tconst : Ast.const -> Typetree.ty -> texpr
-val tvar : string -> Typetree.ty -> texpr
-val tbinop : Ast.bin_op -> texpr -> texpr -> Typetree.ty -> texpr
-val tapp : texpr -> texpr -> Typetree.ty -> texpr
-val tifthenelse : texpr -> texpr -> texpr -> Typetree.ty -> texpr
-val tletin : string -> texpr -> texpr -> Typetree.ty -> texpr
-val tletrecin : string -> texpr -> texpr -> Typetree.ty -> texpr
-val tfun : string -> Typetree.ty -> texpr -> Typetree.ty -> texpr
+val tconst : Ast.const -> Ty.ty -> texpr
+val tvar : string -> Ty.ty -> texpr
+val tbinop : Ast.bin_op -> Ty.ty -> texpr -> texpr -> texpr
+val tapp : texpr -> texpr -> Ty.ty -> texpr
+val tifthenelse : texpr -> texpr -> texpr -> Ty.ty -> texpr
+val tletin : tpattern -> texpr -> texpr -> texpr
+val tletrecin : string -> texpr -> texpr -> Ty.ty -> texpr
+val tfun : tpattern -> texpr -> Ty.ty -> texpr
+val ttuple : texpr list -> Ty.ty -> texpr
 
 (** tbindings constructors *)
 
-val tlet : string -> texpr -> Typetree.ty -> tbinding
-val tletrec : string -> texpr -> Typetree.ty -> tbinding
+val tlet : tpattern -> texpr -> tbinding
+val tletrec : string -> Ty.ty -> texpr -> tbinding

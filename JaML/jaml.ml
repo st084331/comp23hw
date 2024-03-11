@@ -49,14 +49,14 @@ let infer_types input mode =
   let parsed = Parser.parse input in
   match parsed with
   | Ok statements ->
-    (match Inferencer.infer statements mode with
+    (match Inferencer.infer mode statements with
      | Ok typed_statements -> printf "%a\n" pp_statements typed_statements
      | Error err -> printf "%a\n" Inferencer.pp_error err)
   | Error err -> printf "%a\n" Parser.pp_error err
 ;;
 
 let read_input filename =
-  if filename != ""
+  if filename <> ""
   then
     if Sys.file_exists filename
     then Ok (In_channel.with_open_bin filename In_channel.input_all)
@@ -68,9 +68,9 @@ let () =
   let args = YamlCLIArgs.parse () in
   let mode = flag_to_occurs_check_mode args.occurs_check in
   match read_input args.filename with
-  | Ok input when input != "" && args.infer_type -> infer_types input mode
-  | Ok input when input != "" && not args.infer_type ->
-    printf "compilation does not support yet"
+  | Ok input when input <> "" && args.infer_type -> infer_types input mode
+  | Ok input when input <> "" && not args.infer_type ->
+    printf "compilation is not supported"
   | Ok _ -> printf "empty input"
   | Error err -> printf "%a\n" pp_error err
 ;;
