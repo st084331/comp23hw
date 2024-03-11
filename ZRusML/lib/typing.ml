@@ -1,4 +1,4 @@
-(** Copyright 2023-2024, Rustam Shangareev and Danil Yevdokimov*)
+(** Copyright 2023-2024, Rustam Shangareev and Danil Yevdokimov *)
 
 (** SPDX-License-Identifier: LGPL-2.1 *)
 
@@ -8,6 +8,7 @@ type identifier = string
 type ground_type =
   | Int
   | Bool
+  | Unit
 
 type typ =
   | TVar of type_variable_number (** 'a *)
@@ -31,41 +32,35 @@ type error =
   | `Matching_failed
   ]
 
-let rec pp_type fmt typ =
+let rec show_typ typ =
   let open Format in
-  let arrow_format = function
-    | TArr _ -> format_of_string "(%a)"
-    | _ -> format_of_string "%a"
-  in
   match typ with
   | TGround x ->
     (match x with
-     | Int -> fprintf fmt "int"
-     | Bool -> fprintf fmt "bool")
+     | Int -> "int"
+     | Bool -> "bool"
+     | Unit -> "unit")
   | TArr (typ_left, typ_right) ->
-    fprintf fmt (arrow_format typ_left ^^ " -> %a") pp_type typ_left pp_type typ_right
-  | TVar var -> fprintf fmt "%s" @@ "'" ^ Char.escaped (Stdlib.Char.chr (var + 97))
+    sprintf "%s -> %s" (show_typ typ_left) (show_typ typ_right)
+  | TVar var -> sprintf "%s" @@ "'" ^ Char.escaped (Stdlib.Char.chr (var + 97))
 ;;
 
-let print_typ typ = Format.printf "%a\n" pp_type typ
+let pp_typ fmt typ = Format.fprintf fmt "%s" (show_typ typ)
 
-let pp_error fmt (err : error) =
+let show_error (err : error) =
   let open Format in
   match err with
-  | `OccursCheck -> fprintf fmt "Occurs check failed."
+  | `OccursCheck -> "Occurs check failed."
   | `NoVariable identifier ->
-    fprintf fmt "Elaboration failed: Unbound value identifier %s" identifier
+    sprintf "Elaboration failed: Unbound value identifier %s" identifier
   | `UnificationFailed (t1, t2) ->
-    fprintf
-      fmt
-      "Elaboration failed: Rules disagree on type: Cannot merge %a and %a"
-      pp_type
-      t1
-      pp_type
-      t2
-  | `Unreachable -> fprintf fmt "Not reachable."
-  | `Not_function -> fprintf fmt "Applying not a function"
-  | `Matching_failed -> fprintf fmt "Non-exhaustive matching"
+    sprintf
+      "Elaboration failed: Rules disagree on type: Cannot merge %s and %s"
+      (show_typ t1)
+      (show_typ t2)
+  | `Unreachable -> "Not reachable."
+  | `Not_function -> "Applying not a function"
+  | `Matching_failed -> "Non-exhaustive matching"
 ;;
 
-let print_type_error error = Format.printf "%a\n" pp_error error
+let pp_error fmt err = Format.fprintf fmt "%s" (show_error err)
