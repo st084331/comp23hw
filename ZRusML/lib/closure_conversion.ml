@@ -6,11 +6,6 @@ open Ast
 module StringMap = Map.Make (String)
 module StringSet = Set.Make (String)
 
-let rec decompose_fun pts = function
-  | EFun (p, e) -> decompose_fun (p :: pts) e
-  | e -> pts, e
-;;
-
 let rec transform_exp exp env =
   match exp with
   | EVar nm ->
@@ -34,6 +29,10 @@ let rec transform_exp exp env =
     let env2, exp2 = transform_exp e2 env in
     StringSet.union env1 env2, EApp (exp1, exp2)
   | EFun (_, _) ->
+    let rec decompose_fun pts = function
+      | EFun (p, e) -> decompose_fun (p :: pts) e
+      | e -> pts, e
+    in
     let vars, body = decompose_fun [] exp in
     let args =
       StringSet.of_list
