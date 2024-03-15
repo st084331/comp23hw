@@ -6,23 +6,29 @@ open Ast
 open Inferencer
 open Typing
 
+let rec max_fresh = function
+  | TVar n -> n + 1
+  | TArr (l, r) -> max (max_fresh l) (max_fresh r)
+  | TGround _ -> 0
+;;
+
 let env_inference prog env =
-  let typs, _ =
+  let typs, _, _ =
     List.fold_left
-      (fun (typs, environment) dec ->
+      (fun (typs, environment, f) dec ->
         let tcheck dec =
           match dec with
-          | DLet (_, PtWild, _) -> "- ", run_inference dec environment
-          | DLet (_, PtVar name, _) -> name, run_inference dec environment
+          | DLet (_, PtWild, _) -> "- ", run_inference dec environment f
+          | DLet (_, PtVar name, _) -> name, run_inference dec environment f
           | _ -> "", Error `Matching_failed
         in
-        let environment' =
+        let environment', next_fresh =
           match snd (tcheck dec) with
-          | Ok (env, _) -> env
-          | _ -> environment
+          | Ok (env, typ) -> env, max_fresh typ
+          | _ -> environment, 0
         in
-        tcheck dec :: typs, environment')
-      ([], env)
+        tcheck dec :: typs, environment', next_fresh)
+      ([], env, 0)
       prog
   in
   List.rev typs

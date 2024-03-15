@@ -42,7 +42,7 @@ module R : sig
   val fresh : int t
 
   (** Runs the monad, producing a result. *)
-  val run : 'a t -> ('a, error) Result.t
+  val run : 'a t -> int -> ('a, error) Result.t
 end
 
 type fresh = int
@@ -122,7 +122,7 @@ val infer : TypeEnv.t -> exp -> (Subst.t * Type.t * TypeEnv.t) R.t
 val run_inference
   :  Ast.decl
   -> TypeEnv.t
-  -> ( (Typing.identifier, Typing.scheme, Base.String.comparator_witness) Base.Map.t
+  -> fresh -> ( (Typing.identifier, Typing.scheme, Base.String.comparator_witness) Base.Map.t
        * Typing.typ
        , Typing.error )
        Base.Result.t

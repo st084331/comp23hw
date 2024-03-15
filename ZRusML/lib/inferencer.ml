@@ -29,7 +29,7 @@ module R : sig
   end
 
   val fresh : int t
-  val run : 'a t -> ('a, error) Result.t
+  val run : 'a t -> int -> ('a, error) Result.t
 end = struct
   type 'a t = int -> int * ('a, error) Result.t
 
@@ -66,7 +66,7 @@ end = struct
   end
 
   let fresh : int t = fun last -> last + 1, Result.Ok last
-  let run m = snd (m 0)
+  let run m x = snd (m x)
 end
 
 type fresh = int
@@ -263,12 +263,6 @@ let lookup_env e map =
     return (Subst.empty, ans, map)
 ;;
 
-let rec get_name = function
-  | EApp (l, _) -> get_name l
-  | EVar name -> return name
-  | _ -> fail `Not_function
-;;
-
 let infer =
   let rec ehelper : TypeEnv.t -> exp -> (Subst.t * typ * TypeEnv.t) R.t =
     fun env -> function
@@ -418,4 +412,4 @@ let check_types environment (dec : decl) =
     return (TypeEnv.extend environment' name generalized_type, res_typ)
 ;;
 
-let run_inference expression env = run (check_types env expression)
+let run_inference expression env x = run (check_types env expression) x
