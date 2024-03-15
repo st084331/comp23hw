@@ -175,3 +175,12 @@
   >   let _ = print_bool test4 in
   > 0;;
   4falsefalsetrue
+
+% kakadu jaml test
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so 
+  > let rec fix = fun f -> (fun x -> f (fix f) x);;
+  > let fac = fun self -> (fun n -> (fun k -> if n<2 then k 1 else self (n-1) (fun a -> k (n*a))));;
+  > let fac = fix fac;;
+  > let z = (fun a -> fac a (fun x -> x)) 5;;
+  > let main = print_int z;;
+  120
