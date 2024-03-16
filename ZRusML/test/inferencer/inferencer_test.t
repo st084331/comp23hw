@@ -84,13 +84,12 @@
 % kakadu jaml test
   $ ./inferencer_test.exe << EOF
   >  let rec fix = fun f -> (fun x -> f (fix f) x);;
-  >  let fac = fun self -> (fun n -> (fun k ->
-  >    if n<2 then k 1 else self (n-1) (fun a -> k (n*a))));;
+  >  let fac = fun self -> (fun n -> (fun k -> if n<2 then k 1 else self (n-1) (fun a -> k (n*a))));;
   >  let fac = (fun a -> fix fac a);;
   >  let z = fac 5 (fun a -> a);;
-  val fix : 'd -> 'c -> 'f -> 'c -> 'f
-  val fac : int -> int -> 'j -> 'j -> int -> int -> 'j -> 'j
-  val fac : int -> int -> 'l -> 'l
+  val fix : (('c -> 'f) -> ('c -> 'f)) -> ('c -> 'f)
+  val fac : (int -> (int -> 'j) -> 'j) -> (int -> (int -> 'j) -> 'j)
+  val fac : int -> (int -> 'l) -> 'l
   val z : int
   _______
 

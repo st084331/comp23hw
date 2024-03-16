@@ -41,7 +41,17 @@ let rec show_typ typ =
      | Bool -> "bool"
      | Unit -> "unit")
   | TArr (typ_left, typ_right) ->
-    sprintf "%s -> %s" (show_typ typ_left) (show_typ typ_right)
+    let left =
+      match typ_left with
+      | TArr _ -> sprintf "(%s)" (show_typ typ_left)
+      | _ -> show_typ typ_left
+    in
+    let right =
+      match typ_left, typ_right with
+      | TArr _, TArr _ -> sprintf "(%s)" (show_typ typ_right)
+      | _ -> show_typ typ_right
+    in
+    sprintf "%s -> %s" left right
   | TVar var -> sprintf "%s" @@ "'" ^ Char.escaped (Stdlib.Char.chr (var + 97))
 ;;
 
