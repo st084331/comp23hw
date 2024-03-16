@@ -14,7 +14,7 @@
   Anf_pretty
   Ast_validator
   Llvm_compiler
-  Interpreter)
+  Compiler)
  (inline_tests)
  (libraries base angstrom stdlib llvm)
  (preprocess
