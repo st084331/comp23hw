@@ -27,7 +27,7 @@ let env_inference prog env =
           | Ok (env, typ) -> env, max_fresh typ
           | _ -> environment, 0
         in
-        tcheck dec :: typs, environment', next_fresh)
+        tcheck dec :: typs, environment', max next_fresh f)
       ([], env, 0)
       prog
   in
