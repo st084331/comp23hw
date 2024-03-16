@@ -10,8 +10,7 @@ Authors: Shangareev Rustam, rustam.letitbe@gmail.com; Danil Yevdokimov, st084331
 
 - Parser
 - Type inferencer
-- Compiler
-- Interpreter for compiled code
+- Compiler from ANF and text containing code
 - Unit tests
 
 ### Features details:
@@ -19,9 +18,9 @@ Authors: Shangareev Rustam, rustam.letitbe@gmail.com; Danil Yevdokimov, st084331
 - Parser based on abstract syntactic tree
 - Type inferencer supports generic type, errors check and printing, types printing
 - ANF builder, which preliminarily liftes lambdas and converts closures
-- LLVM compiler
-- Interpreter that collects all stages together, which can successfully execute correct code and notify about errors in incorrect code
-- Unit tests for parser, lambda lifting, closure conversion, anf building, type inferencing and LLVM compiler with interpreter
+- LLVM compiler from ANF
+- Compiler that collects all stages together, which can successfully execute correct code and notify about errors in incorrect code
+- Unit tests for parser, lambda lifting, closure conversion, anf building, type inferencing and LLVM compiler
 
 ### Mini-language supports
 
