@@ -130,7 +130,7 @@ end = struct
       | TVar n ->
         (match find_exn n s with
          | exception Not_found_s _ -> TVar n
-         | x -> x)
+         | x -> ehelper x)
       | TArr (left, right) -> arrow_t (ehelper left) (ehelper right)
       | ground -> ground
     in
@@ -398,7 +398,8 @@ let check_types environment (dec : decl) =
     let* subst' = unify (Subst.apply subst type_variable) typ in
     let* final_subst = Subst.compose subst' subst in
     let env = TypeEnv.apply final_subst env in
-    let generalized_type = generalize env (Subst.apply final_subst type_variable) in
+    let typ = Subst.apply final_subst type_variable in
+    let generalized_type = generalize env typ in
     return (TypeEnv.extend environment' name generalized_type, typ)
   | DLet (_, pt, exp) ->
     let name =
@@ -407,8 +408,8 @@ let check_types environment (dec : decl) =
       | _ -> "_"
     in
     let* subst, function_type, environment' = infer environment exp in
-    let res_typ = function_type in
-    let generalized_type = generalize environment' (Subst.apply subst res_typ) in
+    let res_typ = Subst.apply subst function_type in
+    let generalized_type = generalize environment' res_typ in
     return (TypeEnv.extend environment' name generalized_type, res_typ)
 ;;
 
