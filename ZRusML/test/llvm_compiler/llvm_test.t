@@ -184,3 +184,12 @@
   > let z = (fun a -> fac a (fun x -> x)) 5;;
   > let main = print_int z;;
   120
+
+  $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so
+  > let rec fix = fun f -> (fun x -> f (fix f) x);;
+  > let fib_cps self n cont = if n <= 1 then cont n else self (n-1) (fun val1 -> self (n-2) (fun val2 -> cont (val1 + val2)));;
+  > let fib_cps = fix fib_cps;;
+  > let fib n = fib_cps n (fun x -> x);;
+  > let main = print_int (fib 8);;
+  21
+

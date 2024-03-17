@@ -93,3 +93,13 @@
   val z : int
   _______
 
+  $ ./inferencer_test.exe << EOF
+  > let rec fix = fun f -> (fun x -> f (fix f) x);;
+  > let fib_cps self n cont = if n <= 1 then cont n else self (n-1) (fun val1 -> self (n-2) (fun val2 -> cont (val1 + val2)));;
+  > let fib_cps = fix fib_cps;;
+  > let fib n = fib_cps n (fun x -> x);;
+  val fix : (('c -> 'f) -> ('c -> 'f)) -> ('c -> 'f)
+  val fib_cps : (int -> (int -> 'j) -> 'j) -> (int -> (int -> 'j) -> 'j)
+  val fib_cps : int -> (int -> 'k) -> 'k
+  val fib : int -> int
+  _______
