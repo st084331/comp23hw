@@ -18,7 +18,6 @@ let print_prog_result code =
     let stdlib =
       [ "print_int", TArr (TGround Int, TGround Unit)
       ; "print_bool", TArr (TGround Bool, TGround Unit)
-      ; "print_endline", TArr (TGround Unit, TGround Unit)
       ; "print_char", TArr (TGround Int, TGround Unit)
       ]
     in

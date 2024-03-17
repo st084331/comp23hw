@@ -201,12 +201,6 @@ int64_t print_bool(int64_t x)
     return 0;
 }
 
-int64_t print_endline()
-{
-    printf("\n");
-    return 0;
-}
-
 int64_t print_char(int64_t x)
 {
     printf("%c", (char)x);

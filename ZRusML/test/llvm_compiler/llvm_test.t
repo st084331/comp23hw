@@ -85,7 +85,7 @@
   >   let test2 = print_bool (false || 7 = 7) in
   >   let test3 = print_bool (17 * 4 > 3 || 2 < 4 / 4) in
   >   let test4 = print_bool (5 < 3 || 7 * 7 = 50 || 15 <= 14 || 9 * 3 <> 27) in
-  > print_endline;;
+  > print_char 10;;
   truetruetruefalse
 
   $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so 
@@ -94,7 +94,7 @@
   >   let test1 = print_int (f 1 2 3 4 5 6 7) in
   >   let test2 = print_bool (f 1 2 3 4 true 6 7) in
   >   let test3 = print_int (f false true false 17 42 true 1) in
-  > print_endline;;
+  > print_char 10;;
   5true42
 
   $ ./llvm_test.exe <<- EOF | lli-16 -load ../../runtime/runtime.so 
